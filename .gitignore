@@ -10,3 +10,4 @@ daily_workout_tracker_implementation.md
 backend/uploads
 package-lock.json
 local_scripts/**
+plan/**
