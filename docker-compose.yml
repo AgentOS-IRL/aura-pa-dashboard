@@ -10,6 +10,7 @@ services:
       - ./frontend:/app/frontend
       - ./uploads:/app/backend/uploads # keep uploads on the host so media can persist across container restarts
       - backend-node-modules:/app/backend/node_modules # preserve installed backend deps even though we mount the source tree
+      - backend-dist:/app/backend/dist # keep the build output from the image so the runtime still sees dist/index.js
     environment:
       PORT: "3001"
       FRONTEND_URL: "http://localhost:3006"
@@ -19,3 +20,4 @@ services:
 
 volumes:
   backend-node-modules:
+  backend-dist:
