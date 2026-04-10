@@ -20,6 +20,10 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## Favicon
+
+The canonical favicon resides at `src/app/favicon.ico`, which Next.js App Router picks up automatically. Metadata in `layout.tsx` also points to supplemental PNG exports in `public/` (`apple-touch-icon.png`, `icon-192x192.png`, and `icon-512x512.png`). When the design needs refreshing, replace those files with new source assets so both the favicon and metadata stay in sync.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:
