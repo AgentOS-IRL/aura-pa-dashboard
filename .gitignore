@@ -11,3 +11,4 @@ backend/uploads
 package-lock.json
 local_scripts/**
 plan/**
+backend/node_modules/**
