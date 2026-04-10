@@ -1,6 +1,7 @@
 import http from 'http';
 import path from 'path';
 import express, { Request, Response, NextFunction } from 'express';
+import cors from 'cors';
 import morgan from 'morgan';
 import swaggerUi from 'swagger-ui-express';
 import YAML from 'yamljs';
@@ -14,6 +15,15 @@ export function createApp() {
 
   app.use(express.json());
   app.use(morgan('tiny'));
+
+  const corsOptions = { origin: '*' };
+  app.use(cors(corsOptions));
+
+  app.use((_, res, next) => {
+    res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+    res.setHeader('Cross-Origin-Embedder-Policy', 'require-corp');
+    next();
+  });
 
   // Keep the documentation on a dedicated route so new APIs can share the same stack later.
   app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));

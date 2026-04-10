@@ -2,7 +2,8 @@
 
 import { useMicVAD, utils } from '@ricky0123/vad-react';
 import { Mic, MicOff, Waves, Trash2 } from 'lucide-react';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
+import { createSessionId, uploadAudioChunk } from '../lib/audioUpload';
 
 interface AudioSegment {
     id: string;
@@ -10,8 +11,100 @@ interface AudioSegment {
     timestamp: Date;
 }
 
+const RETRY_DELAY_MS = 2000;
+
 export default function Assistant() {
     const [segments, setSegments] = useState<AudioSegment[]>([]);
+    const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
+    const [sessionStatus, setSessionStatus] = useState('Idle');
+    const [uploadStatus, setUploadStatus] = useState('Awaiting session start');
+    const [uploadError, setUploadError] = useState<string | null>(null);
+    const [uploadInFlight, setUploadInFlight] = useState(false);
+    const sessionIdRef = useRef<string | null>(null);
+    const uploadInFlightRef = useRef(false);
+    const uploadQueueRef = useRef<ArrayBuffer[]>([]);
+    const processingRef = useRef(false);
+
+    const processUploadQueue = useCallback(async () => {
+        if (processingRef.current) {
+            return;
+        }
+
+        if (uploadQueueRef.current.length === 0) {
+            return;
+        }
+
+        processingRef.current = true;
+        uploadInFlightRef.current = true;
+        setUploadInFlight(true);
+        let shouldRetry = false;
+
+        while (uploadQueueRef.current.length > 0 && !shouldRetry) {
+            const chunk = uploadQueueRef.current.shift()!;
+            const sessionId = sessionIdRef.current;
+
+            if (!sessionId) {
+                setUploadStatus('No session active, upload canceled');
+                uploadQueueRef.current.length = 0;
+                break;
+            }
+
+            setSessionStatus('Recording');
+            setUploadStatus('Uploading audio chunk...');
+            setUploadError(null);
+
+            try {
+                await uploadAudioChunk(sessionId, chunk);
+                setUploadStatus('Upload complete');
+            } catch (error) {
+                console.error('Failed to upload audio chunk', error);
+                setUploadStatus('Upload failed, retrying...');
+                setUploadError(error instanceof Error ? error.message : String(error));
+                uploadQueueRef.current.unshift(chunk);
+                shouldRetry = true;
+            }
+        }
+
+        processingRef.current = false;
+        uploadInFlightRef.current = false;
+        setUploadInFlight(false);
+
+        if (!shouldRetry && uploadQueueRef.current.length === 0) {
+            setSessionStatus('Session active');
+            setUploadStatus('Awaiting audio chunk...');
+        }
+
+        if (shouldRetry) {
+            setTimeout(() => {
+                void processUploadQueue();
+            }, RETRY_DELAY_MS);
+        }
+    }, []);
+
+    const handleSpeechEnd = useCallback(async (audio: Float32Array) => {
+        const wavBuffer = utils.encodeWAV(audio);
+        const base64 = utils.arrayBufferToBase64(wavBuffer);
+        const url = `data:audio/wav;base64,${base64}`;
+
+        const newSegment: AudioSegment = {
+            id: Math.random().toString(36).substring(2, 9),
+            url,
+            timestamp: new Date(),
+        };
+
+        setSegments((prev) => [newSegment, ...prev]);
+
+        const sessionId = sessionIdRef.current;
+        if (!sessionId) {
+            console.warn('Skipping upload: no session ID present');
+            setUploadStatus('No session active, start listening first');
+            return;
+        }
+
+        uploadQueueRef.current.push(wavBuffer);
+        setUploadStatus('Queued chunk for upload...');
+        void processUploadQueue();
+    }, [processUploadQueue]);
 
     const vad = useMicVAD({
         model: 'v5',
@@ -19,24 +112,27 @@ export default function Assistant() {
         onnxWASMBasePath: '/',
         startOnLoad: false,
         onSpeechEnd: (audio) => {
-            const wavBuffer = utils.encodeWAV(audio);
-            const base64 = utils.arrayBufferToBase64(wavBuffer);
-            const url = `data:audio/wav;base64,${base64}`;
-
-            const newSegment: AudioSegment = {
-                id: Math.random().toString(36).substring(2, 9),
-                url,
-                timestamp: new Date(),
-            };
-
-            setSegments((prev) => [newSegment, ...prev]);
+            void handleSpeechEnd(audio);
         },
     });
 
     const toggleListening = () => {
         if (vad.listening) {
             vad.pause();
+            setSessionStatus('Session paused');
+            setUploadStatus(uploadInFlightRef.current ? 'Upload still in progress' : 'Session paused');
         } else {
+            const newSessionId = createSessionId();
+            sessionIdRef.current = newSessionId;
+            uploadQueueRef.current = [];
+            processingRef.current = false;
+            setCurrentSessionId(newSessionId);
+            setSessionStatus('Session active');
+            setUploadStatus('Awaiting audio chunk...');
+            setUploadError(null);
+            uploadInFlightRef.current = false;
+            setUploadInFlight(false);
+            setSegments([]);
             vad.start();
         }
     };
@@ -86,6 +182,19 @@ export default function Assistant() {
                         >
                             {vad.listening ? 'Stop Assistant' : 'Wake Assistant'}
                         </button>
+
+                        <div className="space-y-1 text-sm text-slate-500 pt-3">
+                            <p className="text-xs uppercase tracking-wide text-slate-400">Session ID</p>
+                            <p className="font-mono text-slate-900 dark:text-white break-all">
+                                {currentSessionId ?? 'Tap "Wake Assistant" to start a session'}
+                            </p>
+                            <p className="text-xs text-slate-500">Session status: {sessionStatus}</p>
+                            <p className={`text-xs ${uploadError ? 'text-rose-500' : 'text-slate-500'}`}>
+                                Upload status: {uploadStatus}
+                                {uploadInFlight && ' · Sending...'}
+                            </p>
+                            {uploadError && <p className="text-xs text-rose-500">Error: {uploadError}</p>}
+                        </div>
                     </div>
                 </div>
             </section>
