@@ -8,4 +8,4 @@
 
 ## Backend Health Service
 
-A new `backend/` workspace now hosts a tiny Express service that only exposes `GET /health` (returns `{ status, uptime, version, timestamp }`) and Swagger UI at `GET /docs`. The service runs on `PORT 4000` by default, and `backend/README.md` documents installation, dev/start commands, and the `npm run lint`/`npm run test` checks for automation.
+A new `backend/` workspace hosts an Express service that still exposes `GET /health` plus Swagger UI at `GET /docs`, but now also offers `POST /sessions/{sessionId}/audio` for streaming client recordings into a per-session Redis list. Each audio list is stored under `aura/audio/{sessionId}` with a 3-day TTL, and the backend keeps the uploaded blob in memory before forwarding to Redis. The service runs on `PORT 4000` by default, and `backend/README.md` documents installation, dev/start commands, and the `npm run lint`/`npm run test` automation.

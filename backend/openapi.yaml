@@ -37,3 +37,35 @@ paths:
                   - uptime
                   - version
                   - timestamp
+  /sessions/{sessionId}/audio:
+    post:
+      tags:
+        - Audio
+      summary: Append a recorded audio chunk for a workout session
+      parameters:
+        - name: sessionId
+          in: path
+          description: Identifier for the current workout session
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                audio:
+                  type: string
+                  format: binary
+                  description: Audio blob captured from the client
+              required:
+                - audio
+      responses:
+        '201':
+          description: Chunk accepted and stored in Redis
+        '400':
+          description: Missing sessionId or audio payload
+        '500':
+          description: Backend failed to persist the audio chunk

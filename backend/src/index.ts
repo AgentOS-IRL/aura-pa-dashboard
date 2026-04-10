@@ -4,6 +4,7 @@ import express, { Request, Response, NextFunction } from 'express';
 import morgan from 'morgan';
 import swaggerUi from 'swagger-ui-express';
 import YAML from 'yamljs';
+import audioRouter from './routes/audio';
 import healthRouter from './routes/health';
 
 const swaggerDocument = YAML.load(path.join(__dirname, '..', 'openapi.yaml'));
@@ -17,6 +18,8 @@ export function createApp() {
   // Keep the documentation on a dedicated route so new APIs can share the same stack later.
   app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
   app.get('/docs.json', (_, res) => res.json(swaggerDocument));
+
+  app.use('/sessions', audioRouter);
 
   app.use('/health', healthRouter);
 
