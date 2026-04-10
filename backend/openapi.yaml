@@ -1,0 +1,39 @@
+openapi: 3.1.0
+info:
+  title: Aura PA Backend Health Service
+  version: 1.0.0
+  description: Minimal HTTP service that exposes the deployment health for observability and automation.
+  contact:
+    name: Aura Platform Team
+    email: platform-team@example.com
+paths:
+  /health:
+    get:
+      tags:
+        - Health
+      summary: Returns the current service health state
+      responses:
+        '200':
+          description: Service is running
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+                  uptime:
+                    type: number
+                    description: Seconds since the process started
+                  version:
+                    type: string
+                    description: Service version that matches package.json
+                  timestamp:
+                    type: string
+                    format: date-time
+                required:
+                  - status
+                  - uptime
+                  - version
+                  - timestamp
