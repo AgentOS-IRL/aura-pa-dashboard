@@ -20,6 +20,24 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## Assistant session uploads
+
+Each press of **Wake Assistant** generates a fresh session identifier that appears next to the action button and drives the `POST /sessions/{sessionId}/audio` uploads. The built-in status badges report when a chunk is in flight and if an upload fails, so you have real-time feedback while recording.
+
+The UI posts chunks to `NEXT_PUBLIC_BACKEND_URL` (default `http://localhost:4000`). Override that value in `.env.local` or your deployment env when your backend runs somewhere else:
+
+```bash
+NEXT_PUBLIC_BACKEND_URL=https://aura-pa-backend.internal
+```
+
+To replay or debug manually, you can hit the same endpoint with `curl` or `fetch`:
+
+```bash
+curl -X POST "${NEXT_PUBLIC_BACKEND_URL:-http://localhost:4000}/sessions/<session-id>/audio" \\
+  -F "audio=@/path/to/chunk.wav" \\
+  -H "Content-Type: multipart/form-data"
+```
+
 ## Favicon
 
 The canonical favicon resides at `src/app/favicon.ico`, which Next.js App Router picks up automatically. Metadata in `layout.tsx` also points to supplemental PNG exports in `public/` (`apple-touch-icon.png`, `icon-192x192.png`, and `icon-512x512.png`). When the design needs refreshing, replace those files with new source assets so both the favicon and metadata stay in sync.

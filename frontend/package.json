@@ -6,7 +6,8 @@
     "dev": "node ./node_modules/next/dist/bin/next dev --webpack",
     "build": "node ./node_modules/next/dist/bin/next build --webpack",
     "start": "node ./node_modules/next/dist/bin/next start",
-    "lint": "eslint"
+    "lint": "node ./node_modules/eslint/lib/cli.js .",
+    "test:unit": "vitest run"
   },
   "dependencies": {
     "@ricky0123/vad-react": "^0.0.36",
@@ -23,6 +24,8 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
+    "jsdom": "^22.1.0",
+    "vitest": "^1.5.0",
     "eslint-config-next": "16.2.3",
     "tailwindcss": "^4",
     "typescript": "^5"
