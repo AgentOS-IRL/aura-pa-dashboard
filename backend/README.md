@@ -29,6 +29,7 @@ The audio route pushes every chunk into a per-session Redis list under the key `
 - `REDIS_PASSWORD` is used when Redis requires authentication.
 - `REDIS_URL` overrides the host/port pair if you prefer a single connection string.
 - `FRONTEND_URL` (default `http://localhost:3000`) sets which origin the Express/CORS middleware exposes via `Access-Control-Allow-Origin`. Override this in production with your dashboard host so only trusted frontends can call `/sessions/{sessionId}/audio`.
+- The Express stack also sets `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: require-corp` so the Aura Assistant dashboard can stay cross-origin isolated for VAD/SharedArrayBuffer usage while still delegating uploads to this API.
 
 Retry logic with exponential backoff keeps the connection resilient, and connection events are logged for visibility.
 

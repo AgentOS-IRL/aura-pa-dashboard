@@ -20,6 +20,12 @@ export function createApp() {
   const corsOptions = process.env.NODE_ENV === 'development' ? { origin: '*' } : { origin: allowedOrigin };
   app.use(cors(corsOptions));
 
+  app.use((_, res, next) => {
+    res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+    res.setHeader('Cross-Origin-Embedder-Policy', 'require-corp');
+    next();
+  });
+
   // Keep the documentation on a dedicated route so new APIs can share the same stack later.
   app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
   app.get('/docs.json', (_, res) => res.json(swaggerDocument));
