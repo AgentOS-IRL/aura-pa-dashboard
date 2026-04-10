@@ -1,24 +1,32 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import request from 'supertest';
 
-const rpushBufferMock = vi.fn();
-const expireMock = vi.fn();
+vi.mock('../config/redis', () => {
+  const rpushBuffer = vi.fn();
+  const expire = vi.fn();
 
-vi.doMock('../config/redis', () => ({
-  redisClient: {
-    rpushBuffer: rpushBufferMock,
-    expire: expireMock
-  }
-}));
+  return {
+    redisClient: {
+      rpushBuffer,
+      expire
+    }
+  };
+});
 
+import { redisClient } from '../config/redis';
 import * as audioService from '../services/audio';
 import { createApp } from '../index';
+
+const mockRpushBuffer = redisClient.rpushBuffer as ReturnType<typeof vi.fn>;
+const mockExpire = redisClient.expire as ReturnType<typeof vi.fn>;
 
 const recordAudioChunkSpy = vi.spyOn(audioService, 'recordAudioChunk');
 const app = createApp();
 
 describe('audio route', () => {
   beforeEach(() => {
+    mockRpushBuffer.mockReset();
+    mockExpire.mockReset();
     recordAudioChunkSpy.mockReset();
     recordAudioChunkSpy.mockResolvedValue(undefined);
   });
