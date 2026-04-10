@@ -1,0 +1,58 @@
+name: PR Created Trigger
+
+on:
+  pull_request:
+    types: [opened]
+
+jobs:
+  trigger-agent:
+    runs-on: [self-hosted, linux]
+    steps:
+      - name: Install dependencies
+        run: |
+          if command -v apt-get >/dev/null; then
+            sudo apt-get update -y && sudo apt-get install -y redis-tools jq
+          elif command -v apk >/dev/null; then
+            sudo apk add --no-cache redis jq
+          else
+            echo "Unable to install redis-cli/jq; please install them on this runner"
+            exit 1
+          fi
+      - name: Publish trigger to Redis
+        shell: bash
+        env:
+          REPO_SLUG: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
+          BASE_BRANCH: ${{ github.event.pull_request.base.ref }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          TRIGGER_KEY: agentos/pr/created
+          REDIS_HOST: 192.168.8.129
+          REDIS_PORT: 6379
+          REDIS_CHANNEL: agentos/${{ github.repository }}/trigger
+        run: |
+          PAYLOAD=$(jq -n -c \
+            --arg repo "$REPO_SLUG" \
+            --argjson pr "$PR_NUMBER" \
+            --arg title "$PR_TITLE" \
+            --arg author "$PR_AUTHOR" \
+            --arg head_branch "$HEAD_BRANCH" \
+            --arg base_branch "$BASE_BRANCH" \
+            --arg pr_body "$PR_BODY" \
+            --arg pr_url "$PR_URL" \
+            '{
+              repo: $repo,
+              pr: $pr,
+              title: $title,
+              author: $author,
+              head_branch: $head_branch,
+              base_branch: $base_branch,
+              pr_body: $pr_body,
+              pr_url: $pr_url
+            }')
+
+          redis-cli -h "$REDIS_HOST" -p "$REDIS_PORT" PUBLISH "$REDIS_CHANNEL" "$TRIGGER_KEY"
+          redis-cli -h "$REDIS_HOST" -p "$REDIS_PORT" RPUSH "$TRIGGER_KEY" "$PAYLOAD"
