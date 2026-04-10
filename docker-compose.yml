@@ -1,0 +1,23 @@
+services:
+  aura-dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3006:3001"
+    volumes:
+      - ./backend:/app/backend
+      - ./frontend:/app/frontend
+      - ./uploads:/app/backend/uploads # keep uploads on the host so media can persist across container restarts
+      - backend-node-modules:/app/backend/node_modules # preserve installed backend deps even though we mount the source tree
+      - backend-dist:/app/backend/dist # keep the build output from the image so the runtime still sees dist/index.js
+    environment:
+      PORT: "3001"
+      FRONTEND_URL: "http://localhost:3006"
+    command: ["node", "backend/server.js"]
+    user: "node"
+    restart: unless-stopped
+
+volumes:
+  backend-node-modules:
+  backend-dist:
