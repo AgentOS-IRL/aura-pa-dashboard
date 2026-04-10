@@ -11,6 +11,8 @@ interface AudioSegment {
     timestamp: Date;
 }
 
+const RETRY_DELAY_MS = 2000;
+
 export default function Assistant() {
     const [segments, setSegments] = useState<AudioSegment[]>([]);
     const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
@@ -20,6 +22,64 @@ export default function Assistant() {
     const [uploadInFlight, setUploadInFlight] = useState(false);
     const sessionIdRef = useRef<string | null>(null);
     const uploadInFlightRef = useRef(false);
+    const uploadQueueRef = useRef<ArrayBuffer[]>([]);
+    const processingRef = useRef(false);
+
+    const processUploadQueue = useCallback(async () => {
+        if (processingRef.current) {
+            return;
+        }
+
+        if (uploadQueueRef.current.length === 0) {
+            return;
+        }
+
+        processingRef.current = true;
+        uploadInFlightRef.current = true;
+        setUploadInFlight(true);
+        let shouldRetry = false;
+
+        while (uploadQueueRef.current.length > 0 && !shouldRetry) {
+            const chunk = uploadQueueRef.current.shift()!;
+            const sessionId = sessionIdRef.current;
+
+            if (!sessionId) {
+                setUploadStatus('No session active, upload canceled');
+                uploadQueueRef.current.length = 0;
+                break;
+            }
+
+            setSessionStatus('Recording');
+            setUploadStatus('Uploading audio chunk...');
+            setUploadError(null);
+
+            try {
+                await uploadAudioChunk(sessionId, chunk);
+                setUploadStatus('Upload complete');
+            } catch (error) {
+                console.error('Failed to upload audio chunk', error);
+                setUploadStatus('Upload failed, retrying...');
+                setUploadError(error instanceof Error ? error.message : String(error));
+                uploadQueueRef.current.unshift(chunk);
+                shouldRetry = true;
+            }
+        }
+
+        processingRef.current = false;
+        uploadInFlightRef.current = false;
+        setUploadInFlight(false);
+
+        if (!shouldRetry && uploadQueueRef.current.length === 0) {
+            setSessionStatus('Session active');
+            setUploadStatus('Awaiting audio chunk...');
+        }
+
+        if (shouldRetry) {
+            setTimeout(() => {
+                void processUploadQueue();
+            }, RETRY_DELAY_MS);
+        }
+    }, []);
 
     const handleSpeechEnd = useCallback(async (audio: Float32Array) => {
         const wavBuffer = utils.encodeWAV(audio);
@@ -41,29 +101,10 @@ export default function Assistant() {
             return;
         }
 
-        if (uploadInFlightRef.current) {
-            setUploadStatus('Waiting for previous upload to finish');
-            return;
-        }
-
-        uploadInFlightRef.current = true;
-        setUploadInFlight(true);
-        setSessionStatus('Recording');
-        setUploadStatus('Uploading audio chunk...');
-        setUploadError(null);
-
-        try {
-            await uploadAudioChunk(sessionId, wavBuffer);
-            setUploadStatus('Upload complete');
-        } catch (error) {
-            console.error('Failed to upload audio chunk', error);
-            setUploadStatus('Upload failed, retry later');
-            setUploadError(error instanceof Error ? error.message : String(error));
-        } finally {
-            uploadInFlightRef.current = false;
-            setUploadInFlight(false);
-        }
-    }, []);
+        uploadQueueRef.current.push(wavBuffer);
+        setUploadStatus('Queued chunk for upload...');
+        void processUploadQueue();
+    }, [processUploadQueue]);
 
     const vad = useMicVAD({
         model: 'v5',
@@ -83,6 +124,8 @@ export default function Assistant() {
         } else {
             const newSessionId = createSessionId();
             sessionIdRef.current = newSessionId;
+            uploadQueueRef.current = [];
+            processingRef.current = false;
             setCurrentSessionId(newSessionId);
             setSessionStatus('Session active');
             setUploadStatus('Awaiting audio chunk...');
