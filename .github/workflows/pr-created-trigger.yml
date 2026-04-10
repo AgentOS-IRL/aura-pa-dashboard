@@ -32,7 +32,7 @@ jobs:
           TRIGGER_KEY: agentos/pr/created
           REDIS_HOST: 192.168.8.129
           REDIS_PORT: 6379
-          REDIS_CHANNEL: agentos/${{ github.repository }}/trigger
+          REDIS_CHANNEL: agentos/blazing-collie/trigger
         run: |
           PAYLOAD=$(jq -n -c \
             --arg repo "$REPO_SLUG" \
