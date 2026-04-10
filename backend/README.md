@@ -49,6 +49,21 @@ curl -X POST http://localhost:4000/sessions/my-session/audio \\
 
 `REDIS_HOST` / `REDIS_PORT` must point to a valid instance when sending chunks.
 
+## Transcript persistence
+
+Every message published on `aura/transcript/{sessionId}` is now persisted to a local SQLite store so the server can replay past transcripts without re-reading Redis. A background listener duplicates the existing Redis connection, subscribes to `aura/transcript/*`, normalizes incoming payloads, and writes them to disk using `better-sqlite3`.
+
+### Configuration
+
+- `TRANSCRIPT_DB_PATH` controls where the binary SQLite file lives (default: `backend/data/transcripts.db`). The helper under `backend/src/config/database.ts` creates the parent directory automatically, so you only need to make sure the directory is writable. The `backend/data/.gitkeep` file keeps the directory versioned even though `*.db*` files are ignored.
+- The listener shares the same Redis configuration as the audio endpoint, so no extra host/port settings are required.
+
+### Schema
+
+- Table `transcripts` now stores entries with `session_id`, `payload`, optional JSON `metadata`, and an ISO `received_at` timestamp so you can audit when each chunk arrived.
+
+Inspect the SQLite file with standard tools (e.g., `sqlite3 backend/data/transcripts.db`) or point `TRANSCRIPT_DB_PATH` elsewhere in production before retrieving historical transcripts.
+
 ## Verification
 
 Run `npm run lint` to exercise ESLint (`src/**/*.ts`) and `npm run test` (alias for `npm run build`) to ensure the bundle compiles.
