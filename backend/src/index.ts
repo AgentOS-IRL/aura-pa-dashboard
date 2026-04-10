@@ -16,8 +16,7 @@ export function createApp() {
   app.use(express.json());
   app.use(morgan('tiny'));
 
-  const allowedOrigin = process.env.FRONTEND_URL ?? 'http://localhost:3000';
-  const corsOptions = process.env.NODE_ENV === 'development' ? { origin: '*' } : { origin: allowedOrigin };
+  const corsOptions = { origin: '*' };
   app.use(cors(corsOptions));
 
   app.use((_, res, next) => {
