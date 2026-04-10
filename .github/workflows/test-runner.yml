@@ -1,0 +1,12 @@
+name: Runner Test
+on: workflow_dispatch # This allows you to run it manually
+
+jobs:
+  check-connection:
+    runs-on: [self-hosted, Linux, ARM64]
+    steps:
+      - name: Who am I?
+        run: |
+          echo "I am running on: $(hostname)"
+          echo "Current user: $(whoami)"
+          uname -a
