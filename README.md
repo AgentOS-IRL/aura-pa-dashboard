@@ -30,4 +30,17 @@ Because each script `cd`s into `backend/` or `frontend/`, you can rely on this t
 - The service mounts `./backend` and `./frontend` into `/app/backend` and `/app/frontend` so you can iterate on either project without rebuilding the image. To keep the backend dependencies in place while the source tree is mounted, `/app/backend/node_modules` is backed by a named volume, and `./uploads` is bound to `/app/backend/uploads` so runtime blobs persist across restarts.
 - A second named volume, `backend-dist`, pins the image-built `/app/backend/dist` directory so the compiled backend bundle continues to exist even when the host workspace is empty or freshly cloned.
 - Build artifacts are refreshed by running `docker compose up --build` after changing `backend` or `frontend` sources. Use `docker compose exec aura-dashboard sh` to inspect the container or run ad-hoc commands while still executing as the `node` user.
- - The mapped `FRONTEND_URL` environment variable points back to `http://localhost:3006`, mirroring the host port used for the dashboard UI so the backend's CORS rules stay aligned with the containerized frontend.
+- The mapped `FRONTEND_URL` environment variable points back to `http://localhost:3006`, mirroring the host port used for the dashboard UI so the backend's CORS rules stay aligned with the containerized frontend.
+
+## Deploying to Aura
+
+`npm run deploy` simply runs `./package_deploy.sh`, which now builds both the frontend and backend workspaces, syncs the repository to the target server over SSH, copies the freshly generated frontend bundle (`frontend/.next` by default), and finally restarts the remote `docker compose` stack. The script requires the following environment variables (set them in the same shell you use for deployment):
+
+- `SSH_KEY`: path to the private key used for the remote server.
+- `SERVER_USER`: username for the SSH session.
+- `SERVER_HOST`: remote host or IP that runs the Aura service.
+- `SERVER_PATH`: directory on the remote host where the repo should live.
+
+`SSH_PORT` is optional and defaults to 22 when omitted. Pass `npm run deploy restart` when you need to stop the running container before bringing it back up—otherwise the script simply runs `docker compose up -d --build`. The deploy helper also ensures `$SERVER_PATH/uploads` exists with liberal permissions, and you can override the frontend build directory name by setting `FRONTEND_BUILD_DIR` before running the command.
+
+Because the script builds the frontend and backend locally before syncing, expect `npm run deploy` to take a little longer than `npm run start`, but the remote host always receives the latest artifacts plus the source files that `docker compose` needs to rebuild the image.
