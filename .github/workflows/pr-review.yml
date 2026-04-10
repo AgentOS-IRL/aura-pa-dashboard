@@ -1,0 +1,49 @@
+name: PR Review Trigger
+
+on:
+  pull_request_review_comment:
+    types: [created]
+
+jobs:
+  trigger-agent:
+    runs-on: self-hosted
+    steps:
+      - name: Install dependencies
+        run: |
+          if command -v apt-get >/dev/null; then
+            sudo apt-get update -y && sudo apt-get install -y redis-tools jq
+          elif command -v apk >/dev/null; then
+            sudo apk add --no-cache redis jq
+          else
+            echo "Unable to install redis-cli/jq; please install them on this runner"
+            exit 1
+          fi
+      - name: Publish review comment trigger
+        shell: bash
+        env:
+          REPO_SLUG: ${{ github.repository }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          COMMENT_AUTHOR: ${{ github.event.comment.user.login }}
+          REVIEW_ID: ${{ github.event.review.id }}
+          REDIS_HOST: 192.168.8.129
+          REDIS_PORT: 6379
+          REDIS_CHANNEL: agentos/blazing-collie/trigger
+          TRIGGER_KEY: agentos/pr/review_comment
+        run: |
+          # Use an if/else check in jq to handle empty strings gracefully
+          PAYLOAD=$(jq -n -c \
+            --arg title "$PR_TITLE" \
+            --arg repo "$REPO_SLUG" \
+            --arg pr "$PR_NUMBER" \
+            --arg author "$COMMENT_AUTHOR" \
+            '{
+              title: $title,
+              repo: $repo, 
+              pr: (if $pr == "" then null else ($pr | tonumber) end), 
+              author: $author
+            }')
+
+          echo "Triggering agent for Review ID: $REVIEW_ID"
+          redis-cli -h 192.168.8.129 -p 6379 PUBLISH "agentos/blazing-collie/trigger" "agentos/pr/review_comment"
+          redis-cli -h 192.168.8.129 -p 6379 RPUSH "agentos/pr/review_comment" "$PAYLOAD"
