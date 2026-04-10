@@ -8,6 +8,8 @@ build
 /plan
 daily_workout_tracker_implementation.md
 backend/uploads
+backend/node_modules
+backend/dist
 package-lock.json
 local_scripts/**
 plan/**
