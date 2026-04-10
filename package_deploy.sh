@@ -109,6 +109,7 @@ RSYNC_EXCLUDES=(
   --exclude="frontend/.next"
   --exclude="backend/dist"
   --exclude="plan"
+  --exclude="uploads"
 )
 
 log "Copying files to the server..."
