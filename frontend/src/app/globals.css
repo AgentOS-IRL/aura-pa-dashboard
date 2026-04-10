@@ -24,3 +24,21 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
 }
+
+@layer base {
+  html,
+  body {
+    min-height: 100%;
+  }
+
+  body {
+    font-feature-settings: 'liga' 1, 'ss01' 1;
+    overscroll-behavior: none;
+  }
+}
+
+@layer utilities {
+  .responsive-card-padding {
+    @apply px-4 sm:px-6 lg:px-8;
+  }
+}
