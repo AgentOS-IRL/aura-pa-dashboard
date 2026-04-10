@@ -22,3 +22,11 @@ The new root-level scripts coordinate the `backend/` and `frontend/` workspaces 
 - `npm run deploy` simply executes `./package_deploy.sh`, so the existing deployment helper remains the single source of truth for publishing.
 
 Because each script `cd`s into `backend/` or `frontend/`, you can rely on this top-level manifest to delegate work without duplicating logic between the child manifests; refer to the individual `backend/` and `frontend/` readmes for additional details about each workspace.
+
+## Dockerized development
+
+`docker compose build` uses the new Dockerfile to install dependencies for both workspaces, run the frontend and backend builds, and bake the `backend/server.js` entrypoint that calls `startServer()` from `backend/dist/index.js`. After building, `docker compose up` starts the `aura-dashboard` service, which runs `node backend/server.js` as the Node system user, restarts unless stopped, and maps host port `3006` to the container port `3001` (`PORT=3001` inside the container).
+
+ - The service mounts `./backend` and `./frontend` into `/app/backend` and `/app/frontend` so you can iterate on either project without rebuilding the image. To keep the backend dependencies in place while the source tree is mounted, `/app/backend/node_modules` is backed by a named volume, and `./uploads` is bound to `/app/backend/uploads` so runtime blobs persist across restarts.
+ - Build artifacts are refreshed by running `docker compose up --build` after changing `backend` or `frontend` sources. Use `docker compose exec aura-dashboard sh` to inspect the container or run ad-hoc commands while still executing as the `node` user.
+ - The mapped `FRONTEND_URL` environment variable points back to `http://localhost:3006`, mirroring the host port used for the dashboard UI so the backend's CORS rules stay aligned with the containerized frontend.
