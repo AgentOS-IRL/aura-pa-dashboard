@@ -184,6 +184,7 @@ paths:
           description: Invalid pagination parameters
         '500':
           description: Backend failed to fetch transcripts
+
 components:
   schemas:
     TranscriptRecord:

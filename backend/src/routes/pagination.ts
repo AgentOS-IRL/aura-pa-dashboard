@@ -11,6 +11,10 @@ function parsePositiveIntegerParam(raw: string | string[] | undefined): { value?
     return { error: 'must be a positive integer' };
   }
 
+  if (typeof raw !== 'string') {
+    return { error: 'must be a positive integer' };
+  }
+
   const trimmed = raw.trim();
   if (!trimmed || !/^[0-9]+$/.test(trimmed)) {
     return { error: 'must be a positive integer' };
