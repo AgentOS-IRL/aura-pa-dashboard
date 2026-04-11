@@ -21,7 +21,7 @@ The service honors the `PORT` environment variable; omit it to use the fallback 
 
 ## Redis-backed audio capture
 
-The audio route pushes every chunk into a per-session Redis list under the key `aura/audio/{sessionId}` so the assistant can replay ordered fragments later. Each list expires after 3 days (259200 seconds) so stale recordings are cleaned up automatically.
+The audio route pushes every chunk into a per-session Redis list under the key `agentos/aura/audio/{sessionId}` so the assistant can replay ordered fragments later. Each list expires after 3 days (259200 seconds) so stale recordings are cleaned up automatically.
 
 ### Configuration
 

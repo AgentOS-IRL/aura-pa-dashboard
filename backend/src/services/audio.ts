@@ -1,6 +1,6 @@
 import { redisClient } from '../config/redis';
 
-export const AUDIO_KEY_PREFIX = 'aura/audio';
+export const AUDIO_KEY_PREFIX = 'agentos/aura/audio';
 export const AUDIO_TTL_SECONDS = 3 * 24 * 60 * 60; // 3 days in seconds
 
 type RedisWithBuffer = typeof redisClient & {
