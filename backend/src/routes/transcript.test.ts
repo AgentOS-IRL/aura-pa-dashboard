@@ -2,18 +2,21 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import request from 'supertest';
 
 vi.mock('../services/transcriptStorage', () => ({
-  saveTranscript: vi.fn()
+  saveTranscript: vi.fn(),
+  getRecentTranscripts: vi.fn()
 }));
 
-import { saveTranscript } from '../services/transcriptStorage';
+import { getRecentTranscripts, saveTranscript } from '../services/transcriptStorage';
 import { createApp } from '../index';
 
 const app = createApp();
 const saveTranscriptMock = vi.mocked(saveTranscript);
+const getRecentTranscriptsMock = vi.mocked(getRecentTranscripts);
 
 describe('transcript route', () => {
   beforeEach(() => {
     saveTranscriptMock.mockReset();
+    getRecentTranscriptsMock.mockReset();
   });
 
   it('returns 201 and persists the payload/metadata', async () => {
@@ -70,6 +73,66 @@ describe('transcript route', () => {
     await request(app)
       .post('/sessions/session-42/transcript')
       .send({ payload: 'text' })
+      .expect(500);
+  });
+});
+
+describe('transcript GET route', () => {
+  beforeEach(() => {
+    getRecentTranscriptsMock.mockReset();
+  });
+
+  it('returns transcripts when the service succeeds', async () => {
+    const rows = [
+      { sessionId: 'session-1', payload: 'hello', metadata: null, receivedAt: '2026-04-01T12:00:00Z' }
+    ];
+    getRecentTranscriptsMock.mockReturnValue(rows);
+
+    const response = await request(app)
+      .get('/sessions/session-1/transcript')
+      .expect(200);
+
+    expect(response.body).toEqual({ transcripts: rows });
+    expect(getRecentTranscriptsMock).toHaveBeenCalledWith('session-1', undefined);
+  });
+
+  it('passes numeric limits to the service', async () => {
+    getRecentTranscriptsMock.mockReturnValue([]);
+
+    await request(app)
+      .get('/sessions/session-1/transcript')
+      .query({ limit: '5' })
+      .expect(200);
+
+    expect(getRecentTranscriptsMock).toHaveBeenCalledWith('session-1', 5);
+  });
+
+  it('falls back when invalid limits are provided', async () => {
+    getRecentTranscriptsMock.mockReturnValue([]);
+
+    await request(app)
+      .get('/sessions/session-1/transcript')
+      .query({ limit: 'NaN' })
+      .expect(200);
+
+    expect(getRecentTranscriptsMock).toHaveBeenCalledWith('session-1', undefined);
+  });
+
+  it('returns 400 when no session ID is provided', async () => {
+    await request(app)
+      .get('/sessions/%20/transcript')
+      .expect(400);
+
+    expect(getRecentTranscriptsMock).not.toHaveBeenCalled();
+  });
+
+  it('maps service errors to 500', async () => {
+    getRecentTranscriptsMock.mockImplementation(() => {
+      throw new Error('fetch failed');
+    });
+
+    await request(app)
+      .get('/sessions/session-1/transcript')
       .expect(500);
   });
 });

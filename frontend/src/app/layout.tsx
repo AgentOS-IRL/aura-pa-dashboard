@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import AppShell from "../components/AppShell";
+import { SessionProvider } from "./context/session";
 
 export const metadata: Metadata = {
   title: "Aura PA Dashboard",
@@ -33,7 +34,9 @@ export default function RootLayout({
   return (
     <html lang="en" className="h-full antialiased">
       <body className="min-h-full">
-        <AppShell>{children}</AppShell>
+        <SessionProvider>
+          <AppShell>{children}</AppShell>
+        </SessionProvider>
       </body>
     </html>
   );

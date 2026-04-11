@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { saveTranscript } from '../services/transcriptStorage';
+import { getRecentTranscripts, saveTranscript } from '../services/transcriptStorage';
 
 const router = Router();
 
@@ -12,7 +12,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-router.post('/:sessionId/transcript', (req: Request<{ sessionId: string }, any, TranscriptRequestBody>, res: Response) => {
+router.post('/:sessionId/transcript', (req: Request<{ sessionId: string }, unknown, TranscriptRequestBody>, res: Response) => {
   const sessionId = (typeof req.params.sessionId === 'string' ? req.params.sessionId.trim() : '');
   const { payload, metadata } = req.body ?? {};
 
@@ -44,5 +44,28 @@ router.post('/:sessionId/transcript', (req: Request<{ sessionId: string }, any, 
     return res.status(500).json({ error: 'Unable to persist transcript' });
   }
 });
+
+router.get(
+  '/:sessionId/transcript',
+  (req: Request<{ sessionId: string }, unknown, unknown, { limit?: string }>, res: Response) => {
+    const sessionId = (typeof req.params.sessionId === 'string' ? req.params.sessionId.trim() : '');
+    const limitParam = req.query.limit;
+
+    if (!sessionId) {
+      return res.status(400).json({ error: 'sessionId path parameter is required' });
+    }
+
+    const limit = Number.parseInt(typeof limitParam === 'string' ? limitParam : String(limitParam ?? ''), 10);
+    const normalizedLimit = Number.isFinite(limit) && limit > 0 ? limit : undefined;
+
+    try {
+      const transcripts = getRecentTranscripts(sessionId, normalizedLimit ?? undefined);
+      return res.status(200).json({ transcripts });
+    } catch (error) {
+      console.error('Unable to fetch transcripts for session', sessionId, error);
+      return res.status(500).json({ error: 'Unable to fetch transcripts' });
+    }
+  }
+);
 
 export default router;

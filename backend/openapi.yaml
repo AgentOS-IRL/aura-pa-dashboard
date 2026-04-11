@@ -104,3 +104,65 @@ paths:
           description: Missing or invalid sessionId/payload/metadata
         '500':
           description: Backend failed to persist the transcript
+    get:
+      tags:
+        - Transcript
+      summary: Read stored transcript records for a session
+      parameters:
+        - name: sessionId
+          in: path
+          description: Identifier for the current session
+          required: true
+          schema:
+            type: string
+        - name: limit
+          in: query
+          description: Optional limit on how many transcript entries to return (defaults to 25)
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        '200':
+          description: Transcript rows for the requested session
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  transcripts:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        sessionId:
+                          type: string
+                        payload:
+                          type: string
+                        metadata:
+                          type: object
+                          nullable: true
+                          additionalProperties: true
+                        receivedAt:
+                          type: string
+                          format: date-time
+                      required:
+                        - sessionId
+                        - payload
+                        - receivedAt
+                required:
+                  - transcripts
+              example:
+                transcripts:
+                  - sessionId: session-1
+                    payload: Hello Aura
+                    metadata:
+                      speaker: user
+                    receivedAt: 2026-04-01T12:00:00Z
+                  - sessionId: session-1
+                    payload: Welcome back
+                    metadata: null
+                    receivedAt: 2026-04-01T12:01:00Z
+        '400':
+          description: Missing or invalid sessionId or query parameters
+        '500':
+          description: Backend failed to fetch transcripts
