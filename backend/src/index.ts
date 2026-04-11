@@ -16,6 +16,28 @@ import {
 
 const swaggerDocument = YAML.load(path.join(__dirname, '..', 'openapi.yaml'));
 
+type BodyParserError = Error & {
+  status?: number;
+  type?: string;
+};
+
+function isTranscriptJsonRoute(req: Request) {
+  return req.method === 'POST' && req.path.endsWith('/transcript');
+}
+
+function isBodyParserError(err: unknown): err is BodyParserError {
+  if (!(err instanceof Error)) {
+    return false;
+  }
+
+  if (err instanceof SyntaxError) {
+    return true;
+  }
+
+  const typed = err as BodyParserError;
+  return Boolean(typed.type?.startsWith('entity.'));
+}
+
 export function createApp() {
   const app = express();
 
@@ -41,6 +63,15 @@ export function createApp() {
   app.use('/health', healthRouter);
 
   configureFrontendStatic(app);
+
+  app.use((err: unknown, req: Request, res: Response, next: NextFunction) => {
+    if (isTranscriptJsonRoute(req) && isBodyParserError(err)) {
+      console.warn('Invalid transcript JSON payload', err);
+      const status = err.status ?? 400;
+      return res.status(status).json({ error: 'Invalid JSON payload' });
+    }
+    next(err);
+  });
 
   app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
     console.error('Unhandled error in health service', err);

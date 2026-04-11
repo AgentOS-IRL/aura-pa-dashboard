@@ -52,6 +52,16 @@ describe('transcript route', () => {
     expect(saveTranscriptMock).not.toHaveBeenCalled();
   });
 
+  it('returns 400 for malformed JSON payloads', async () => {
+    await request(app)
+      .post('/sessions/session-42/transcript')
+      .set('Content-Type', 'application/json')
+      .send('{"payload": "oops"')
+      .expect(400);
+
+    expect(saveTranscriptMock).not.toHaveBeenCalled();
+  });
+
   it('maps service failures to 500', async () => {
     saveTranscriptMock.mockImplementation(() => {
       throw new Error('persist failed');
