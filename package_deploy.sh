@@ -24,6 +24,13 @@ USAGE
   exit 1
 }
 
+
+
+SSH_KEY="${SSH_KEY:-$HOME/.ssh/homeserver}"
+SERVER_USER="${SERVER_USER:-sanjeevhalyal}"
+SERVER_HOST="${SERVER_HOST:-192.168.8.129}"
+SERVER_PATH="${SERVER_PATH:-/opt/stacks/aura-pa-dashboard}"
+
 required_vars=(SSH_KEY SERVER_USER SERVER_HOST SERVER_PATH)
 missing=()
 for name in "${required_vars[@]}"; do
@@ -75,7 +82,7 @@ build_rsync_ssh_cmd() {
 
 RSYNC_SSH_CMD="$(build_rsync_ssh_cmd)"
 
-FRONTEND_BUILD_DIR="${FRONTEND_BUILD_DIR:-.next}"
+FRONTEND_BUILD_DIR="${FRONTEND_BUILD_DIR:-out}"
 FRONTEND_BUILD_PATH="$SCRIPT_DIR/frontend/$FRONTEND_BUILD_DIR"
 
 log "Starting deploy to $SERVER_USER_HOST:$SERVER_PATH"
@@ -93,12 +100,12 @@ if [[ ! -d "$FRONTEND_BUILD_PATH" ]]; then
 fi
 
 log "Preparing remote directories"
-ssh_exec "set -euo pipefail; mkdir -p \"$SERVER_PATH/frontend\" \"$SERVER_PATH/uploads\""
+ssh_exec "set -euo pipefail; mkdir -p \"$SERVER_PATH/frontend\" \"$SERVER_PATH/uploads\" \"$SERVER_PATH/data\""
 
-log "Setting uploads permissions"
-if ! ssh_exec "chmod 777 \"$SERVER_PATH/uploads\""; then
-  log "chmod failed, using container fallback to ensure uploads permissions"
-  ssh_exec "docker run --rm -v \"$SERVER_PATH:/mnt\" node:20-alpine sh -c 'mkdir -p /mnt/uploads && chmod 777 /mnt/uploads'"
+log "Setting permissions for persistent directories"
+if ! ssh_exec "chmod 777 \"$SERVER_PATH/uploads\" \"$SERVER_PATH/data\""; then
+  log "chmod failed, using container fallback to ensure permissions"
+  ssh_exec "docker run --rm -v \"$SERVER_PATH:/mnt\" node:20-alpine sh -c 'mkdir -p /mnt/uploads /mnt/data && chmod 777 /mnt/uploads /mnt/data'"
 fi
 
 RSYNC_EXCLUDES=(
@@ -106,10 +113,11 @@ RSYNC_EXCLUDES=(
   --exclude="node_modules"
   --exclude="frontend/node_modules"
   --exclude="backend/node_modules"
-  --exclude="frontend/.next"
+  --exclude="frontend/out"
   --exclude="backend/dist"
   --exclude="plan"
   --exclude="uploads"
+  --exclude="data"
 )
 
 log "Copying files to the server..."

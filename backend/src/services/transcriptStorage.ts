@@ -34,7 +34,7 @@ function parseMetadata(value: string | null): Record<string, unknown> | null {
   }
 }
 
-export function createTranscriptStorage(db: Database) {
+export function createTranscriptStorage(db: Database.Database) {
   db.exec(`
     CREATE TABLE IF NOT EXISTS transcripts (
       id INTEGER PRIMARY KEY AUTOINCREMENT,

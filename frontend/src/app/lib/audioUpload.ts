@@ -1,5 +1,5 @@
-const BACKEND_BASE_URL = (process.env.NEXT_PUBLIC_BACKEND_URL ?? 'http://localhost:4000').replace(/\/$/, '');
-
+const isProd = process.env.NODE_ENV === 'production';
+const BACKEND_BASE_URL = (process.env.NEXT_PUBLIC_BACKEND_URL ?? (isProd ? '' : 'http://localhost:4000')).replace(/\/$/, '');
 export function createSessionId() {
     const globalCrypto = typeof crypto !== 'undefined' ? crypto : undefined;
 

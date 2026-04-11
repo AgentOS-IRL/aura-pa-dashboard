@@ -20,7 +20,7 @@ transcriptDatabase.pragma('busy_timeout = 5000');
 
 let closed = false;
 
-export function getTranscriptDatabase(): Database {
+export function getTranscriptDatabase(): Database.Database {
   return transcriptDatabase;
 }
 

@@ -1,4 +1,4 @@
-import Redis from 'ioredis';
+import Redis, { RedisOptions } from 'ioredis';
 
 const DEFAULT_HOST = '192.168.8.129';
 const DEFAULT_PORT = 6379;
@@ -9,7 +9,7 @@ const retryStrategy = (times: number) => {
   return delay;
 };
 
-const baseOptions: Redis.RedisOptions = {
+const baseOptions: RedisOptions = {
   retryStrategy,
 };
 

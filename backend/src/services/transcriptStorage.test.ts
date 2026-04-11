@@ -2,7 +2,7 @@ import Database from 'better-sqlite3';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createTranscriptStorage } from './transcriptStorage';
 
-let db: Database;
+let db: Database.Database;
 
 afterEach(() => {
   db.close();

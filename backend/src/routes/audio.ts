@@ -10,7 +10,7 @@ interface AudioUploadRequest extends Request {
 }
 
 router.post('/:sessionId/audio', upload.single('audio'), async (req: AudioUploadRequest, res: Response) => {
-  const sessionId = req.params.sessionId?.trim();
+  const sessionId = (typeof req.params.sessionId === 'string' ? req.params.sessionId : '')?.trim();
 
   if (!sessionId) {
     return res.status(400).json({ error: 'sessionId path parameter is required' });

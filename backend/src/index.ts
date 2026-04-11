@@ -34,8 +34,13 @@ export function createApp() {
 
   app.use('/health', healthRouter);
 
-  app.use((_, res) => {
-    res.status(404).json({ error: 'Not Found' });
+  // Serve static files from the Next.js frontend out directory
+  const frontendDistPath = path.join(__dirname, '..', '..', 'frontend', 'out');
+  app.use(express.static(frontendDistPath));
+
+  // Fallback for single-page application routing
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(frontendDistPath, 'index.html'));
   });
 
   app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {

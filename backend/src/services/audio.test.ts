@@ -15,7 +15,7 @@ vi.mock('../config/redis', () => {
 import { redisClient } from '../config/redis';
 import { AUDIO_KEY_PREFIX, AUDIO_TTL_SECONDS, recordAudioChunk } from './audio';
 
-const mockRpushBuffer = redisClient.rpushBuffer as ReturnType<typeof vi.fn>;
+const mockRpushBuffer = (redisClient as any).rpushBuffer as ReturnType<typeof vi.fn>;
 const mockExpire = redisClient.expire as ReturnType<typeof vi.fn>;
 
 describe('recordAudioChunk', () => {

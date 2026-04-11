@@ -16,6 +16,6 @@ export async function recordAudioChunk(sessionId: string, chunk: Buffer): Promis
 
   const key = `${AUDIO_KEY_PREFIX}/${normalizedSessionId}`;
 
-  await redisClient.rpushBuffer(key, chunk);
+  await (redisClient as any).rpushBuffer(key, chunk);
   await redisClient.expire(key, AUDIO_TTL_SECONDS);
 }
