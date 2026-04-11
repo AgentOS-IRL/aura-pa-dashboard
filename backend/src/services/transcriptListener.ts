@@ -62,8 +62,11 @@ export interface TranscriptListenerOptions {
 }
 
 async function subscribe(client: Redis) {
+  let isNewSubscriber = false;
+
   if (!subscriber) {
     subscriber = client.duplicate();
+    isNewSubscriber = true;
 
     subscriber.on('error', (error) => {
       console.error('Transcript listener Redis error', error);
@@ -87,6 +90,14 @@ async function subscribe(client: Redis) {
     console.log('Subscribed to transcript channel pattern', PATTERN);
   } catch (error) {
     console.error('Failed to subscribe transcript listener to Redis', error);
+    if (isNewSubscriber) {
+      try {
+        await subscriber.quit();
+      } catch (closeError) {
+        console.error('Error while closing transcript listener after failed subscription', closeError);
+      }
+      subscriber = null;
+    }
     throw error;
   }
 
