@@ -8,6 +8,7 @@ services:
     volumes:
       - ./uploads:/app/backend/uploads # keep uploads on the host so media can persist across container restarts
       - ./data:/app/backend/data # persist the SQLite database
+      - ./.codex:/home/node/.codex:ro
     environment:
       NODE_ENV: "production"
       PORT: "3001"

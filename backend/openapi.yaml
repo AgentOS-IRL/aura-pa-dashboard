@@ -196,6 +196,20 @@ paths:
           description: Transcript table cleared
         '500':
           description: Backend failed to delete the transcripts
+  /usage:
+    get:
+      tags:
+        - Usage
+      summary: Proxy OpenAI usage data for the dashboard
+      responses:
+        '200':
+          description: Shielded response returned directly from OpenAI
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CodexUsage'
+        '502':
+          description: Unable to reach OpenAI or missing credentials
 components:
   schemas:
     TranscriptRecord:
@@ -258,5 +272,79 @@ components:
             receivedAt: 2026-04-01T12:01:00Z
         page: 1
         limit: 25
+        total: 2
+        hasMore: false
+    CodexUsage:
+      type: object
+      properties:
+        plan_type:
+          type: string
+        rate_limit:
+          $ref: '#/components/schemas/RateLimit'
+        code_review_rate_limit:
+          type: object
+          nullable: true
+          additionalProperties: true
+        additional_rate_limits:
+          type: object
+          nullable: true
+          additionalProperties: true
+        credits:
+          $ref: '#/components/schemas/Credits'
+        spend_control:
+          $ref: '#/components/schemas/SpendControl'
+        promo:
+          type: object
+          nullable: true
+          additionalProperties: true
+    RateLimit:
+      type: object
+      properties:
+        allowed:
+          type: boolean
+        limit_reached:
+          type: boolean
+        primary_window:
+          $ref: '#/components/schemas/RateLimitWindow'
+        secondary_window:
+          $ref: '#/components/schemas/RateLimitWindow'
+    RateLimitWindow:
+      type: object
+      properties:
+        used_percent:
+          type: number
+        limit_window_seconds:
+          type: number
+        reset_after_seconds:
+          type: number
+        reset_at:
+          type: number
+          description: Unix timestamp (seconds) when the window resets
+    Credits:
+      type: object
+      properties:
+        has_credits:
+          type: boolean
+        unlimited:
+          type: boolean
+        overage_limit_reached:
+          type: boolean
+        balance:
+          type: string
+        approx_local_messages:
+          type: array
+          items:
+            type: integer
+          nullable: true
+        approx_cloud_messages:
+          type: array
+          items:
+            type: integer
+          nullable: true
+    SpendControl:
+      type: object
+      properties:
+        reached:
+          type: boolean
         total: 2
         hasMore: false

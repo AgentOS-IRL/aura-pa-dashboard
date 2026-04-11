@@ -45,7 +45,7 @@ SSH_KEY="${SSH_KEY:-$HOME/.ssh/homeserver}"
 SERVER_USER="${SERVER_USER:-sanjeevhalyal}"
 SERVER_HOST="${SERVER_HOST:-192.168.8.129}"
 SERVER_PATH="${SERVER_PATH:-/opt/stacks/aura-pa-dashboard}"
-CODEX_AUTH_SOURCE="$(resolve_home_path "${CODEX_AUTH_PATH:-$HOME/.codex/auth.json"}")"
+CODEX_AUTH_SOURCE="$(resolve_home_path "${CODEX_AUTH_PATH:-$HOME/.codex/auth.json}")"
 
 required_vars=(SSH_KEY SERVER_USER SERVER_HOST SERVER_PATH)
 missing=()
