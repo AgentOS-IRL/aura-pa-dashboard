@@ -65,6 +65,37 @@ export function getAgentHealthSnapshot(): AgentHealthSnapshotEntry[] {
   return Array.from(agentHealthStore.values());
 }
 
+const HEALTHY_STATUSES = new Set(['health', 'healthy', 'green', 'up', 'ok']);
+
+export function getAgentHealthEntry(id?: string): AgentHealthSnapshotEntry | undefined {
+  const authenticatedId = normalizeStringField(id);
+  if (!authenticatedId) {
+    return undefined;
+  }
+
+  const entry = agentHealthStore.get(authenticatedId);
+  if (!entry) {
+    return undefined;
+  }
+
+  return {
+    ...entry,
+    health: normalizeHealthValue(entry.health)
+  };
+}
+
+export function isHealthyStatusValue(health?: string) {
+  return HEALTHY_STATUSES.has(normalizeHealthValue(health));
+}
+
+export function isExecutorHealthy(id?: string) {
+  const entry = getAgentHealthEntry(id);
+  if (!entry) {
+    return false;
+  }
+  return isHealthyStatusValue(entry.health);
+}
+
 function upsertAgentHealthEntry(entry: AgentHealthSnapshotEntry, timestampMs: number) {
   const existing = agentHealthStore.get(entry.id);
   if (existing) {

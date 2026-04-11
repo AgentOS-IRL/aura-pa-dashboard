@@ -2,7 +2,10 @@ import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   clearAgentHealthSnapshot,
+  getAgentHealthEntry,
   getAgentHealthSnapshot,
+  isExecutorHealthy,
+  isHealthyStatusValue,
   processAgentStatusMessage
 } from './agentHealth';
 
@@ -61,5 +64,41 @@ describe('agentHealth service', () => {
         lastChecked: '2026-04-10T00:02:00.000Z'
       }
     ]);
+  });
+
+  describe('helper utilities', () => {
+    it('resolves entries by id and normalizes health strings', () => {
+      processAgentStatusMessage(
+        JSON.stringify({
+          taskId: 'task-x',
+          health: ' GREEN ',
+          label: 'Helper',
+          timestamp: '2026-04-12T01:02:03Z'
+        })
+      );
+
+      const entry = getAgentHealthEntry('task-x');
+      expect(entry).toEqual({
+        id: 'task-x',
+        health: 'green',
+        label: 'Helper',
+        lastChecked: '2026-04-12T01:02:03.000Z'
+      });
+    });
+
+    it('returns undefined for unknown or invalid ids', () => {
+      expect(getAgentHealthEntry('missing')).toBeUndefined();
+      expect(getAgentHealthEntry('   ')).toBeUndefined();
+    });
+
+    it('classifies healthy telemetry consistently', () => {
+      processAgentStatusMessage(JSON.stringify({ taskId: 'task-healthy', health: 'UP' }));
+      processAgentStatusMessage(JSON.stringify({ taskId: 'task-unhealthy', health: 'DOWN' }));
+
+      expect(isExecutorHealthy('task-healthy')).toBe(true);
+      expect(isExecutorHealthy('task-unhealthy')).toBe(false);
+      expect(isHealthyStatusValue('GREEN')).toBe(true);
+      expect(isHealthyStatusValue('crItical')).toBe(false);
+    });
   });
 });

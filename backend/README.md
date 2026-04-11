@@ -48,6 +48,12 @@ Retry logic with exponential backoff keeps the connection resilient, and connect
 - `POST /aura/sessions/{sessionId}/audio` – accepts `multipart/form-data` uploads and expects a single `audio` field containing the raw blob.
 - The route only keeps blobs in memory; it forwards the Buffer directly to Redis without persisting files on disk.
 - Every request to this route responds with the configured CORS headers so the Next.js client on `FRONTEND_URL` (or `*` in dev) can POST audio without being blocked by the browser.
+ 
+### Executor health gating
+
+Every chunk now requires the caller to supply the executor identifier AgentOS publishes via the `agentos/status` channel. Provide it either as the `X-Aura-Executor-Id` request header or the `?executorId=` query parameter so the backend can look up the same value from the in-memory `agentHealth` snapshot before persisting audio. Only the normalized health strings `health`, `healthy`, `green`, `up`, or `ok` are considered healthy; any other value (missing entry or `down`, `critical`, etc.) causes the route to skip Redis, log a warning, and return `409 Conflict` with a clear message rather than persisting bytes.
+
+Please keep `/aura/health` open as the source of truth for executor readiness—operations teams must ensure AgentOS has published a healthy status for the desired executor before streaming audio chunks to avoid the new guard rejecting uploads.
 
 ### Sample curl
 
