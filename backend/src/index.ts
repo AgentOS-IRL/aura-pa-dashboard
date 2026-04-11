@@ -5,9 +5,9 @@ import cors from 'cors';
 import morgan from 'morgan';
 import swaggerUi from 'swagger-ui-express';
 import YAML from 'yamljs';
-import { startTranscriptListener, stopTranscriptListener } from './services/transcriptListener';
 import audioRouter from './routes/audio';
 import healthRouter from './routes/health';
+import transcriptRouter from './routes/transcript';
 import {
   configureFrontendStatic,
   ensureFrontendDistPathExists,
@@ -36,6 +36,7 @@ export function createApp() {
   app.get('/docs.json', (_, res) => res.json(swaggerDocument));
 
   app.use('/sessions', audioRouter);
+  app.use('/sessions', transcriptRouter);
 
   app.use('/health', healthRouter);
 
@@ -68,18 +69,10 @@ export function startServer() {
     }
     shuttingDown = true;
 
-    (async () => {
-      try {
-        await stopTranscriptListener();
-      } catch (error) {
-        console.error('Error while stopping transcript listener', error);
-      }
-
-      server.close(() => {
-        console.log('Server closed, exiting.');
-        process.exit(0);
-      });
-    })();
+    server.close(() => {
+      console.log('Server closed, exiting.');
+      process.exit(0);
+    });
 
     setTimeout(() => {
       console.error('Force exiting after shutdown timeout.');
@@ -89,10 +82,6 @@ export function startServer() {
 
   ['SIGINT', 'SIGTERM', 'SIGQUIT'].forEach((signal) => {
     process.on(signal, () => shutdown(signal));
-  });
-
-  startTranscriptListener().catch((error) => {
-    console.error('Failed to start transcript listener', error);
   });
 
   server.listen(port, () => {

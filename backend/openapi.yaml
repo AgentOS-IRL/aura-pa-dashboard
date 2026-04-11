@@ -69,3 +69,38 @@ paths:
           description: Missing sessionId or audio payload
         '500':
           description: Backend failed to persist the audio chunk
+  /sessions/{sessionId}/transcript:
+    post:
+      tags:
+        - Transcript
+      summary: Persist a transcript payload for the session
+      parameters:
+        - name: sessionId
+          in: path
+          description: Identifier for the current session
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                payload:
+                  type: string
+                  description: Transcript text to persist
+                metadata:
+                  type: object
+                  additionalProperties: true
+                  description: Optional context that is stored alongside the payload
+              required:
+                - payload
+      responses:
+        '201':
+          description: Transcript stored successfully
+        '400':
+          description: Missing or invalid sessionId/payload/metadata
+        '500':
+          description: Backend failed to persist the transcript
