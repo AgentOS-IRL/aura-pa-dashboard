@@ -3,6 +3,12 @@ import { redisClient } from '../config/redis';
 export const AUDIO_KEY_PREFIX = 'aura/audio';
 export const AUDIO_TTL_SECONDS = 3 * 24 * 60 * 60; // 3 days in seconds
 
+type RedisWithBuffer = typeof redisClient & {
+  rpushBuffer: (key: string, data: Buffer) => Promise<number>;
+};
+
+const redisWithBuffer = redisClient as RedisWithBuffer;
+
 export async function recordAudioChunk(sessionId: string, chunk: Buffer): Promise<void> {
   const normalizedSessionId = sessionId?.trim();
 
@@ -16,6 +22,6 @@ export async function recordAudioChunk(sessionId: string, chunk: Buffer): Promis
 
   const key = `${AUDIO_KEY_PREFIX}/${normalizedSessionId}`;
 
-  await (redisClient as any).rpushBuffer(key, chunk);
+  await redisWithBuffer.rpushBuffer(key, chunk);
   await redisClient.expire(key, AUDIO_TTL_SECONDS);
 }

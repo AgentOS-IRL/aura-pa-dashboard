@@ -8,6 +8,11 @@ import YAML from 'yamljs';
 import { startTranscriptListener, stopTranscriptListener } from './services/transcriptListener';
 import audioRouter from './routes/audio';
 import healthRouter from './routes/health';
+import {
+  configureFrontendStatic,
+  ensureFrontendDistPathExists,
+  frontendBuildDir
+} from './config/frontend';
 
 const swaggerDocument = YAML.load(path.join(__dirname, '..', 'openapi.yaml'));
 
@@ -34,14 +39,7 @@ export function createApp() {
 
   app.use('/health', healthRouter);
 
-  // Serve static files from the Next.js frontend out directory
-  const frontendDistPath = path.join(__dirname, '..', '..', 'frontend', 'out');
-  app.use(express.static(frontendDistPath));
-
-  // Fallback for single-page application routing
-  app.get('*', (req, res) => {
-    res.sendFile(path.join(frontendDistPath, 'index.html'));
-  });
+  configureFrontendStatic(app);
 
   app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
     console.error('Unhandled error in health service', err);
@@ -53,6 +51,11 @@ export function createApp() {
 
 export function startServer() {
   const port = Number.parseInt(process.env.PORT ?? '4000', 10);
+  const resolvedFrontendPath = ensureFrontendDistPathExists();
+  console.log(
+    `Serving frontend build from ${resolvedFrontendPath} (FRONTEND_BUILD_DIR=${frontendBuildDir})`
+  );
+
   const app = createApp();
   const server = http.createServer(app);
   let shuttingDown = false;

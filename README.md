@@ -34,13 +34,17 @@ Because each script `cd`s into `backend/` or `frontend/`, you can rely on this t
 
 ## Deploying to Aura
 
-`npm run deploy` simply runs `./package_deploy.sh`, which now builds both the frontend and backend workspaces, syncs the repository to the target server over SSH, copies the freshly generated frontend bundle (`frontend/.next` by default), and finally restarts the remote `docker compose` stack. The script requires the following environment variables (set them in the same shell you use for deployment):
+`npm run deploy` simply runs `./package_deploy.sh`, which builds both the frontend and backend workspaces, syncs the repository to the target server over SSH, copies the exported frontend bundle (`frontend/$FRONTEND_BUILD_DIR`, defaulting to `frontend/out`) into `$SERVER_PATH/frontend/$FRONTEND_BUILD_DIR`, and finally restarts the remote `docker compose` stack. The exported directory is produced by `npm run build:frontend` (a Next.js `next build` + `next export` run), and the backend's Express service mounts that same folder via `express.static()` with a SPA fallback, so the dashboard served on port 3006 locally matches what the container exposes.
+
+The script requires the following environment variables (set them in the same shell you use for deployment):
 
 - `SSH_KEY`: path to the private key used for the remote server.
 - `SERVER_USER`: username for the SSH session.
 - `SERVER_HOST`: remote host or IP that runs the Aura service.
 - `SERVER_PATH`: directory on the remote host where the repo should live.
 
-`SSH_PORT` is optional and defaults to 22 when omitted. Pass `npm run deploy restart` when you need to stop the running container before bringing it back up—otherwise the script simply runs `docker compose up -d --build`. The deploy helper also ensures `$SERVER_PATH/uploads` exists with liberal permissions, and you can override the frontend build directory name by setting `FRONTEND_BUILD_DIR` before running the command.
+`SSH_PORT` is optional and defaults to 22 when omitted. The deploy helper also makes sure `$SERVER_PATH/uploads` exists with liberal permissions. When you need to stop the running container before bringing it back up, pass `npm run deploy restart`; otherwise the command simply runs `docker compose up -d --build`.
+
+Since both the deploy helper and the backend runtime read `FRONTEND_BUILD_DIR`, export the same value before running `npm run deploy` and also when the backend starts so they agree on where the static files live (for example, `FRONTEND_BUILD_DIR=dist npm run deploy`). Because the helper copies from `$SCRIPT_DIR/frontend/$FRONTEND_BUILD_DIR` to `$SERVER_PATH/frontend/$FRONTEND_BUILD_DIR`, the container receives the exact static build that your backend statically serves.
 
 Because the script builds the frontend and backend locally before syncing, expect `npm run deploy` to take a little longer than `npm run start`, but the remote host always receives the latest artifacts plus the source files that `docker compose` needs to rebuild the image.
