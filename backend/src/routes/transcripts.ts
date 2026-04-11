@@ -7,7 +7,7 @@ const router = Router();
 router.get(
   '/',
   (
-    req: Request<unknown, unknown, unknown, { limit?: string; page?: string }>,
+    req: Request<unknown, unknown, unknown, { limit?: string | string[]; page?: string | string[] }>,
     res: Response
   ) => {
     const limitResult = normalizeLimitParam(req.query.limit);

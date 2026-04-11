@@ -2,9 +2,13 @@ const DEFAULT_TRANSCRIPT_LIMIT = 25;
 const MAX_TRANSCRIPT_LIMIT = 100;
 const DEFAULT_TRANSCRIPT_PAGE = 1;
 
-function parsePositiveIntegerParam(raw: string | undefined): { value?: number; error?: string } {
+function parsePositiveIntegerParam(raw: string | string[] | undefined): { value?: number; error?: string } {
   if (raw === undefined) {
     return {};
+  }
+
+  if (Array.isArray(raw)) {
+    return { error: 'must be a positive integer' };
   }
 
   const trimmed = raw.trim();
@@ -20,7 +24,7 @@ function parsePositiveIntegerParam(raw: string | undefined): { value?: number; e
   return { value: parsed };
 }
 
-export function normalizeLimitParam(raw: string | undefined): { limit: number; error?: string } {
+export function normalizeLimitParam(raw: string | string[] | undefined): { limit: number; error?: string } {
   const parsed = parsePositiveIntegerParam(raw);
   if (parsed.error) {
     return { limit: DEFAULT_TRANSCRIPT_LIMIT, error: `limit ${parsed.error}` };
@@ -30,7 +34,7 @@ export function normalizeLimitParam(raw: string | undefined): { limit: number; e
   return { limit: Math.min(limit, MAX_TRANSCRIPT_LIMIT) };
 }
 
-export function normalizePageParam(raw: string | undefined): { page: number; error?: string } {
+export function normalizePageParam(raw: string | string[] | undefined): { page: number; error?: string } {
   const parsed = parsePositiveIntegerParam(raw);
   if (parsed.error) {
     return { page: DEFAULT_TRANSCRIPT_PAGE, error: `page ${parsed.error}` };

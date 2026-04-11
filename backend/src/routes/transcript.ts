@@ -51,7 +51,7 @@ router.post('/:sessionId/transcript', (req: Request<{ sessionId: string }, unkno
 router.get(
   '/:sessionId/transcript',
   (
-    req: Request<{ sessionId: string }, unknown, unknown, { limit?: string; page?: string }>,
+    req: Request<{ sessionId: string }, unknown, unknown, { limit?: string | string[]; page?: string | string[] }>,
     res: Response
   ) => {
     const sessionId = (typeof req.params.sessionId === 'string' ? req.params.sessionId.trim() : '');

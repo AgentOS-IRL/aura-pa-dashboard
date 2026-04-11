@@ -148,6 +148,42 @@ paths:
           description: Missing or invalid sessionId or query parameters
         '500':
           description: Backend failed to fetch transcripts
+  /transcripts:
+    get:
+      tags:
+        - Transcript
+      summary: Read the global transcript history
+      description: >
+        Returns a paginated feed of every transcript row sorted by newest entries first
+        (ordered by `receivedAt` descending with `id` as a tie-breaker). Each record still
+        surfaces the originating session ID so you can trace which session produced the text.
+      parameters:
+        - name: page
+          in: query
+          description: Page number to return (1-indexed, defaults to 1)
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          description: Optional limit on how many transcript entries to return (defaults to 25, capped at 100)
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 25
+      responses:
+        '200':
+          description: Transcript rows across all sessions, newest-first
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TranscriptPage'
+        '400':
+          description: Invalid pagination parameters
+        '500':
+          description: Backend failed to fetch transcripts
 components:
   schemas:
     TranscriptRecord:
@@ -212,39 +248,3 @@ components:
         limit: 25
         total: 2
         hasMore: false
-  /transcripts:
-    get:
-      tags:
-        - Transcript
-      summary: Read the global transcript history
-      description: >
-        Returns a paginated feed of every transcript row sorted by newest entries first
-        (ordered by `receivedAt` descending with `id` as a tie-breaker). Each record still
-        surfaces the originating session ID so you can trace which session produced the text.
-      parameters:
-        - name: page
-          in: query
-          description: Page number to return (1-indexed, defaults to 1)
-          schema:
-            type: integer
-            minimum: 1
-            default: 1
-        - name: limit
-          in: query
-          description: Optional limit on how many transcript entries to return (defaults to 25, capped at 100)
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 100
-            default: 25
-      responses:
-        '200':
-          description: Transcript rows across all sessions, newest-first
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/TranscriptPage'
-        '400':
-          description: Invalid pagination parameters
-        '500':
-          description: Backend failed to fetch transcripts
