@@ -12,7 +12,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-router.post('/:sessionId/transcript', (req: Request<never, never, TranscriptRequestBody>, res: Response) => {
+router.post('/:sessionId/transcript', (req: Request<{ sessionId: string }, any, TranscriptRequestBody>, res: Response) => {
   const sessionId = (typeof req.params.sessionId === 'string' ? req.params.sessionId.trim() : '');
   const { payload, metadata } = req.body ?? {};
 
