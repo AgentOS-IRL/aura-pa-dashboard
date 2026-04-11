@@ -72,11 +72,11 @@ Inspect the SQLite file with standard tools (e.g., `sqlite3 backend/data/transcr
 
 ## Transcript retrieval
 
-When you need to show what Aura previously captured, call the read endpoint to list the most recent transcript rows for a session.
+When you need to show what Aura previously captured, call one of the read endpoints to paginate stored transcript rows. The storage layer tracks every session, so you can either scope the query to a specific session or read the entire global history that mixes entries from every session.
 
-### Transcript read endpoint
+### Session-specific transcript read
 
-- `GET /aura/sessions/{sessionId}/transcript` – returns a single JSON payload that includes `transcripts`, `page`, `limit`, `total`, and `hasMore`. The query string accepts `page` (optional, defaults to 1) and `limit` (optional, defaults to 25, capped at 100) so you can step backward through older history.
+- `GET /aura/sessions/{sessionId}/transcript` – returns a single JSON payload that includes `transcripts`, `page`, `limit`, `total`, and `hasMore`. The query string accepts `page` (optional, defaults to 1) and `limit` (optional, defaults to 25, capped at 100) so you can step backward through older history scoped to one session.
 - `total` reports how many rows exist for the session, `page` reflects the currently returned page, and `hasMore` becomes `true` whenever a subsequent page still exists.
 - Use `?page=2&limit=25` (or higher `page` values) when `hasMore` is `true` to fetch additional entries.
 - Each row contains:
@@ -86,10 +86,18 @@ When you need to show what Aura previously captured, call the read endpoint to l
   - `receivedAt` (string) – ISO timestamp describing when the row was stored.
 - The route returns `200` with the records on success, `400` for missing session IDs or malformed query params, and `500` if the storage layer throws.
 
+### Global transcript history
+
+- `GET /aura/transcripts` – returns the same paginated payload as above but spans every stored session. Entries are always sorted by newest first (ordered by `receivedAt` desc with `id` as a tie-breaker) so the dashboard can show the most recent activity immediately.
+- The query string accepts the same `page` (default 1) and `limit` (default 25, capped at 100) parameters so the UI can step through older rows.
+- Each entry still includes the originating `sessionId`, `payload`, `metadata`, and `receivedAt` fields so you can correlate a transcript row with an assistant run.
+- `total` reflects the count of all matching rows, and `hasMore` becomes `true` whenever additional pages exist across any session.
+- The route returns `200` with results, `400` when pagination parameters are invalid, and `500` when the storage helper throws.
+
 ### Sample curl
 
 ```bash
-curl -X GET http://localhost:4000/aura/sessions/session-abc/transcript?page=2&limit=25
+curl -X GET http://localhost:4000/aura/transcripts?page=1&limit=25
 ```
 
 The response looks like:
@@ -98,7 +106,7 @@ The response looks like:
 {
   "transcripts": [
     {
-      "sessionId": "session-abc",
+      "sessionId": "session-1",
       "payload": "Hey Aura, show me the transcript",
       "metadata": {
         "source": "web"
@@ -106,7 +114,7 @@ The response looks like:
       "receivedAt": "2026-04-01T12:00:00Z"
     }
   ],
-  "page": 2,
+  "page": 1,
   "limit": 25,
   "total": 113,
   "hasMore": true

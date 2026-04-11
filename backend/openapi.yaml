@@ -143,62 +143,108 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  transcripts:
-                    type: array
-                    items:
-                      type: object
-                      properties:
-                        sessionId:
-                          type: string
-                        payload:
-                          type: string
-                        metadata:
-                          type: object
-                          nullable: true
-                          additionalProperties: true
-                        receivedAt:
-                          type: string
-                          format: date-time
-                      required:
-                        - sessionId
-                        - payload
-                        - receivedAt
-                  page:
-                    type: integer
-                    description: Page number included in the response
-                  limit:
-                    type: integer
-                    description: Number of entries returned per page
-                  total:
-                    type: integer
-                    description: Total number of transcript rows for the session
-                  hasMore:
-                    type: boolean
-                    description: Whether additional pages exist beyond this response
-                required:
-                  - transcripts
-                  - page
-                  - limit
-                  - total
-                  - hasMore
-              example:
-                transcripts:
-                  - sessionId: session-1
-                    payload: Hello Aura
-                    metadata:
-                      speaker: user
-                    receivedAt: 2026-04-01T12:00:00Z
-                  - sessionId: session-1
-                    payload: Welcome back
-                    metadata: null
-                    receivedAt: 2026-04-01T12:01:00Z
-                page: 1
-                limit: 25
-                total: 2
-                hasMore: false
+                $ref: '#/components/schemas/TranscriptPage'
         '400':
           description: Missing or invalid sessionId or query parameters
+        '500':
+          description: Backend failed to fetch transcripts
+components:
+  schemas:
+    TranscriptRecord:
+      type: object
+      properties:
+        sessionId:
+          type: string
+          description: Session that produced the transcript entry
+        payload:
+          type: string
+          description: Actual transcript text
+        metadata:
+          type: object
+          nullable: true
+          additionalProperties: true
+          description: Optional context stored with the entry
+        receivedAt:
+          type: string
+          format: date-time
+          description: When the transcript was recorded
+      required:
+        - sessionId
+        - payload
+        - receivedAt
+    TranscriptPage:
+      type: object
+      properties:
+        transcripts:
+          type: array
+          items:
+            $ref: '#/components/schemas/TranscriptRecord'
+        page:
+          type: integer
+          description: Page number included in the response
+        limit:
+          type: integer
+          description: Number of entries returned per page
+        total:
+          type: integer
+          description: Total number of matching transcript rows
+        hasMore:
+          type: boolean
+          description: Whether additional pages exist beyond this response
+      required:
+        - transcripts
+        - page
+        - limit
+        - total
+        - hasMore
+      example:
+        transcripts:
+          - sessionId: session-1
+            payload: Hello Aura
+            metadata:
+              speaker: user
+            receivedAt: 2026-04-01T12:00:00Z
+          - sessionId: session-2
+            payload: Welcome back
+            metadata: null
+            receivedAt: 2026-04-01T12:01:00Z
+        page: 1
+        limit: 25
+        total: 2
+        hasMore: false
+  /transcripts:
+    get:
+      tags:
+        - Transcript
+      summary: Read the global transcript history
+      description: >
+        Returns a paginated feed of every transcript row sorted by newest entries first
+        (ordered by `receivedAt` descending with `id` as a tie-breaker). Each record still
+        surfaces the originating session ID so you can trace which session produced the text.
+      parameters:
+        - name: page
+          in: query
+          description: Page number to return (1-indexed, defaults to 1)
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          description: Optional limit on how many transcript entries to return (defaults to 25, capped at 100)
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 25
+      responses:
+        '200':
+          description: Transcript rows across all sessions, newest-first
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TranscriptPage'
+        '400':
+          description: Invalid pagination parameters
         '500':
           description: Backend failed to fetch transcripts

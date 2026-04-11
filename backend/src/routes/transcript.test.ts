@@ -3,10 +3,11 @@ import request from 'supertest';
 
 vi.mock('../services/transcriptStorage', () => ({
   saveTranscript: vi.fn(),
-  getTranscriptPage: vi.fn()
+  getTranscriptPage: vi.fn(),
+  getLatestTranscripts: vi.fn()
 }));
 
-import { getTranscriptPage, saveTranscript } from '../services/transcriptStorage';
+import { getTranscriptPage, getLatestTranscripts, saveTranscript } from '../services/transcriptStorage';
 import { createApp } from '../index';
 import { withAuraBasePath } from '../config/auraPath';
 import { MAX_TRANSCRIPT_LIMIT } from './transcript';
@@ -14,6 +15,7 @@ import { MAX_TRANSCRIPT_LIMIT } from './transcript';
 const app = createApp();
 const saveTranscriptMock = vi.mocked(saveTranscript);
 const getTranscriptPageMock = vi.mocked(getTranscriptPage);
+const getLatestTranscriptsMock = vi.mocked(getLatestTranscripts);
 
 describe('transcript route', () => {
   beforeEach(() => {
@@ -196,6 +198,109 @@ describe('transcript GET route', () => {
 
     await request(app)
       .get(withAuraBasePath('/sessions/session-1/transcript'))
+      .expect(500);
+  });
+});
+
+describe('transcripts listing route', () => {
+  beforeEach(() => {
+    getLatestTranscriptsMock.mockReset();
+  });
+
+  it('returns transcripts with pagination metadata when the service succeeds', async () => {
+    const rows = [
+      { sessionId: 'session-1', payload: 'hello', metadata: null, receivedAt: '2026-04-01T12:00:00Z' }
+    ];
+    getLatestTranscriptsMock.mockReturnValue({
+      transcripts: rows,
+      page: 1,
+      limit: 25,
+      total: rows.length,
+      hasMore: false
+    });
+
+    const response = await request(app)
+      .get(withAuraBasePath('/transcripts'))
+      .expect(200);
+
+    expect(response.body).toEqual({
+      transcripts: rows,
+      page: 1,
+      limit: 25,
+      total: rows.length,
+      hasMore: false
+    });
+    expect(getLatestTranscriptsMock).toHaveBeenCalledWith({ limit: 25, page: 1 });
+  });
+
+  it('forwards pagination params to the storage helper', async () => {
+    getLatestTranscriptsMock.mockReturnValue({
+      transcripts: [],
+      page: 3,
+      limit: 5,
+      total: 0,
+      hasMore: false
+    });
+
+    await request(app)
+      .get(withAuraBasePath('/transcripts'))
+      .query({ limit: '5', page: '3' })
+      .expect(200);
+
+    expect(getLatestTranscriptsMock).toHaveBeenCalledWith({ limit: 5, page: 3 });
+  });
+
+  it('caps limit values at the configured maximum', async () => {
+    getLatestTranscriptsMock.mockReturnValue({
+      transcripts: [],
+      page: 1,
+      limit: MAX_TRANSCRIPT_LIMIT,
+      total: 0,
+      hasMore: false
+    });
+
+    await request(app)
+      .get(withAuraBasePath('/transcripts'))
+      .query({ limit: `${MAX_TRANSCRIPT_LIMIT + 20}` })
+      .expect(200);
+
+    expect(getLatestTranscriptsMock).toHaveBeenCalledWith({ limit: MAX_TRANSCRIPT_LIMIT, page: 1 });
+  });
+
+  it('rejects invalid limits with 400', async () => {
+    await request(app)
+      .get(withAuraBasePath('/transcripts'))
+      .query({ limit: 'NaN' })
+      .expect(400);
+
+    expect(getLatestTranscriptsMock).not.toHaveBeenCalled();
+  });
+
+  it('rejects invalid pages with 400', async () => {
+    await request(app)
+      .get(withAuraBasePath('/transcripts'))
+      .query({ page: '0' })
+      .expect(400);
+
+    expect(getLatestTranscriptsMock).not.toHaveBeenCalled();
+  });
+
+  it('rejects non-numeric page values with 400', async () => {
+    await request(app)
+      .get(withAuraBasePath('/transcripts'))
+      .query({ page: 'NaN' })
+      .expect(400);
+
+    expect(getLatestTranscriptsMock).not.toHaveBeenCalled();
+  });
+
+  it('maps service errors to 500', async () => {
+    getLatestTranscriptsMock.mockImplementation(() => {
+      throw new Error('fetch failed');
+    });
+
+    await request(app)
+      .get(withAuraBasePath('/transcripts'))
       .expect(500);
   });
 });

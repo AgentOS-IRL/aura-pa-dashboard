@@ -2,8 +2,7 @@
 
 import Link from "next/link";
 import { Loader2, RefreshCw } from "lucide-react";
-import { useMemo, useState, useEffect, useRef } from "react";
-import { useSessionContext } from "../context/session";
+import { useEffect, useState } from "react";
 import { fetchTranscripts, type TranscriptRecord } from "../lib/transcripts";
 
 const formatReceivedAt = (value: string) => {
@@ -15,54 +14,25 @@ const formatReceivedAt = (value: string) => {
 };
 
 export default function TranscriptPage() {
-  const { sessionId } = useSessionContext();
-  const [manualSessionId, setManualSessionId] = useState("");
+  const TRANSCRIPTS_PAGE_SIZE = 25;
   const [transcripts, setTranscripts] = useState<TranscriptRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [refreshIndex, setRefreshIndex] = useState(0);
-  const TRANSCRIPTS_PAGE_SIZE = 25;
   const [currentPage, setCurrentPage] = useState(1);
   const [paginationMeta, setPaginationMeta] = useState({
     total: 0,
     limit: TRANSCRIPTS_PAGE_SIZE,
     hasMore: false
   });
-  const lastSessionRef = useRef<string | null>(null);
-
-  const activeSessionId = useMemo(() => {
-    const override = manualSessionId.trim();
-    return override || sessionId;
-  }, [manualSessionId, sessionId]);
 
   useEffect(() => {
     let canceled = false;
 
-    if (!activeSessionId) {
-      setTranscripts([]);
-      setError(null);
-      setLoading(false);
-      setPaginationMeta({ total: 0, limit: TRANSCRIPTS_PAGE_SIZE, hasMore: false });
-      lastSessionRef.current = null;
-      return;
-    }
-
-    const sessionChanged = lastSessionRef.current !== activeSessionId;
-    if (sessionChanged) {
-      setTranscripts([]);
-      setPaginationMeta({ total: 0, limit: TRANSCRIPTS_PAGE_SIZE, hasMore: false });
-      if (currentPage !== 1) {
-        lastSessionRef.current = activeSessionId;
-        setCurrentPage(1);
-        return;
-      }
-      lastSessionRef.current = activeSessionId;
-    }
-
     setLoading(true);
     setError(null);
 
-    fetchTranscripts(activeSessionId, { limit: TRANSCRIPTS_PAGE_SIZE, page: currentPage })
+    fetchTranscripts({ limit: TRANSCRIPTS_PAGE_SIZE, page: currentPage })
       .then((data) => {
         if (canceled) {
           return;
@@ -81,19 +51,15 @@ export default function TranscriptPage() {
       .finally(() => {
         if (!canceled) {
           setLoading(false);
-          lastSessionRef.current = activeSessionId;
         }
       });
 
     return () => {
       canceled = true;
     };
-  }, [activeSessionId, currentPage, refreshIndex]);
+  }, [currentPage, refreshIndex]);
 
   const handleRefresh = () => {
-    if (!activeSessionId) {
-      return;
-    }
     setRefreshIndex((prev) => prev + 1);
   };
 
@@ -102,6 +68,9 @@ export default function TranscriptPage() {
   };
 
   const handleNextPage = () => {
+    if (!paginationMeta.hasMore) {
+      return;
+    }
     setCurrentPage((page) => page + 1);
   };
 
@@ -117,7 +86,7 @@ export default function TranscriptPage() {
     <div className="transcript-alert">
       <p className="text-base font-semibold">No transcripts yet</p>
       <p className="text-sm text-slate-500 dark:text-slate-400">
-        Aura has not persisted any transcript chunks for this session yet. Start speaking on the Assistant tab or try refreshing in a moment.
+        Aura has not persisted any transcripts yet. Wake the assistant or refresh in a moment to see newly recorded snippets.
       </p>
     </div>
   );
@@ -126,46 +95,29 @@ export default function TranscriptPage() {
     <div className="flex flex-col gap-8">
       <section className="space-y-4 text-center md:space-y-6 mx-auto max-w-3xl">
         <p className="text-xs uppercase tracking-[0.4em] text-slate-500 dark:text-slate-400">Transcript</p>
-        <h1 className="text-4xl md:text-5xl font-extrabold text-slate-900 dark:text-white">Transcript history</h1>
+        <h1 className="text-4xl md:text-5xl font-extrabold text-slate-900 dark:text-white">Global transcript history</h1>
         <p className="text-lg md:text-xl text-slate-600 dark:text-slate-300">
-          Review the persisted conversation snippets that Aura captured for your current session. You can override the session ID
-          manually if you need to inspect a different run.
+          Browse every transcript row Aura has persisted, sorted by newest entries first. Use the pagination controls
+          below to flip through older history.
         </p>
       </section>
 
       <section className="transcript-input-panel mx-auto max-w-4xl space-y-4">
         <div className="flex flex-wrap gap-4 items-center justify-between">
           <div>
-            <p className="text-sm text-slate-500 dark:text-slate-400">Active session ID</p>
-            <p className="font-mono break-words text-slate-900 dark:text-slate-100">
-              {activeSessionId ?? 'No session id yet'}
+            <p className="text-sm text-slate-500 dark:text-slate-400">Global transcript view</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Showing transcripts from every session, always sorted newest first.
             </p>
           </div>
           <button
             type="button"
             onClick={handleRefresh}
-            disabled={!activeSessionId || loading}
-            className="flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold bg-slate-800 text-white hover:bg-slate-900 active:scale-95 transition disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold bg-slate-800 text-white hover:bg-slate-900 active:scale-95 transition"
           >
             <RefreshCw className="w-4 h-4" />
             Refresh
           </button>
-        </div>
-        <div className="flex flex-col gap-1">
-          <label htmlFor="manual-session" className="text-sm font-medium text-slate-600 dark:text-slate-300">
-            Manual session ID (optional)
-          </label>
-          <input
-            id="manual-session"
-            type="text"
-            value={manualSessionId}
-            onChange={(event) => setManualSessionId(event.target.value)}
-            placeholder="Paste an existing session ID to inspect older transcripts"
-            className="rounded-2xl border border-slate-200/70 dark:border-slate-800/70 bg-white/80 dark:bg-slate-900/70 px-4 py-3 text-sm text-slate-900 dark:text-white shadow-sm focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500"
-          />
-          <p className="text-xs text-slate-500 dark:text-slate-400">
-            Leave this blank to use the session ID generated by the assistant automatically.
-          </p>
         </div>
       </section>
 
@@ -183,18 +135,9 @@ export default function TranscriptPage() {
         </div>
       )}
 
-      {!activeSessionId && !loading && !error && (
-        <div className="transcript-alert">
-          <p className="text-base font-semibold">No active session</p>
-          <p className="text-sm text-slate-500 dark:text-slate-400">
-            Wake the assistant on the Home tab to generate a session ID before transcripts become available.
-          </p>
-        </div>
-      )}
+      {!loading && !error && transcripts.length === 0 && emptyState()}
 
-      {activeSessionId && !loading && !error && transcripts.length === 0 && emptyState()}
-
-      {activeSessionId && transcripts.length > 0 && (
+      {transcripts.length > 0 && (
         <section className="transcript-list mx-auto max-w-4xl">
           <ul className="space-y-4">
             {transcripts.map((record) => (
@@ -243,7 +186,6 @@ export default function TranscriptPage() {
               <button
                 type="button"
                 onClick={handleRefresh}
-                disabled={!activeSessionId || loading}
                 className="pagination-button"
               >
                 Refresh
