@@ -15,7 +15,33 @@ import {
 } from './config/frontend';
 import { auraBasePath, withAuraBasePath } from './config/auraPath';
 
-const swaggerDocument = YAML.load(path.join(__dirname, '..', 'openapi.yaml'));
+type SwaggerDocument = Record<string, any>;
+
+const swaggerDocument = YAML.load(path.join(__dirname, '..', 'openapi.yaml')) as SwaggerDocument;
+
+function patchSwaggerDocumentBasePath(document: SwaggerDocument) {
+  const servers = Array.isArray(document.servers) ? document.servers : [];
+
+  for (const server of servers) {
+    if (!server || typeof server !== 'object') {
+      continue;
+    }
+
+    const variables = server.variables;
+    if (!variables || typeof variables !== 'object') {
+      continue;
+    }
+
+    const basePathVariable = variables.basePath;
+    if (!basePathVariable || typeof basePathVariable !== 'object') {
+      continue;
+    }
+
+    basePathVariable.default = auraBasePath;
+  }
+}
+
+patchSwaggerDocumentBasePath(swaggerDocument);
 
 type BodyParserError = Error & {
   status?: number;

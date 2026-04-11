@@ -31,13 +31,13 @@ export function sendSPAIndex(res: Response) {
 
 export function configureFrontendStatic(app: Express, basePath: string) {
   const mountBase = basePath === '/' ? '' : basePath;
-  const routeBase = mountBase || '/';
+  const servePath = mountBase || '/';
+  const fallbackRoute = mountBase ? `${mountBase}/*` : '/*';
 
-  app.use(routeBase, express.static(frontendDistPath));
-  app.get(routeBase, (_req, res) => {
+  app.use(servePath, express.static(frontendDistPath));
+  app.get(servePath, (_req, res) => {
     sendSPAIndex(res);
   });
-  const fallbackRoute = routeBase === '/' ? '/*' : `${routeBase}/*`;
   app.get(fallbackRoute, (_req, res) => {
     sendSPAIndex(res);
   });
