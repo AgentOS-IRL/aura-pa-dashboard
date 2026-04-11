@@ -1,7 +1,11 @@
 import { Router, Request, Response } from 'express';
-import { getRecentTranscripts, saveTranscript } from '../services/transcriptStorage';
+import { getTranscriptPage, saveTranscript } from '../services/transcriptStorage';
 
 const router = Router();
+
+export const MAX_TRANSCRIPT_LIMIT = 100;
+const DEFAULT_TRANSCRIPT_LIMIT = 25;
+const DEFAULT_TRANSCRIPT_PAGE = 1;
 
 interface TranscriptRequestBody {
   payload?: unknown;
@@ -47,10 +51,15 @@ router.post('/:sessionId/transcript', (req: Request<{ sessionId: string }, unkno
 
 router.get(
   '/:sessionId/transcript',
-  (req: Request<{ sessionId: string }, unknown, unknown, { limit?: string }>, res: Response) => {
+  (
+    req: Request<{ sessionId: string }, unknown, unknown, { limit?: string; page?: string }>,
+    res: Response
+  ) => {
     const sessionId = (typeof req.params.sessionId === 'string' ? req.params.sessionId.trim() : '');
     const limitParam = req.query.limit;
-    let normalizedLimit: number | undefined;
+    const pageParam = req.query.page;
+    let normalizedLimit = DEFAULT_TRANSCRIPT_LIMIT;
+    let normalizedPage = DEFAULT_TRANSCRIPT_PAGE;
 
     if (!sessionId) {
       return res.status(400).json({ error: 'sessionId path parameter is required' });
@@ -67,12 +76,29 @@ router.get(
         return res.status(400).json({ error: 'limit must be a positive integer' });
       }
 
-      normalizedLimit = parsed;
+      normalizedLimit = Math.min(parsed, MAX_TRANSCRIPT_LIMIT);
+    }
+
+    if (pageParam !== undefined) {
+      const pageString = typeof pageParam === 'string' ? pageParam.trim() : '';
+      if (!pageString || !/^[0-9]+$/.test(pageString)) {
+        return res.status(400).json({ error: 'page must be a positive integer' });
+      }
+
+      const parsed = Number.parseInt(pageString, 10);
+      if (!Number.isFinite(parsed) || parsed <= 0) {
+        return res.status(400).json({ error: 'page must be a positive integer' });
+      }
+
+      normalizedPage = parsed;
     }
 
     try {
-      const transcripts = getRecentTranscripts(sessionId, normalizedLimit);
-      return res.status(200).json({ transcripts });
+      const transcriptPage = getTranscriptPage(sessionId, {
+        limit: normalizedLimit,
+        page: normalizedPage
+      });
+      return res.status(200).json(transcriptPage);
     } catch (error) {
       console.error('Unable to fetch transcripts for session', sessionId, error);
       return res.status(500).json({ error: 'Unable to fetch transcripts' });

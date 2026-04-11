@@ -10,11 +10,20 @@ export interface TranscriptRecord {
   receivedAt: string;
 }
 
-interface TranscriptResponse {
-  transcripts?: TranscriptRecord[];
+export interface TranscriptPageResponse {
+  transcripts: TranscriptRecord[];
+  page: number;
+  limit: number;
+  total: number;
+  hasMore: boolean;
 }
 
-export async function fetchTranscripts(sessionId: string, limit?: number): Promise<TranscriptRecord[]> {
+interface FetchTranscriptsOptions {
+  limit?: number;
+  page?: number;
+}
+
+export async function fetchTranscripts(sessionId: string, options?: FetchTranscriptsOptions): Promise<TranscriptPageResponse> {
   const normalizedId = sessionId?.trim();
   if (!normalizedId) {
     throw new Error("Session ID is required to read transcripts");
@@ -22,8 +31,13 @@ export async function fetchTranscripts(sessionId: string, limit?: number): Promi
 
   const path = `${BACKEND_PATH_PREFIX}/sessions/${encodeURIComponent(normalizedId)}/transcript`;
   const params = new URLSearchParams();
-  if (typeof limit === "number" && Number.isFinite(limit) && limit > 0) {
-    params.set("limit", Math.floor(limit).toString());
+
+  if (typeof options?.limit === "number" && Number.isFinite(options.limit) && options.limit > 0) {
+    params.set("limit", Math.floor(options.limit).toString());
+  }
+
+  if (typeof options?.page === "number" && Number.isFinite(options.page) && options.page > 0) {
+    params.set("page", Math.floor(options.page).toString());
   }
 
   const query = params.toString();
@@ -35,6 +49,27 @@ export async function fetchTranscripts(sessionId: string, limit?: number): Promi
     throw new Error(`Failed to fetch transcripts (${response.status}): ${message}`);
   }
 
-  const payload = (await response.json()) as TranscriptResponse;
-  return Array.isArray(payload.transcripts) ? payload.transcripts : [];
+  const payload = (await response.json()) as Record<string, unknown>;
+  const transcripts = Array.isArray(payload.transcripts)
+    ? (payload.transcripts as TranscriptRecord[])
+    : [];
+
+  const page = typeof payload.page === "number" && Number.isFinite(payload.page) && payload.page > 0
+    ? Math.floor(payload.page)
+    : typeof options?.page === "number" && Number.isFinite(options.page) && options.page > 0
+      ? Math.floor(options.page)
+      : 1;
+
+  const limit = typeof payload.limit === "number" && Number.isFinite(payload.limit) && payload.limit > 0
+    ? Math.floor(payload.limit)
+    : typeof options?.limit === "number" && Number.isFinite(options.limit) && options.limit > 0
+      ? Math.floor(options.limit)
+      : 25;
+
+  const total = typeof payload.total === "number" && Number.isFinite(payload.total) && payload.total >= 0
+    ? payload.total
+    : transcripts.length;
+  const hasMore = payload.hasMore === true;
+
+  return { transcripts, page, limit, total, hasMore };
 }

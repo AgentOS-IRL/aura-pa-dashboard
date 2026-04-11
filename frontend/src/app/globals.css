@@ -82,6 +82,24 @@ body {
     @apply rounded-3xl border border-slate-200/70 dark:border-slate-800/60 bg-white/80 dark:bg-slate-900/70 shadow-xl p-6 space-y-4 max-h-[min(60vh,520px)] overflow-y-auto;
   }
 
+  .transcript-pagination {
+    @apply mt-4 flex flex-col gap-3 text-slate-500 dark:text-slate-400;
+  }
+
+  @screen sm {
+    .transcript-pagination {
+      @apply flex-row items-center justify-between;
+    }
+  }
+
+  .pagination-controls {
+    @apply flex flex-wrap gap-2;
+  }
+
+  .pagination-button {
+    @apply inline-flex items-center justify-center gap-1 rounded-full border border-slate-200/70 dark:border-slate-800/60 bg-white/80 dark:bg-slate-900/70 px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 transition hover:border-slate-300 dark:hover:border-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
   .transcript-card {
     @apply rounded-2xl border border-slate-100/80 dark:border-slate-800/40 bg-slate-50/80 dark:bg-slate-900/70 shadow-sm p-5;
   }

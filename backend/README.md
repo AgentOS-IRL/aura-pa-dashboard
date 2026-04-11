@@ -76,7 +76,9 @@ When you need to show what Aura previously captured, call the read endpoint to l
 
 ### Transcript read endpoint
 
-- `GET /aura/sessions/{sessionId}/transcript` – returns JSON that wraps the latest transcript rows for `sessionId`. You can optionally pass `limit` in the query string to cap how many rows come back (defaults to 25). The payload is always an array named `transcripts`.
+- `GET /aura/sessions/{sessionId}/transcript` – returns a single JSON payload that includes `transcripts`, `page`, `limit`, `total`, and `hasMore`. The query string accepts `page` (optional, defaults to 1) and `limit` (optional, defaults to 25, capped at 100) so you can step backward through older history.
+- `total` reports how many rows exist for the session, `page` reflects the currently returned page, and `hasMore` becomes `true` whenever a subsequent page still exists.
+- Use `?page=2&limit=25` (or higher `page` values) when `hasMore` is `true` to fetch additional entries.
 - Each row contains:
   - `sessionId` (string) – the session that produced the record.
   - `payload` (string) – the text that was captured for that chunk.
@@ -87,7 +89,7 @@ When you need to show what Aura previously captured, call the read endpoint to l
 ### Sample curl
 
 ```bash
-curl -X GET http://localhost:4000/aura/sessions/session-abc/transcript?limit=10
+curl -X GET http://localhost:4000/aura/sessions/session-abc/transcript?page=2&limit=25
 ```
 
 The response looks like:
@@ -103,7 +105,11 @@ The response looks like:
       },
       "receivedAt": "2026-04-01T12:00:00Z"
     }
-  ]
+  ],
+  "page": 2,
+  "limit": 25,
+  "total": 113,
+  "hasMore": true
 }
 ```
 

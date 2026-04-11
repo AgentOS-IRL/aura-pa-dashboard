@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Loader2, RefreshCw } from "lucide-react";
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { useSessionContext } from "../context/session";
 import { fetchTranscripts, type TranscriptRecord } from "../lib/transcripts";
 
@@ -21,6 +21,14 @@ export default function TranscriptPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [refreshIndex, setRefreshIndex] = useState(0);
+  const TRANSCRIPTS_PAGE_SIZE = 25;
+  const [currentPage, setCurrentPage] = useState(1);
+  const [paginationMeta, setPaginationMeta] = useState({
+    total: 0,
+    limit: TRANSCRIPTS_PAGE_SIZE,
+    hasMore: false
+  });
+  const lastSessionRef = useRef<string | null>(null);
 
   const activeSessionId = useMemo(() => {
     const override = manualSessionId.trim();
@@ -34,36 +42,53 @@ export default function TranscriptPage() {
       setTranscripts([]);
       setError(null);
       setLoading(false);
+      setPaginationMeta({ total: 0, limit: TRANSCRIPTS_PAGE_SIZE, hasMore: false });
+      lastSessionRef.current = null;
       return;
+    }
+
+    const sessionChanged = lastSessionRef.current !== activeSessionId;
+    if (sessionChanged) {
+      setTranscripts([]);
+      setPaginationMeta({ total: 0, limit: TRANSCRIPTS_PAGE_SIZE, hasMore: false });
+      if (currentPage !== 1) {
+        lastSessionRef.current = activeSessionId;
+        setCurrentPage(1);
+        return;
+      }
+      lastSessionRef.current = activeSessionId;
     }
 
     setLoading(true);
     setError(null);
 
-    fetchTranscripts(activeSessionId)
-      .then((items) => {
+    fetchTranscripts(activeSessionId, { limit: TRANSCRIPTS_PAGE_SIZE, page: currentPage })
+      .then((data) => {
         if (canceled) {
           return;
         }
-        setTranscripts(items);
+        setTranscripts(data.transcripts);
+        setPaginationMeta({ total: data.total, limit: data.limit, hasMore: data.hasMore });
       })
       .catch((err) => {
         if (canceled) {
           return;
         }
         setTranscripts([]);
+        setPaginationMeta({ total: 0, limit: TRANSCRIPTS_PAGE_SIZE, hasMore: false });
         setError(err instanceof Error ? err.message : String(err));
       })
       .finally(() => {
         if (!canceled) {
           setLoading(false);
+          lastSessionRef.current = activeSessionId;
         }
       });
 
     return () => {
       canceled = true;
     };
-  }, [activeSessionId, refreshIndex]);
+  }, [activeSessionId, currentPage, refreshIndex]);
 
   const handleRefresh = () => {
     if (!activeSessionId) {
@@ -71,6 +96,22 @@ export default function TranscriptPage() {
     }
     setRefreshIndex((prev) => prev + 1);
   };
+
+  const handlePreviousPage = () => {
+    setCurrentPage((page) => Math.max(1, page - 1));
+  };
+
+  const handleNextPage = () => {
+    setCurrentPage((page) => page + 1);
+  };
+
+  const limitForSummary = Math.max(1, paginationMeta.limit || TRANSCRIPTS_PAGE_SIZE);
+  const totalEntries = paginationMeta.total;
+  const totalPages = totalEntries > 0 ? Math.max(1, Math.ceil(totalEntries / limitForSummary)) : 1;
+  const startEntry = totalEntries === 0 ? 0 : (currentPage - 1) * limitForSummary + 1;
+  const endEntry = totalEntries === 0 ? 0 : Math.min(totalEntries, currentPage * limitForSummary);
+  const isPreviousDisabled = currentPage <= 1 || loading;
+  const isNextDisabled = !paginationMeta.hasMore || loading;
 
   const emptyState = () => (
     <div className="transcript-alert">
@@ -181,8 +222,43 @@ export default function TranscriptPage() {
               </li>
             ))}
           </ul>
-          <div className="flex justify-between items-center mt-4 text-xs text-slate-500 dark:text-slate-400">
-            <p>Showing the most recent {transcripts.length} entries.</p>
+          <div className="transcript-pagination">
+            <div className="space-y-1">
+              <p className="text-xs font-semibold uppercase tracking-[0.4em] text-slate-500 dark:text-slate-400">
+                Page {currentPage} of {totalPages}
+              </p>
+              <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                Showing entries {startEntry}–{endEntry} of {totalEntries}
+              </p>
+            </div>
+            <div className="pagination-controls">
+              <button
+                type="button"
+                onClick={handlePreviousPage}
+                disabled={isPreviousDisabled}
+                className="pagination-button"
+              >
+                Previous
+              </button>
+              <button
+                type="button"
+                onClick={handleRefresh}
+                disabled={!activeSessionId || loading}
+                className="pagination-button"
+              >
+                Refresh
+              </button>
+              <button
+                type="button"
+                onClick={handleNextPage}
+                disabled={isNextDisabled}
+                className="pagination-button"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+          <div className="flex justify-end items-center mt-2 text-xs text-slate-500 dark:text-slate-400">
             <Link href="/" className="nav-link text-xs px-3 py-1" aria-label="Return to assistant">
               Back to Assistant
             </Link>

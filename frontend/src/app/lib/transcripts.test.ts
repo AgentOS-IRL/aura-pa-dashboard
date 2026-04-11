@@ -7,38 +7,59 @@ afterEach(() => {
 });
 
 describe("fetchTranscripts", () => {
-  it("fetches transcripts for the provided session", async () => {
+  it("fetches transcripts and returns pagination metadata", async () => {
     const fetchMock = vi.fn(() =>
       Promise.resolve({
         ok: true,
-        json: () => Promise.resolve({ transcripts: [] }),
+        json: () => Promise.resolve({
+          transcripts: [],
+          page: 1,
+          limit: 25,
+          total: 0,
+          hasMore: false
+        })
       }),
     );
 
     vi.stubGlobal("fetch", fetchMock);
 
-    await fetchTranscripts("session-123");
+    const result = await fetchTranscripts("session-123");
 
     expect(fetchMock).toHaveBeenCalledWith("http://localhost:4000/aura/sessions/session-123/transcript", {
       method: "GET",
     });
+    expect(result).toEqual({
+      transcripts: [],
+      page: 1,
+      limit: 25,
+      total: 0,
+      hasMore: false
+    });
   });
 
-  it("includes the limit parameter when provided", async () => {
+  it("includes the limit and page parameters when provided", async () => {
     const fetchMock = vi.fn(() =>
       Promise.resolve({
         ok: true,
-        json: () => Promise.resolve({ transcripts: [] }),
+        json: () => Promise.resolve({
+          transcripts: [],
+          page: 2,
+          limit: 5,
+          total: 0,
+          hasMore: false
+        })
       }),
     );
 
     vi.stubGlobal("fetch", fetchMock);
 
-    await fetchTranscripts("session-xyz", 5);
+    const pageInfo = await fetchTranscripts("session-xyz", { limit: 5, page: 2 });
 
-    expect(fetchMock).toHaveBeenCalledWith("http://localhost:4000/aura/sessions/session-xyz/transcript?limit=5", {
+    expect(fetchMock).toHaveBeenCalledWith("http://localhost:4000/aura/sessions/session-xyz/transcript?limit=5&page=2", {
       method: "GET",
     });
+    expect(pageInfo.page).toBe(2);
+    expect(pageInfo.limit).toBe(5);
   });
 
   it("throws when the backend returns an error", async () => {

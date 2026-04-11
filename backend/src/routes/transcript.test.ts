@@ -3,21 +3,22 @@ import request from 'supertest';
 
 vi.mock('../services/transcriptStorage', () => ({
   saveTranscript: vi.fn(),
-  getRecentTranscripts: vi.fn()
+  getTranscriptPage: vi.fn()
 }));
 
-import { getRecentTranscripts, saveTranscript } from '../services/transcriptStorage';
+import { getTranscriptPage, saveTranscript } from '../services/transcriptStorage';
 import { createApp } from '../index';
 import { withAuraBasePath } from '../config/auraPath';
+import { MAX_TRANSCRIPT_LIMIT } from './transcript';
 
 const app = createApp();
 const saveTranscriptMock = vi.mocked(saveTranscript);
-const getRecentTranscriptsMock = vi.mocked(getRecentTranscripts);
+const getTranscriptPageMock = vi.mocked(getTranscriptPage);
 
 describe('transcript route', () => {
   beforeEach(() => {
     saveTranscriptMock.mockReset();
-    getRecentTranscriptsMock.mockReset();
+    getTranscriptPageMock.mockReset();
   });
 
   it('returns 201 and persists the payload/metadata', async () => {
@@ -80,54 +81,104 @@ describe('transcript route', () => {
 
 describe('transcript GET route', () => {
   beforeEach(() => {
-    getRecentTranscriptsMock.mockReset();
+    getTranscriptPageMock.mockReset();
   });
 
-  it('returns transcripts when the service succeeds', async () => {
+  it('returns transcripts with pagination metadata when the service succeeds', async () => {
     const rows = [
       { sessionId: 'session-1', payload: 'hello', metadata: null, receivedAt: '2026-04-01T12:00:00Z' }
     ];
-    getRecentTranscriptsMock.mockReturnValue(rows);
+    getTranscriptPageMock.mockReturnValue({
+      transcripts: rows,
+      page: 1,
+      limit: 25,
+      total: rows.length,
+      hasMore: false
+    });
 
     const response = await request(app)
       .get(withAuraBasePath('/sessions/session-1/transcript'))
       .expect(200);
 
-    expect(response.body).toEqual({ transcripts: rows });
-    expect(getRecentTranscriptsMock).toHaveBeenCalledWith('session-1', undefined);
+    expect(response.body).toEqual({
+      transcripts: rows,
+      page: 1,
+      limit: 25,
+      total: rows.length,
+      hasMore: false
+    });
+    expect(getTranscriptPageMock).toHaveBeenCalledWith('session-1', { limit: 25, page: 1 });
   });
 
-  it('passes numeric limits to the service', async () => {
-    getRecentTranscriptsMock.mockReturnValue([]);
+  it('forwards pagination params to the storage helper', async () => {
+    getTranscriptPageMock.mockReturnValue({
+      transcripts: [],
+      page: 2,
+      limit: 5,
+      total: 0,
+      hasMore: false
+    });
 
     await request(app)
       .get(withAuraBasePath('/sessions/session-1/transcript'))
-      .query({ limit: '5' })
+      .query({ limit: '5', page: '2' })
       .expect(200);
 
-    expect(getRecentTranscriptsMock).toHaveBeenCalledWith('session-1', 5);
+    expect(getTranscriptPageMock).toHaveBeenCalledWith('session-1', { limit: 5, page: 2 });
+  });
+
+  it('caps limit values at the configured maximum', async () => {
+    const expectedLimit = MAX_TRANSCRIPT_LIMIT;
+    getTranscriptPageMock.mockReturnValue({
+      transcripts: [],
+      page: 1,
+      limit: expectedLimit,
+      total: 0,
+      hasMore: false
+    });
+
+    await request(app)
+      .get(withAuraBasePath('/sessions/session-1/transcript'))
+      .query({ limit: `${expectedLimit + 20}` })
+      .expect(200);
+
+    expect(getTranscriptPageMock).toHaveBeenCalledWith('session-1', { limit: expectedLimit, page: 1 });
   });
 
   it('rejects invalid limits with 400', async () => {
-    getRecentTranscriptsMock.mockReturnValue([]);
-
     await request(app)
       .get(withAuraBasePath('/sessions/session-1/transcript'))
       .query({ limit: 'NaN' })
       .expect(400);
 
-    expect(getRecentTranscriptsMock).not.toHaveBeenCalled();
+    expect(getTranscriptPageMock).not.toHaveBeenCalled();
   });
 
   it('rejects non-positive limits with 400', async () => {
-    getRecentTranscriptsMock.mockReturnValue([]);
-
     await request(app)
       .get(withAuraBasePath('/sessions/session-1/transcript'))
       .query({ limit: '0' })
       .expect(400);
 
-    expect(getRecentTranscriptsMock).not.toHaveBeenCalled();
+    expect(getTranscriptPageMock).not.toHaveBeenCalled();
+  });
+
+  it('rejects invalid pages with 400', async () => {
+    await request(app)
+      .get(withAuraBasePath('/sessions/session-1/transcript'))
+      .query({ page: 'NaN' })
+      .expect(400);
+
+    expect(getTranscriptPageMock).not.toHaveBeenCalled();
+  });
+
+  it('rejects non-positive pages with 400', async () => {
+    await request(app)
+      .get(withAuraBasePath('/sessions/session-1/transcript'))
+      .query({ page: '0' })
+      .expect(400);
+
+    expect(getTranscriptPageMock).not.toHaveBeenCalled();
   });
 
   it('returns 400 when no session ID is provided', async () => {
@@ -135,11 +186,11 @@ describe('transcript GET route', () => {
       .get(withAuraBasePath('/sessions/%20/transcript'))
       .expect(400);
 
-    expect(getRecentTranscriptsMock).not.toHaveBeenCalled();
+    expect(getTranscriptPageMock).not.toHaveBeenCalled();
   });
 
   it('maps service errors to 500', async () => {
-    getRecentTranscriptsMock.mockImplementation(() => {
+    getTranscriptPageMock.mockImplementation(() => {
       throw new Error('fetch failed');
     });
 
