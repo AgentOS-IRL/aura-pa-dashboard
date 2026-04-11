@@ -37,7 +37,8 @@ export function configureFrontendStatic(app: Express, basePath: string) {
   app.get(routeBase, (_req, res) => {
     sendSPAIndex(res);
   });
-  app.get(`${routeBase}/*`, (_req, res) => {
+  const fallbackRoute = routeBase === '/' ? '/*' : `${routeBase}/*`;
+  app.get(fallbackRoute, (_req, res) => {
     sendSPAIndex(res);
   });
 }

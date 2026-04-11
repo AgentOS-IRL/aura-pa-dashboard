@@ -7,10 +7,14 @@ info:
     name: Aura Platform Team
     email: platform-team@example.com
 servers:
-  - url: /
-    description: Requests should be prefixed with the configured AURA_BASE_PATH (default `/aura`) so the Swagger docs match runtime routes.
+  - url: '{basePath}'
+    description: Swagger docs use the configured `AURA_BASE_PATH` (default `/aura`).
+    variables:
+      basePath:
+        default: /aura
+        description: Override with your runtime base path so the UI and generated clients call the right routes.
 paths:
-  /aura/health:
+  /health:
     get:
       tags:
         - Health
@@ -40,7 +44,7 @@ paths:
                   - uptime
                   - version
                   - timestamp
-  /aura/sessions/{sessionId}/audio:
+  /sessions/{sessionId}/audio:
     post:
       tags:
         - Audio
@@ -72,7 +76,7 @@ paths:
           description: Missing sessionId or audio payload
         '500':
           description: Backend failed to persist the audio chunk
-  /aura/sessions/{sessionId}/transcript:
+  /sessions/{sessionId}/transcript:
     post:
       tags:
         - Transcript
