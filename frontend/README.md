@@ -23,7 +23,7 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 The static export now includes two entry points that live under the configured base path (`NEXT_PUBLIC_AURA_BASE_PATH`, default `/aura`):
 
 - `/aura/` renders the assistant experience.
-- `/aura/transcript` now renders the persisted transcript history for the session that the assistant generated. The page reads the active session ID from a shared context (which also persists it to `localStorage`) and falls back to any manual session ID you paste into the input. The history view refreshes itself automatically and lets you re-request the data with the Refresh button.
+- `/aura/transcript` now renders the persisted transcript history for the session that the assistant generated. The page reads the active session ID from a shared context (which also persists it to `localStorage`) and falls back to any manual session ID you paste into the input. The history view refreshes itself automatically, surfaces the backend pagination metadata (page, limit, total, hasMore), and lets you step through older entries with Previous/Next along with a Refresh button for the current page.
 
 Because the app runs as a static export (`output: "export"`), both routes are built at `npm run build` and must be deployed together so the transcript page can always reach the same backend that the assistant uses.
 

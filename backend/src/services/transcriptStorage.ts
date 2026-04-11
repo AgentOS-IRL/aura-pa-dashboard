@@ -48,15 +48,39 @@ export function createTranscriptStorage(db: Database.Database) {
   const insertStmt = db.prepare(
     'INSERT INTO transcripts (session_id, payload, metadata, received_at) VALUES (?, ?, ?, ?)'
   );
-  const selectStmt = db.prepare(
-    'SELECT session_id, payload, metadata, received_at FROM transcripts WHERE session_id = ? ORDER BY received_at DESC LIMIT ?'
+  const selectPageStmt = db.prepare(
+    'SELECT session_id, payload, metadata, received_at FROM transcripts WHERE session_id = ? ORDER BY received_at DESC, id DESC LIMIT ? OFFSET ?'
   );
+  const countStmt = db.prepare('SELECT COUNT(*) AS total FROM transcripts WHERE session_id = ?');
+
+  const DEFAULT_LIMIT = 25;
+  const MAX_LIMIT = 100;
+  const DEFAULT_PAGE = 1;
 
   function normalizePayload(body: string | Buffer): string {
     if (Buffer.isBuffer(body)) {
       return body.toString('utf-8');
     }
     return body ?? '';
+  }
+
+  function normalizeLimit(value?: number): number {
+    if (!Number.isFinite(value)) {
+      return DEFAULT_LIMIT;
+    }
+    const limit = Math.floor(value);
+    if (limit <= 0) {
+      return DEFAULT_LIMIT;
+    }
+    return Math.min(limit, MAX_LIMIT);
+  }
+
+  function normalizePage(value?: number): number {
+    if (!Number.isFinite(value)) {
+      return DEFAULT_PAGE;
+    }
+    const page = Math.floor(value);
+    return page > 0 ? page : DEFAULT_PAGE;
   }
 
   function saveTranscript(sessionId: string, body: string | Buffer, metadata?: Record<string, unknown>): void {
@@ -73,35 +97,62 @@ export function createTranscriptStorage(db: Database.Database) {
     insertStmt.run(normalizedSessionId, payload, serializedMetadata, receivedAt);
   }
 
-  function getRecentTranscripts(sessionId: string, limit = 25): TranscriptRecord[] {
+  function getTranscriptPage(
+    sessionId: string,
+    options?: { page?: number; limit?: number }
+  ): {
+    transcripts: TranscriptRecord[];
+    page: number;
+    limit: number;
+    total: number;
+    hasMore: boolean;
+  } {
     const normalizedSessionId = sessionId?.trim();
+    const limit = normalizeLimit(options?.limit);
+    const page = normalizePage(options?.page);
 
     if (!normalizedSessionId) {
-      return [];
+      return { transcripts: [], page, limit, total: 0, hasMore: false };
     }
 
-    const rows = selectStmt.all(normalizedSessionId, limit) as Array<{
+    const offset = (page - 1) * limit;
+    const rows = selectPageStmt.all(normalizedSessionId, limit, offset) as Array<{
       session_id: string;
       payload: string;
       metadata: string | null;
       received_at: string;
     }>;
+    const countRow = countStmt.get(normalizedSessionId) as { total: number } | undefined;
+    const total = typeof countRow?.total === 'number' ? countRow.total : 0;
 
-    return rows.map((row) => ({
+    const transcripts = rows.map((row) => ({
       sessionId: row.session_id,
       payload: row.payload,
       metadata: parseMetadata(row.metadata),
       receivedAt: row.received_at
     }));
+
+    return {
+      transcripts,
+      page,
+      limit,
+      total,
+      hasMore: page * limit < total
+    };
+  }
+
+  function getRecentTranscripts(sessionId: string, limit?: number): TranscriptRecord[] {
+    return getTranscriptPage(sessionId, { page: DEFAULT_PAGE, limit }).transcripts;
   }
 
   return {
     saveTranscript,
-    getRecentTranscripts
+    getRecentTranscripts,
+    getTranscriptPage
   };
 }
 
 const defaultStorage = createTranscriptStorage(getTranscriptDatabase());
 
-export const { saveTranscript, getRecentTranscripts } = defaultStorage;
+export const { saveTranscript, getRecentTranscripts, getTranscriptPage } = defaultStorage;
 export type TranscriptStorage = ReturnType<typeof createTranscriptStorage>;
