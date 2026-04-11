@@ -27,9 +27,13 @@ function parseStringValue(value: string | string[] | undefined) {
 
 function resolveExecutorId(req: Request) {
   const headerValue = parseStringValue(req.get(EXECUTOR_ID_HEADER));
+  const headerTrimmed = headerValue?.trim();
+  if (headerTrimmed) {
+    return headerTrimmed;
+  }
+
   const queryValue = parseStringValue(req.query[EXECUTOR_ID_QUERY] as string | string[]);
-  const resolved = headerValue ?? queryValue;
-  return resolved?.trim();
+  return queryValue?.trim();
 }
 
 router.post('/:sessionId/audio', upload.single('audio'), async (req: AudioUploadRequest, res: Response) => {
