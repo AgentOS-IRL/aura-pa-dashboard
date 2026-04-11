@@ -4,7 +4,7 @@ import { useMicVAD, utils } from '@ricky0123/vad-react';
 import { Mic, MicOff, Waves, Trash2 } from 'lucide-react';
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useSessionContext } from '../context/session';
-import { createSessionId, uploadAudioChunk } from '../lib/audioUpload';
+import { createSessionId, getExecutorId, uploadAudioChunk } from '../lib/audioUpload';
 import { AURA_BASE_PATH } from '../lib/auraPath';
 
 interface AudioSegment {
@@ -60,7 +60,7 @@ export default function Assistant() {
             setUploadError(null);
 
             try {
-                await uploadAudioChunk(sessionId, chunk);
+                await uploadAudioChunk(sessionId, chunk, getExecutorId());
                 setUploadStatus('Upload complete');
             } catch (error) {
                 console.error('Failed to upload audio chunk', error);
