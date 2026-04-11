@@ -1,7 +1,6 @@
 import fs from 'fs';
 import path from 'path';
 import express, { Express, Response } from 'express';
-import { auraRouteSegment } from './auraPath';
 
 export const frontendBuildDir = process.env.FRONTEND_BUILD_DIR ?? 'out';
 const frontendDistRoot = path.join(
@@ -12,9 +11,7 @@ const frontendDistRoot = path.join(
   'frontend',
   frontendBuildDir
 );
-export const frontendDistPath = auraRouteSegment
-  ? path.join(frontendDistRoot, auraRouteSegment)
-  : frontendDistRoot;
+export const frontendDistPath = frontendDistRoot;
 
 export function ensureFrontendDistPathExists() {
   if (!fs.existsSync(frontendDistPath)) {

@@ -65,7 +65,7 @@ export function createTranscriptStorage(db: Database.Database) {
   }
 
   function normalizeLimit(value?: number): number {
-    if (!Number.isFinite(value)) {
+    if (value === undefined || !Number.isFinite(value)) {
       return DEFAULT_LIMIT;
     }
     const limit = Math.floor(value);
@@ -76,7 +76,7 @@ export function createTranscriptStorage(db: Database.Database) {
   }
 
   function normalizePage(value?: number): number {
-    if (!Number.isFinite(value)) {
+    if (value === undefined || !Number.isFinite(value)) {
       return DEFAULT_PAGE;
     }
     const page = Math.floor(value);

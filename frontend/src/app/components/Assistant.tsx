@@ -5,6 +5,7 @@ import { Mic, MicOff, Waves, Trash2 } from 'lucide-react';
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useSessionContext } from '../context/session';
 import { createSessionId, uploadAudioChunk } from '../lib/audioUpload';
+import { AURA_BASE_PATH } from '../lib/auraPath';
 
 interface AudioSegment {
     id: string;
@@ -113,8 +114,8 @@ export default function Assistant() {
 
     const vad = useMicVAD({
         model: 'v5',
-        baseAssetPath: '/',
-        onnxWASMBasePath: '/',
+        baseAssetPath: `${AURA_BASE_PATH}/`,
+        onnxWASMBasePath: `${AURA_BASE_PATH}/`,
         startOnLoad: false,
         onSpeechEnd: (audio) => {
             void handleSpeechEnd(audio);
@@ -152,13 +153,12 @@ export default function Assistant() {
                 <div className="flex flex-col items-center justify-center space-y-8 px-6 py-8 sm:px-10 sm:py-10 bg-white/5 dark:bg-slate-800/50 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-xl shadow-slate-900/20 backdrop-blur-sm">
                     {/* Keep the mic circle compact on phones and expand gently on larger screens. */}
                     <div
-                        className={`relative flex items-center justify-center w-32 h-32 sm:w-40 sm:h-40 rounded-full transition-all duration-700 ${
-                            vad.userSpeaking
-                                ? 'bg-blue-500 shadow-[0_0_60px_rgba(59,130,246,0.6)] scale-110'
-                                : vad.listening
-                                    ? 'bg-indigo-500 shadow-[0_0_30px_rgba(99,102,241,0.3)]'
-                                    : 'bg-slate-200 dark:bg-slate-700'
-                        }`}
+                        className={`relative flex items-center justify-center w-32 h-32 sm:w-40 sm:h-40 rounded-full transition-all duration-700 ${vad.userSpeaking
+                            ? 'bg-blue-500 shadow-[0_0_60px_rgba(59,130,246,0.6)] scale-110'
+                            : vad.listening
+                                ? 'bg-indigo-500 shadow-[0_0_30px_rgba(99,102,241,0.3)]'
+                                : 'bg-slate-200 dark:bg-slate-700'
+                            }`}
                     >
                         {vad.userSpeaking ? (
                             <Waves className="w-16 h-16 sm:w-20 sm:h-20 text-white animate-pulse" />
@@ -181,23 +181,22 @@ export default function Assistant() {
                         {/* Full-width on mobile keeps the action easy to tap; shrink to auto on larger viewports. */}
                         <button
                             onClick={toggleListening}
-                            className={`w-full sm:w-auto justify-center px-8 py-3 sm:py-4 rounded-full font-bold text-base md:text-lg leading-6 text-white shadow-lg transition-all active:scale-95 ${
-                                vad.listening ? 'bg-red-500 hover:bg-red-600 shadow-red-500/30' : 'bg-blue-600 hover:bg-blue-700 shadow-blue-600/30'
-                            }`}
+                            className={`w-full sm:w-auto justify-center px-8 py-3 sm:py-4 rounded-full font-bold text-base md:text-lg leading-6 text-white shadow-lg transition-all active:scale-95 ${vad.listening ? 'bg-red-500 hover:bg-red-600 shadow-red-500/30' : 'bg-blue-600 hover:bg-blue-700 shadow-blue-600/30'
+                                }`}
                         >
                             {vad.listening ? 'Stop Assistant' : 'Wake Assistant'}
                         </button>
 
                         <div className="space-y-1 text-sm text-slate-500 pt-3">
                             <p className="text-xs uppercase tracking-wide text-slate-400">Session ID</p>
-                      <p className="font-mono text-slate-900 dark:text-white break-all">
-                        {sessionId ?? 'Tap "Wake Assistant" to start a session'}
-                      </p>
+                            <p className="font-mono text-slate-900 dark:text-white break-all">
+                                {sessionId ?? 'Tap "Wake Assistant" to start a session'}
+                            </p>
                             <p className="text-xs text-slate-500">Session status: {sessionStatus}</p>
                             <p className={`text-xs ${uploadError ? 'text-rose-500' : 'text-slate-500'}`}>
                                 Upload status: {uploadStatus}
                                 {uploadInFlight && ' · Sending...'}
-                    </p>
+                            </p>
                             {uploadError && <p className="text-xs text-rose-500">Error: {uploadError}</p>}
                         </div>
                     </div>
