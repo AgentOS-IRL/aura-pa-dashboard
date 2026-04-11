@@ -145,7 +145,6 @@ export async function startAgentHealthSubscriber() {
   attachLogging(subscriber);
 
   try {
-    await subscriber.connect();
     await subscriber.subscribe(AGENT_STATUS_CHANNEL, (message) => {
       processAgentStatusMessage(message);
     });
