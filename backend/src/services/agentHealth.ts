@@ -146,8 +146,11 @@ export async function startAgentHealthSubscriber() {
 
   try {
     await subscriber.connect();
-    await subscriber.subscribe(AGENT_STATUS_CHANNEL, (message) => {
-      processAgentStatusMessage(message);
+    await subscriber.subscribe(AGENT_STATUS_CHANNEL);
+    subscriber.on('message', (channel, message) => {
+      if (channel === AGENT_STATUS_CHANNEL) {
+        processAgentStatusMessage(message);
+      }
     });
     subscriberActive = true;
     console.log(`[agentHealth] subscribed to ${AGENT_STATUS_CHANNEL}`);
