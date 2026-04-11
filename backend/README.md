@@ -94,6 +94,17 @@ When you need to show what Aura previously captured, call one of the read endpoi
 - `total` reflects the count of all matching rows, and `hasMore` becomes `true` whenever additional pages exist across any session.
 - The route returns `200` with results, `400` when pagination parameters are invalid, and `500` when the storage helper throws.
 
+### Purging transcripts
+
+- `DELETE /aura/transcripts` – removes every row from the transcripts table via the same storage helper that powers the listing route. The dashboard exposes a **Delete all transcripts** button on `/aura/transcript` that prompts for confirmation before calling this route.
+- Use this endpoint with caution: the operation is irreversible and any historian data you rely on will be gone until new transcripts are recorded.
+- The route returns `204` when the purge succeeds, and `500` when the storage layer throws. Any failures surface in the UI’s error banner so operators can retry.
+- Sample curl:
+
+```bash
+curl -X DELETE http://localhost:4000/aura/transcripts
+```
+
 ### Sample curl
 
 ```bash

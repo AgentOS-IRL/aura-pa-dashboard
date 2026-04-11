@@ -4,10 +4,16 @@ import request from 'supertest';
 vi.mock('../services/transcriptStorage', () => ({
   saveTranscript: vi.fn(),
   getTranscriptPage: vi.fn(),
-  getLatestTranscripts: vi.fn()
+  getLatestTranscripts: vi.fn(),
+  deleteAllTranscripts: vi.fn()
 }));
 
-import { getTranscriptPage, getLatestTranscripts, saveTranscript } from '../services/transcriptStorage';
+import {
+  getTranscriptPage,
+  getLatestTranscripts,
+  saveTranscript,
+  deleteAllTranscripts
+} from '../services/transcriptStorage';
 import { createApp } from '../index';
 import { withAuraBasePath } from '../config/auraPath';
 import { MAX_TRANSCRIPT_LIMIT } from './transcript';
@@ -16,6 +22,7 @@ const app = createApp();
 const saveTranscriptMock = vi.mocked(saveTranscript);
 const getTranscriptPageMock = vi.mocked(getTranscriptPage);
 const getLatestTranscriptsMock = vi.mocked(getLatestTranscripts);
+const deleteAllTranscriptsMock = vi.mocked(deleteAllTranscripts);
 
 describe('transcript route', () => {
   beforeEach(() => {
@@ -205,6 +212,7 @@ describe('transcript GET route', () => {
 describe('transcripts listing route', () => {
   beforeEach(() => {
     getLatestTranscriptsMock.mockReset();
+    deleteAllTranscriptsMock.mockReset();
   });
 
   it('returns transcripts with pagination metadata when the service succeeds', async () => {
@@ -301,6 +309,26 @@ describe('transcripts listing route', () => {
 
     await request(app)
       .get(withAuraBasePath('/transcripts'))
+      .expect(500);
+  });
+
+  it('returns 204 when deleting all transcripts succeeds', async () => {
+    deleteAllTranscriptsMock.mockReturnValue(2);
+
+    await request(app)
+      .delete(withAuraBasePath('/transcripts'))
+      .expect(204);
+
+    expect(deleteAllTranscriptsMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('maps delete failures to 500', async () => {
+    deleteAllTranscriptsMock.mockImplementation(() => {
+      throw new Error('delete failed');
+    });
+
+    await request(app)
+      .delete(withAuraBasePath('/transcripts'))
       .expect(500);
   });
 });

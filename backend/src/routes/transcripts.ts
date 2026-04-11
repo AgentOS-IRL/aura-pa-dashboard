@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { getLatestTranscripts } from '../services/transcriptStorage';
+import { deleteAllTranscripts, getLatestTranscripts } from '../services/transcriptStorage';
 import { normalizeLimitParam, normalizePageParam } from './pagination';
 
 const router = Router();
@@ -33,5 +33,15 @@ router.get(
     }
   }
 );
+
+router.delete('/', (_req, res) => {
+  try {
+    deleteAllTranscripts();
+    return res.status(204).send();
+  } catch (error) {
+    console.error('Unable to delete transcripts', error);
+    return res.status(500).json({ error: 'Unable to delete transcripts' });
+  }
+});
 
 export default router;

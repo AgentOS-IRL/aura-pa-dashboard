@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { Loader2, RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
-import { fetchTranscripts, type TranscriptRecord } from "../lib/transcripts";
+import { deleteAllTranscripts, fetchTranscripts, type TranscriptRecord } from "../lib/transcripts";
 
 const formatReceivedAt = (value: string) => {
   const parsed = new Date(value);
@@ -18,6 +18,8 @@ export default function TranscriptPage() {
   const [transcripts, setTranscripts] = useState<TranscriptRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [refreshIndex, setRefreshIndex] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [paginationMeta, setPaginationMeta] = useState({
@@ -63,6 +65,32 @@ export default function TranscriptPage() {
     setRefreshIndex((prev) => prev + 1);
   };
 
+  const handleDeleteAll = async () => {
+    if (deleting) {
+      return;
+    }
+
+    const confirmed = window.confirm(
+      'Delete all transcripts? This permanently removes every row from the global history.'
+    );
+    if (!confirmed) {
+      return;
+    }
+
+    setDeleting(true);
+    setDeleteError(null);
+
+    try {
+      await deleteAllTranscripts();
+      setCurrentPage(1);
+      setRefreshIndex((prev) => prev + 1);
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const handlePreviousPage = () => {
     setCurrentPage((page) => Math.max(1, page - 1));
   };
@@ -79,8 +107,8 @@ export default function TranscriptPage() {
   const totalPages = totalEntries > 0 ? Math.max(1, Math.ceil(totalEntries / limitForSummary)) : 1;
   const startEntry = totalEntries === 0 ? 0 : (currentPage - 1) * limitForSummary + 1;
   const endEntry = totalEntries === 0 ? 0 : Math.min(totalEntries, currentPage * limitForSummary);
-  const isPreviousDisabled = currentPage <= 1 || loading;
-  const isNextDisabled = !paginationMeta.hasMore || loading;
+  const isPreviousDisabled = currentPage <= 1 || loading || deleting;
+  const isNextDisabled = !paginationMeta.hasMore || loading || deleting;
 
   const emptyState = () => (
     <div className="transcript-alert">
@@ -103,28 +131,53 @@ export default function TranscriptPage() {
       </section>
 
       <section className="transcript-input-panel mx-auto max-w-4xl space-y-4">
-        <div className="flex flex-wrap gap-4 items-center justify-between">
-          <div>
-            <p className="text-sm text-slate-500 dark:text-slate-400">Global transcript view</p>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              Showing transcripts from every session, always sorted newest first.
-            </p>
+          <div className="flex flex-wrap gap-4 items-center justify-between">
+            <div>
+              <p className="text-sm text-slate-500 dark:text-slate-400">Global transcript view</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Showing transcripts from every session, always sorted newest first.
+              </p>
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              <button
+                type="button"
+                onClick={handleRefresh}
+                disabled={loading || deleting}
+                className="flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold bg-slate-800 text-white hover:bg-slate-900 active:scale-95 transition disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <RefreshCw className="w-4 h-4" />
+                Refresh
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteAll}
+                disabled={loading || deleting}
+                className="flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold bg-rose-600 text-white hover:bg-rose-700 active:scale-95 transition disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {deleting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Deleting…
+                  </>
+                ) : (
+                  "Delete all transcripts"
+                )}
+              </button>
+            </div>
           </div>
-          <button
-            type="button"
-            onClick={handleRefresh}
-            className="flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold bg-slate-800 text-white hover:bg-slate-900 active:scale-95 transition"
-          >
-            <RefreshCw className="w-4 h-4" />
-            Refresh
-          </button>
-        </div>
-      </section>
+        </section>
 
       {error && (
         <div className="transcript-alert">
           <p className="text-base font-semibold text-rose-600">Unable to load transcripts</p>
           <p className="text-sm text-slate-500 dark:text-slate-400">{error}</p>
+        </div>
+      )}
+
+      {deleteError && (
+        <div className="transcript-alert">
+          <p className="text-base font-semibold text-rose-600">Unable to delete transcripts</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400">{deleteError}</p>
         </div>
       )}
 
@@ -186,6 +239,7 @@ export default function TranscriptPage() {
               <button
                 type="button"
                 onClick={handleRefresh}
+                disabled={loading || deleting}
                 className="pagination-button"
               >
                 Refresh

@@ -130,3 +130,31 @@ describe('getLatestTranscripts', () => {
     expect(page.transcripts).toHaveLength(1);
   });
 });
+
+describe('deleteAllTranscripts', () => {
+  beforeEach(() => {
+    db = new Database(':memory:');
+  });
+
+  it('purges all rows and reports the deleted count', () => {
+    const storage = createTranscriptStorage(db);
+    storage.saveTranscript('session-a', 'first');
+    storage.saveTranscript('session-b', 'second');
+
+    const deleted = storage.deleteAllTranscripts();
+
+    expect(deleted).toBe(2);
+    const page = storage.getLatestTranscripts({ limit: 10 });
+    expect(page.total).toBe(0);
+    expect(page.transcripts).toHaveLength(0);
+  });
+
+  it('returns zero when the table is already empty', () => {
+    const storage = createTranscriptStorage(db);
+
+    const deleted = storage.deleteAllTranscripts();
+
+    expect(deleted).toBe(0);
+    expect(storage.getLatestTranscripts().total).toBe(0);
+  });
+});
