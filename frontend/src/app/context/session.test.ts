@@ -64,4 +64,26 @@ describe("session persistence helpers", () => {
     expect(() => persistSessionId("session", storage)).not.toThrow();
     expect(() => persistSessionId(null, storage)).not.toThrow();
   });
+
+  it("ignores restricted window.localStorage access", () => {
+    const globalWindow = globalThis as typeof globalThis & { window?: Window };
+    const originalWindow = globalWindow.window;
+    const stubWindow = {} as Window;
+
+    Object.defineProperty(stubWindow, "localStorage", {
+      get() {
+        throw new Error("blocked");
+      },
+    });
+
+    globalWindow.window = stubWindow;
+
+    try {
+      expect(readStoredSessionId()).toBeNull();
+      expect(() => persistSessionId("session")).not.toThrow();
+      expect(() => persistSessionId(null)).not.toThrow();
+    } finally {
+      globalWindow.window = originalWindow;
+    }
+  });
 });

@@ -118,6 +118,17 @@ describe('transcript GET route', () => {
     expect(getRecentTranscriptsMock).not.toHaveBeenCalled();
   });
 
+  it('rejects limits with non-digit characters', async () => {
+    getRecentTranscriptsMock.mockReturnValue([]);
+
+    await request(app)
+      .get('/sessions/session-1/transcript')
+      .query({ limit: '10abc' })
+      .expect(400);
+
+    expect(getRecentTranscriptsMock).not.toHaveBeenCalled();
+  });
+
   it('rejects non-positive limits with 400', async () => {
     getRecentTranscriptsMock.mockReturnValue([]);
 
