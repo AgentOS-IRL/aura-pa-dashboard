@@ -16,6 +16,7 @@ import {
   frontendBuildDir
 } from './config/frontend';
 import { auraBasePath, withAuraBasePath } from './config/auraPath';
+import { startAgentHealthSubscriber, stopAgentHealthSubscriber } from './services/agentHealth';
 
 const swaggerDocument = YAML.load(path.join(__dirname, '..', 'openapi.yaml'));
 
@@ -97,13 +98,15 @@ export function startServer() {
   const server = http.createServer(app);
   let shuttingDown = false;
 
-  const shutdown = (signal: string) => {
+  const shutdown = async (signal: string) => {
     console.log(`Received ${signal}, shutting down gracefully...`);
 
     if (shuttingDown) {
       return;
     }
     shuttingDown = true;
+
+    await stopAgentHealthSubscriber();
 
     server.close(() => {
       console.log('Server closed, exiting.');
@@ -117,12 +120,17 @@ export function startServer() {
   };
 
   ['SIGINT', 'SIGTERM', 'SIGQUIT'].forEach((signal) => {
-    process.on(signal, () => shutdown(signal));
+    process.on(signal, () => {
+      void shutdown(signal);
+    });
   });
 
   const baseUrl = auraBasePath === '/' ? '' : auraBasePath;
   server.listen(port, () => {
     console.log(`Health service listening on http://localhost:${port}${baseUrl}`);
+    void startAgentHealthSubscriber().catch((err) => {
+      console.error('[agentHealth] failed to start subscriber', err);
+    });
   });
 
   return server;

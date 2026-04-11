@@ -1,7 +1,6 @@
 import { Router } from 'express';
+import { AgentHealthSnapshotEntry, getAgentHealthSnapshot } from '../services/agentHealth';
 import pkg from '../../package.json';
-
-import { getAgentHealthSnapshot } from '../services/agentHealth';
 
 const router = Router();
 
