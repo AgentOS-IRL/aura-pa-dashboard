@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { fetchTranscripts } from "./transcripts";
+import { deleteAllTranscripts, fetchTranscripts } from "./transcripts";
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -75,5 +75,37 @@ describe("fetchTranscripts", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     await expect(fetchTranscripts()).rejects.toThrow("Failed to fetch transcripts (500)");
+  });
+});
+
+describe("deleteAllTranscripts", () => {
+  it("deletes the transcripts via the backend", async () => {
+    const fetchMock = vi.fn(() =>
+      Promise.resolve({
+        ok: true
+      }),
+    );
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(deleteAllTranscripts()).resolves.toBeUndefined();
+    expect(fetchMock).toHaveBeenCalledWith("http://localhost:4000/aura/transcripts", {
+      method: "DELETE",
+    });
+  });
+
+  it("throws when the delete call fails", async () => {
+    const fetchMock = vi.fn(() =>
+      Promise.resolve({
+        ok: false,
+        status: 500,
+        statusText: "Bad delete",
+        text: () => Promise.resolve("cleanup failed"),
+      }),
+    );
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(deleteAllTranscripts()).rejects.toThrow("Failed to delete transcripts (500)");
   });
 });

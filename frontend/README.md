@@ -25,6 +25,8 @@ The static export now includes two entry points that live under the configured b
 - `/aura/` renders the assistant experience.
 - `/aura/transcript` now renders the global transcript history aggregated from `/aura/transcripts`. The page always fetches the newest entries across every session, surfaces the pagination metadata (`page`, `limit`, `total`, `hasMore`), and lets you browse older data via the Previous/Next controls or hit Refresh for the latest view.
 
+  The transcript view also exposes a **Delete all transcripts** button next to the refresh/pagination controls. That button prompts for confirmation, calls `DELETE /aura/transcripts`, and reloads the history (page 1) so the UI reflects the emptied table. The action is irreversible, so the prompt is prominent and any failures bubble up through the existing error banner.
+
 Because the app runs as a static export (`output: "export"`), both routes are built at `npm run build` and must be deployed together so the transcript page can always reach the same backend that the assistant uses.
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.

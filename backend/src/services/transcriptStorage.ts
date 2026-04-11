@@ -56,6 +56,7 @@ export function createTranscriptStorage(db: Database.Database) {
     'SELECT session_id, payload, metadata, received_at FROM transcripts ORDER BY received_at DESC, id DESC LIMIT ? OFFSET ?'
   );
   const countAllStmt = db.prepare('SELECT COUNT(*) AS total FROM transcripts');
+  const deleteAllStmt = db.prepare('DELETE FROM transcripts');
 
   const DEFAULT_LIMIT = 25;
   const MAX_LIMIT = 100;
@@ -179,16 +180,22 @@ export function createTranscriptStorage(db: Database.Database) {
     return getTranscriptPage(sessionId, { page: DEFAULT_PAGE, limit }).transcripts;
   }
 
+  function deleteAllTranscripts(): number {
+    const result = deleteAllStmt.run();
+    return typeof result.changes === 'number' ? result.changes : 0;
+  }
+
   return {
     saveTranscript,
     getRecentTranscripts,
     getTranscriptPage,
-    getLatestTranscripts
+    getLatestTranscripts,
+    deleteAllTranscripts
   };
 }
 
 const defaultStorage = createTranscriptStorage(getTranscriptDatabase());
 
-export const { saveTranscript, getRecentTranscripts, getTranscriptPage, getLatestTranscripts } =
+export const { saveTranscript, getRecentTranscripts, getTranscriptPage, getLatestTranscripts, deleteAllTranscripts } =
   defaultStorage;
 export type TranscriptStorage = ReturnType<typeof createTranscriptStorage>;

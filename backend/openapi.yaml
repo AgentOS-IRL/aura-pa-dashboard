@@ -184,6 +184,18 @@ paths:
           description: Invalid pagination parameters
         '500':
           description: Backend failed to fetch transcripts
+    delete:
+      tags:
+        - Transcript
+      summary: Purge every saved transcript
+      description: >
+        Deletes all rows from the `transcripts` table so the global history can be reset.
+        Use this route with caution: the operation is irreversible and removes every persisted entry.
+      responses:
+        '204':
+          description: Transcript table cleared
+        '500':
+          description: Backend failed to delete the transcripts
 components:
   schemas:
     TranscriptRecord:

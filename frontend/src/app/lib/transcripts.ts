@@ -68,3 +68,13 @@ export async function fetchTranscripts(options?: FetchTranscriptsOptions): Promi
 
   return { transcripts, page, limit, total, hasMore };
 }
+
+export async function deleteAllTranscripts(): Promise<void> {
+  const url = `${BACKEND_BASE_URL}${BACKEND_PATH_PREFIX}/transcripts`;
+  const response = await fetch(url, { method: 'DELETE' });
+
+  if (!response.ok) {
+    const message = await response.text().catch(() => response.statusText);
+    throw new Error(`Failed to delete transcripts (${response.status}): ${message}`);
+  }
+}
