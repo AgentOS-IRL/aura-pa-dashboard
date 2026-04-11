@@ -1,9 +1,10 @@
 import fs from 'fs';
 import path from 'path';
 import express, { Express, Response } from 'express';
+import { auraRouteSegment } from './auraPath';
 
 export const frontendBuildDir = process.env.FRONTEND_BUILD_DIR ?? 'out';
-export const frontendDistPath = path.join(
+const frontendDistRoot = path.join(
   __dirname,
   '..',
   '..',
@@ -11,6 +12,9 @@ export const frontendDistPath = path.join(
   'frontend',
   frontendBuildDir
 );
+export const frontendDistPath = auraRouteSegment
+  ? path.join(frontendDistRoot, auraRouteSegment)
+  : frontendDistRoot;
 
 export function ensureFrontendDistPathExists() {
   if (!fs.existsSync(frontendDistPath)) {
@@ -25,9 +29,15 @@ export function sendSPAIndex(res: Response) {
   res.sendFile(path.join(frontendDistPath, 'index.html'));
 }
 
-export function configureFrontendStatic(app: Express) {
-  app.use(express.static(frontendDistPath));
-  app.get('*', (_req, res) => {
+export function configureFrontendStatic(app: Express, basePath: string) {
+  const mountBase = basePath === '/' ? '' : basePath;
+  const routeBase = mountBase || '/';
+
+  app.use(routeBase, express.static(frontendDistPath));
+  app.get(routeBase, (_req, res) => {
+    sendSPAIndex(res);
+  });
+  app.get(`${routeBase}/*`, (_req, res) => {
     sendSPAIndex(res);
   });
 }

@@ -14,16 +14,16 @@ pnpm dev
 bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000/aura](http://localhost:3000/aura) with your browser to see the result.
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
 ## Available routes
 
-The static export now includes two entry points:
+The static export now includes two entry points that live under the configured base path (`NEXT_PUBLIC_AURA_BASE_PATH`, default `/aura`):
 
-- `/` renders the assistant experience.
-- `/transcript` now renders the persisted transcript history for the session that the assistant generated. The page reads the active session ID from a shared context (which also persists it to `localStorage`) and falls back to any manual session ID you paste into the input. The history view refreshes itself automatically and lets you re-request the data with the Refresh button.
+- `/aura/` renders the assistant experience.
+- `/aura/transcript` now renders the persisted transcript history for the session that the assistant generated. The page reads the active session ID from a shared context (which also persists it to `localStorage`) and falls back to any manual session ID you paste into the input. The history view refreshes itself automatically and lets you re-request the data with the Refresh button.
 
 Because the app runs as a static export (`output: "export"`), both routes are built at `npm run build` and must be deployed together so the transcript page can always reach the same backend that the assistant uses.
 
@@ -31,7 +31,7 @@ This project uses [`next/font`](https://nextjs.org/docs/app/building-your-applic
 
 ## Assistant session uploads
 
-Each press of **Wake Assistant** generates a fresh session identifier that appears next to the action button and drives the `POST /sessions/{sessionId}/audio` uploads. The built-in status badges report when a chunk is in flight and if an upload fails, so you have real-time feedback while recording.
+Each press of **Wake Assistant** generates a fresh session identifier that appears next to the action button and drives the `POST /aura/sessions/{sessionId}/audio` uploads. The built-in status badges report when a chunk is in flight and if an upload fails, so you have real-time feedback while recording.
 
 The UI posts chunks to `NEXT_PUBLIC_BACKEND_URL` (default `http://localhost:4000`). Override that value in `.env.local` or your deployment env when your backend runs somewhere else:
 
@@ -39,17 +39,19 @@ The UI posts chunks to `NEXT_PUBLIC_BACKEND_URL` (default `http://localhost:4000
 NEXT_PUBLIC_BACKEND_URL=https://aura-pa-backend.internal
 ```
 
+The frontend also respects `NEXT_PUBLIC_AURA_BASE_PATH`, which should match the backend `AURA_BASE_PATH` value (default `/aura`). Adjust this pair together whenever you deploy behind a different prefix.
+
 To replay or debug manually, you can hit the same endpoint with `curl` or `fetch`:
 
 ```bash
-curl -X POST "${NEXT_PUBLIC_BACKEND_URL:-http://localhost:4000}/sessions/<session-id>/audio" \\
+curl -X POST "${NEXT_PUBLIC_BACKEND_URL:-http://localhost:4000}/aura/sessions/<session-id>/audio" \\
   -F "audio=@/path/to/chunk.wav" \\
   -H "Content-Type: multipart/form-data"
 ```
 
 ## Static build artifact
 
-`npm run build` executes the Next.js production build followed by `next export` (the project is configured with `output: "export"`), emitting the static bundle into `frontend/out` by default. You can rename that folder by setting `FRONTEND_BUILD_DIR`, and the same value must be respected by the backend runtime because `backend/src/index.ts` serves the folder with `express.static()` plus the SPA fallback. Run the build locally before touching the backend's static endpoint or running tests that rely on it so `frontend/out` exists, and inspect that directory to see the exact files the deploy script syncs to the remote host.
+`npm run build` executes the Next.js production build followed by `next export` (the project is configured with `output: "export"`), emitting the static bundle into `frontend/out` by default. Because the dashboard uses a `/aura` base path, the exported entry points live under `frontend/out/aura`, so the backend runtime must serve that subdirectory via `express.static()` plus the SPA fallback. You can rename the root output folder by setting `FRONTEND_BUILD_DIR`, but keep the matching base-path subdirectory so the deploy script pushes the files the backend expects.
 
 ## Favicon
 

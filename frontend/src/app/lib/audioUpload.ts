@@ -1,3 +1,5 @@
+import { BACKEND_PATH_PREFIX } from './auraPath';
+
 const isProd = process.env.NODE_ENV === 'production';
 const BACKEND_BASE_URL = (process.env.NEXT_PUBLIC_BACKEND_URL ?? (isProd ? '' : 'http://localhost:4000')).replace(/\/$/, '');
 export function createSessionId() {
@@ -16,7 +18,7 @@ export async function uploadAudioChunk(sessionId: string, wavBuffer: ArrayBuffer
         throw new Error('Missing session ID for audio upload');
     }
 
-    const url = `${BACKEND_BASE_URL}/sessions/${encodeURIComponent(sessionId)}/audio`;
+    const url = `${BACKEND_BASE_URL}${BACKEND_PATH_PREFIX}/sessions/${encodeURIComponent(sessionId)}/audio`;
     const formData = new FormData();
     formData.append('audio', new Blob([wavBuffer], { type: 'audio/wav' }), `${sessionId}.wav`);
 

@@ -8,6 +8,7 @@ vi.mock('../services/transcriptStorage', () => ({
 
 import { getRecentTranscripts, saveTranscript } from '../services/transcriptStorage';
 import { createApp } from '../index';
+import { withAuraBasePath } from '../config/auraPath';
 
 const app = createApp();
 const saveTranscriptMock = vi.mocked(saveTranscript);
@@ -21,7 +22,7 @@ describe('transcript route', () => {
 
   it('returns 201 and persists the payload/metadata', async () => {
     await request(app)
-      .post('/sessions/session-42/transcript')
+      .post(withAuraBasePath('/sessions/session-42/transcript'))
       .send({ payload: 'transcript text', metadata: { source: 'web' } })
       .expect(201);
 
@@ -30,7 +31,7 @@ describe('transcript route', () => {
 
   it('allows omitting metadata', async () => {
     await request(app)
-      .post('/sessions/session-42/transcript')
+      .post(withAuraBasePath('/sessions/session-42/transcript'))
       .send({ payload: 'text only' })
       .expect(201);
 
@@ -39,7 +40,7 @@ describe('transcript route', () => {
 
   it('rejects missing payload', async () => {
     await request(app)
-      .post('/sessions/session-42/transcript')
+      .post(withAuraBasePath('/sessions/session-42/transcript'))
       .send({})
       .expect(400);
 
@@ -48,7 +49,7 @@ describe('transcript route', () => {
 
   it('rejects invalid metadata values', async () => {
     await request(app)
-      .post('/sessions/session-42/transcript')
+      .post(withAuraBasePath('/sessions/session-42/transcript'))
       .send({ payload: 'hi', metadata: ['invalid'] })
       .expect(400);
 
@@ -57,7 +58,7 @@ describe('transcript route', () => {
 
   it('returns 400 for malformed JSON payloads', async () => {
     await request(app)
-      .post('/sessions/session-42/transcript')
+      .post(withAuraBasePath('/sessions/session-42/transcript'))
       .set('Content-Type', 'application/json')
       .send('{"payload": "oops"')
       .expect(400);
@@ -71,7 +72,7 @@ describe('transcript route', () => {
     });
 
     await request(app)
-      .post('/sessions/session-42/transcript')
+      .post(withAuraBasePath('/sessions/session-42/transcript'))
       .send({ payload: 'text' })
       .expect(500);
   });
@@ -89,7 +90,7 @@ describe('transcript GET route', () => {
     getRecentTranscriptsMock.mockReturnValue(rows);
 
     const response = await request(app)
-      .get('/sessions/session-1/transcript')
+      .get(withAuraBasePath('/sessions/session-1/transcript'))
       .expect(200);
 
     expect(response.body).toEqual({ transcripts: rows });
@@ -100,7 +101,7 @@ describe('transcript GET route', () => {
     getRecentTranscriptsMock.mockReturnValue([]);
 
     await request(app)
-      .get('/sessions/session-1/transcript')
+      .get(withAuraBasePath('/sessions/session-1/transcript'))
       .query({ limit: '5' })
       .expect(200);
 
@@ -111,7 +112,7 @@ describe('transcript GET route', () => {
     getRecentTranscriptsMock.mockReturnValue([]);
 
     await request(app)
-      .get('/sessions/session-1/transcript')
+      .get(withAuraBasePath('/sessions/session-1/transcript'))
       .query({ limit: 'NaN' })
       .expect(400);
 
@@ -122,7 +123,7 @@ describe('transcript GET route', () => {
     getRecentTranscriptsMock.mockReturnValue([]);
 
     await request(app)
-      .get('/sessions/session-1/transcript')
+      .get(withAuraBasePath('/sessions/session-1/transcript'))
       .query({ limit: '0' })
       .expect(400);
 
@@ -131,7 +132,7 @@ describe('transcript GET route', () => {
 
   it('returns 400 when no session ID is provided', async () => {
     await request(app)
-      .get('/sessions/%20/transcript')
+      .get(withAuraBasePath('/sessions/%20/transcript'))
       .expect(400);
 
     expect(getRecentTranscriptsMock).not.toHaveBeenCalled();
@@ -143,7 +144,7 @@ describe('transcript GET route', () => {
     });
 
     await request(app)
-      .get('/sessions/session-1/transcript')
+      .get(withAuraBasePath('/sessions/session-1/transcript'))
       .expect(500);
   });
 });

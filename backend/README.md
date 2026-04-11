@@ -19,6 +19,8 @@ npm run start   # runs the compiled dist bundle
 
 The service honors the `PORT` environment variable; omit it to use the fallback `4000`.
 
+The runtime now uses the `AURA_BASE_PATH` environment variable (default `/aura`) so every route, including `/health`, `/docs`, and `/sessions`, is mounted beneath that prefix. If you override the base path, keep `frontend` and deploy scripts in sync (`NEXT_PUBLIC_AURA_BASE_PATH` on the frontend should match).
+
 ## Redis-backed audio capture
 
 The audio route pushes every chunk into a per-session Redis list under the key `agentos/aura/audio/{sessionId}` so the assistant can replay ordered fragments later. Each list expires after 3 days (259200 seconds) so stale recordings are cleaned up automatically.
@@ -28,21 +30,21 @@ The audio route pushes every chunk into a per-session Redis list under the key `
 - `REDIS_HOST` / `REDIS_PORT` (default `192.168.8.129:6379`) configure the target server.
 - `REDIS_PASSWORD` is used when Redis requires authentication.
 - `REDIS_URL` overrides the host/port pair if you prefer a single connection string.
-- `FRONTEND_URL` (default `http://localhost:3000`) sets which origin the Express/CORS middleware exposes via `Access-Control-Allow-Origin`. Override this in production with your dashboard host so only trusted frontends can call `/sessions/{sessionId}/audio`.
+- `FRONTEND_URL` (default `http://localhost:3000`) sets which origin the Express/CORS middleware exposes via `Access-Control-Allow-Origin`. Override this in production with your dashboard host so only trusted frontends can call `/aura/sessions/{sessionId}/audio`.
 - The Express stack also sets `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: require-corp` so the Aura Assistant dashboard can stay cross-origin isolated for VAD/SharedArrayBuffer usage while still delegating uploads to this API.
 
 Retry logic with exponential backoff keeps the connection resilient, and connection events are logged for visibility.
 
 ### Upload endpoint
 
-- `POST /sessions/{sessionId}/audio` – accepts `multipart/form-data` uploads and expects a single `audio` field containing the raw blob.
+- `POST /aura/sessions/{sessionId}/audio` – accepts `multipart/form-data` uploads and expects a single `audio` field containing the raw blob.
 - The route only keeps blobs in memory; it forwards the Buffer directly to Redis without persisting files on disk.
 - Every request to this route responds with the configured CORS headers so the Next.js client on `FRONTEND_URL` (or `*` in dev) can POST audio without being blocked by the browser.
 
 ### Sample curl
 
 ```bash
-curl -X POST http://localhost:4000/sessions/my-session/audio \\
+curl -X POST http://localhost:4000/aura/sessions/my-session/audio \\
   -F \"audio=@/path/to/recording.webm\" \\
   -H \"Content-Type: multipart/form-data\"
 ```
@@ -51,11 +53,11 @@ curl -X POST http://localhost:4000/sessions/my-session/audio \\
 
 ## Transcript persistence
 
-Transcripts are now ingested through a dedicated HTTP endpoint instead of the retired Redis listener. The client posts the text for each session using `POST /sessions/{sessionId}/transcript` and the Express route persists the payload with the optional metadata into the same SQLite store that powers replay.
+Transcripts are now ingested through a dedicated HTTP endpoint instead of the retired Redis listener. The client posts the text for each session using `POST /aura/sessions/{sessionId}/transcript` and the Express route persists the payload with the optional metadata into the same SQLite store that powers replay.
 
 ### Transcript endpoint
 
-- `POST /sessions/{sessionId}/transcript` – accepts `application/json` bodies containing:
+- `POST /aura/sessions/{sessionId}/transcript` – accepts `application/json` bodies containing:
   - `payload` (string) – the transcript text to persist.
   - `metadata` (optional object) – any ancillary data (e.g., speaker, source) that should be recorded alongside the payload.
 - The route trims the `sessionId` path parameter, validates the payload is present, and returns `201` on success, `400` when validation fails, or `500` when persistence throws.
@@ -74,7 +76,7 @@ When you need to show what Aura previously captured, call the read endpoint to l
 
 ### Transcript read endpoint
 
-- `GET /sessions/{sessionId}/transcript` – returns JSON that wraps the latest transcript rows for `sessionId`. You can optionally pass `limit` in the query string to cap how many rows come back (defaults to 25). The payload is always an array named `transcripts`.
+- `GET /aura/sessions/{sessionId}/transcript` – returns JSON that wraps the latest transcript rows for `sessionId`. You can optionally pass `limit` in the query string to cap how many rows come back (defaults to 25). The payload is always an array named `transcripts`.
 - Each row contains:
   - `sessionId` (string) – the session that produced the record.
   - `payload` (string) – the text that was captured for that chunk.
@@ -85,7 +87,7 @@ When you need to show what Aura previously captured, call the read endpoint to l
 ### Sample curl
 
 ```bash
-curl -X GET http://localhost:4000/sessions/session-abc/transcript?limit=10
+curl -X GET http://localhost:4000/aura/sessions/session-abc/transcript?limit=10
 ```
 
 The response looks like:

@@ -13,6 +13,7 @@ import {
   ensureFrontendDistPathExists,
   frontendBuildDir
 } from './config/frontend';
+import { auraBasePath, withAuraBasePath } from './config/auraPath';
 
 const swaggerDocument = YAML.load(path.join(__dirname, '..', 'openapi.yaml'));
 
@@ -54,15 +55,15 @@ export function createApp() {
   });
 
   // Keep the documentation on a dedicated route so new APIs can share the same stack later.
-  app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
-  app.get('/docs.json', (_, res) => res.json(swaggerDocument));
+  app.use(withAuraBasePath('/docs'), swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+  app.get(withAuraBasePath('/docs.json'), (_, res) => res.json(swaggerDocument));
 
-  app.use('/sessions', audioRouter);
-  app.use('/sessions', transcriptRouter);
+  app.use(withAuraBasePath('/sessions'), audioRouter);
+  app.use(withAuraBasePath('/sessions'), transcriptRouter);
 
-  app.use('/health', healthRouter);
+  app.use(withAuraBasePath('/health'), healthRouter);
 
-  configureFrontendStatic(app);
+  configureFrontendStatic(app, auraBasePath);
 
   app.use((err: unknown, req: Request, res: Response, next: NextFunction) => {
     if (isTranscriptJsonRoute(req) && isBodyParserError(err)) {
@@ -85,7 +86,7 @@ export function startServer() {
   const port = Number.parseInt(process.env.PORT ?? '4000', 10);
   const resolvedFrontendPath = ensureFrontendDistPathExists();
   console.log(
-    `Serving frontend build from ${resolvedFrontendPath} (FRONTEND_BUILD_DIR=${frontendBuildDir})`
+    `Serving frontend build from ${resolvedFrontendPath} (FRONTEND_BUILD_DIR=${frontendBuildDir}, base path=${auraBasePath})`
   );
 
   const app = createApp();
@@ -115,8 +116,9 @@ export function startServer() {
     process.on(signal, () => shutdown(signal));
   });
 
+  const baseUrl = auraBasePath === '/' ? '' : auraBasePath;
   server.listen(port, () => {
-    console.log(`Health service listening on http://localhost:${port}`);
+    console.log(`Health service listening on http://localhost:${port}${baseUrl}`);
   });
 
   return server;

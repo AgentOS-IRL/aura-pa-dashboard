@@ -1,3 +1,5 @@
+import { BACKEND_PATH_PREFIX } from "./auraPath";
+
 const isProd = process.env.NODE_ENV === "production";
 const BACKEND_BASE_URL = (process.env.NEXT_PUBLIC_BACKEND_URL ?? (isProd ? "" : "http://localhost:4000")).replace(/\/$/, "");
 
@@ -18,7 +20,7 @@ export async function fetchTranscripts(sessionId: string, limit?: number): Promi
     throw new Error("Session ID is required to read transcripts");
   }
 
-  const path = `/sessions/${encodeURIComponent(normalizedId)}/transcript`;
+  const path = `${BACKEND_PATH_PREFIX}/sessions/${encodeURIComponent(normalizedId)}/transcript`;
   const params = new URLSearchParams();
   if (typeof limit === "number" && Number.isFinite(limit) && limit > 0) {
     params.set("limit", Math.floor(limit).toString());

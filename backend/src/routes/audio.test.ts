@@ -16,6 +16,7 @@ vi.mock('../config/redis', () => {
 import { redisClient } from '../config/redis';
 import * as audioService from '../services/audio';
 import { createApp } from '../index';
+import { withAuraBasePath } from '../config/auraPath';
 
 type RedisClientWithBuffer = typeof redisClient & {
   rpushBuffer: ReturnType<typeof vi.fn>;
@@ -39,7 +40,7 @@ describe('audio route', () => {
     recordAudioChunkSpy.mockResolvedValueOnce(undefined);
 
     await request(app)
-      .post('/sessions/session-42/audio')
+      .post(withAuraBasePath('/sessions/session-42/audio'))
       .attach('audio', Buffer.from('hello'), {
         filename: 'chunk.webm',
         contentType: 'audio/webm'
@@ -50,7 +51,7 @@ describe('audio route', () => {
   });
 
   it('rejects missing files', async () => {
-    await request(app).post('/sessions/session-42/audio').expect(400);
+    await request(app).post(withAuraBasePath('/sessions/session-42/audio')).expect(400);
     expect(recordAudioChunkSpy).not.toHaveBeenCalled();
   });
 
@@ -58,7 +59,7 @@ describe('audio route', () => {
     recordAudioChunkSpy.mockRejectedValueOnce(new Error('boom'));
 
     await request(app)
-      .post('/sessions/session-42/audio')
+      .post(withAuraBasePath('/sessions/session-42/audio'))
       .attach('audio', Buffer.from('hello'), {
         filename: 'chunk.webm',
         contentType: 'audio/webm'

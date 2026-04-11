@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { stripAuraBasePath } from "../app/lib/auraPath";
 
 const navigationItems = [
   { label: "Home", href: "/" },
@@ -10,6 +11,7 @@ const navigationItems = [
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() ?? "/";
+  const normalizedPath = stripAuraBasePath(pathname);
 
   return (
     <div className="app-shell">
@@ -25,7 +27,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             <nav className="app-shell__nav" aria-label="Primary">
               <ul className="flex flex-wrap gap-2">
                 {navigationItems.map((item) => {
-                  const isActive = pathname === item.href;
+                  const isActive = normalizedPath === item.href;
 
                   return (
                     <li key={item.href}>
