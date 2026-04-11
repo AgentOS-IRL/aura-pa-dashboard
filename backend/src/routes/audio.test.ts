@@ -17,7 +17,11 @@ import { redisClient } from '../config/redis';
 import * as audioService from '../services/audio';
 import { createApp } from '../index';
 
-const mockRpushBuffer = (redisClient as any).rpushBuffer as ReturnType<typeof vi.fn>;
+type RedisClientWithBuffer = typeof redisClient & {
+  rpushBuffer: ReturnType<typeof vi.fn>;
+};
+
+const mockRpushBuffer = (redisClient as RedisClientWithBuffer).rpushBuffer;
 const mockExpire = redisClient.expire as ReturnType<typeof vi.fn>;
 
 const recordAudioChunkSpy = vi.spyOn(audioService, 'recordAudioChunk');

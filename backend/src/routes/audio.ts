@@ -23,7 +23,7 @@ router.post('/:sessionId/audio', upload.single('audio'), async (req: AudioUpload
   try {
     // Multer stores the blob in memory right next to this route so we never persist sensitive bytes on disk.
     await recordAudioChunk(sessionId, req.file.buffer);
-    // Always append to aura/audio/<sessionId> to keep chunks grouped and to rely on the shared TTL cleanup.
+    // Always append to agentos/aura/audio/<sessionId> to keep chunks grouped and to rely on the shared TTL cleanup.
     return res.sendStatus(201);
   } catch (error) {
     console.error('Failed to persist audio chunk for session', sessionId, error);

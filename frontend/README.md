@@ -38,6 +38,10 @@ curl -X POST "${NEXT_PUBLIC_BACKEND_URL:-http://localhost:4000}/sessions/<sessio
   -H "Content-Type: multipart/form-data"
 ```
 
+## Static build artifact
+
+`npm run build` executes the Next.js production build followed by `next export` (the project is configured with `output: "export"`), emitting the static bundle into `frontend/out` by default. You can rename that folder by setting `FRONTEND_BUILD_DIR`, and the same value must be respected by the backend runtime because `backend/src/index.ts` serves the folder with `express.static()` plus the SPA fallback. Run the build locally before touching the backend's static endpoint or running tests that rely on it so `frontend/out` exists, and inspect that directory to see the exact files the deploy script syncs to the remote host.
+
 ## Favicon
 
 The canonical favicon resides at `src/app/favicon.ico`, which Next.js App Router picks up automatically. Metadata in `layout.tsx` also points to supplemental PNG exports in `public/` (`apple-touch-icon.png`, `icon-192x192.png`, and `icon-512x512.png`). When the design needs refreshing, replace those files with new source assets so both the favicon and metadata stay in sync.

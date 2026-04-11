@@ -12,7 +12,7 @@ const mockSaveTranscript = vi.mocked(saveTranscript);
 type MockSubscriber = {
   handlers: Record<string, (...args: unknown[]) => void>;
   psubscribe: ReturnType<typeof vi.fn>;
-  on: any;
+  on: (event: string, handler: (...args: unknown[]) => void) => MockSubscriber;
   quit: ReturnType<typeof vi.fn>;
 };
 
