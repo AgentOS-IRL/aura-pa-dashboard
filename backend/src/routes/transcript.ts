@@ -50,16 +50,28 @@ router.get(
   (req: Request<{ sessionId: string }, unknown, unknown, { limit?: string }>, res: Response) => {
     const sessionId = (typeof req.params.sessionId === 'string' ? req.params.sessionId.trim() : '');
     const limitParam = req.query.limit;
+    let normalizedLimit: number | undefined;
 
     if (!sessionId) {
       return res.status(400).json({ error: 'sessionId path parameter is required' });
     }
 
-    const limit = Number.parseInt(typeof limitParam === 'string' ? limitParam : String(limitParam ?? ''), 10);
-    const normalizedLimit = Number.isFinite(limit) && limit > 0 ? limit : undefined;
+    if (limitParam !== undefined) {
+      const limitString = typeof limitParam === 'string' ? limitParam.trim() : '';
+      if (!limitString || !/^[0-9]+$/.test(limitString)) {
+        return res.status(400).json({ error: 'limit must be a positive integer' });
+      }
+
+      const parsed = Number.parseInt(limitString, 10);
+      if (!Number.isFinite(parsed) || parsed <= 0) {
+        return res.status(400).json({ error: 'limit must be a positive integer' });
+      }
+
+      normalizedLimit = parsed;
+    }
 
     try {
-      const transcripts = getRecentTranscripts(sessionId, normalizedLimit ?? undefined);
+      const transcripts = getRecentTranscripts(sessionId, normalizedLimit);
       return res.status(200).json({ transcripts });
     } catch (error) {
       console.error('Unable to fetch transcripts for session', sessionId, error);

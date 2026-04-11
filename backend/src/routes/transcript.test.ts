@@ -107,15 +107,26 @@ describe('transcript GET route', () => {
     expect(getRecentTranscriptsMock).toHaveBeenCalledWith('session-1', 5);
   });
 
-  it('falls back when invalid limits are provided', async () => {
+  it('rejects invalid limits with 400', async () => {
     getRecentTranscriptsMock.mockReturnValue([]);
 
     await request(app)
       .get('/sessions/session-1/transcript')
       .query({ limit: 'NaN' })
-      .expect(200);
+      .expect(400);
 
-    expect(getRecentTranscriptsMock).toHaveBeenCalledWith('session-1', undefined);
+    expect(getRecentTranscriptsMock).not.toHaveBeenCalled();
+  });
+
+  it('rejects non-positive limits with 400', async () => {
+    getRecentTranscriptsMock.mockReturnValue([]);
+
+    await request(app)
+      .get('/sessions/session-1/transcript')
+      .query({ limit: '0' })
+      .expect(400);
+
+    expect(getRecentTranscriptsMock).not.toHaveBeenCalled();
   });
 
   it('returns 400 when no session ID is provided', async () => {

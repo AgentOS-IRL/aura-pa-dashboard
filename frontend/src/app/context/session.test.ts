@@ -46,4 +46,22 @@ describe("session persistence helpers", () => {
     expect(readStoredSessionId(null)).toBeNull();
     expect(() => persistSessionId("session", null)).not.toThrow();
   });
+
+  it("handles storage errors without throwing", () => {
+    const storage = {
+      getItem: () => {
+        throw new Error("blocked");
+      },
+      setItem: () => {
+        throw new Error("blocked");
+      },
+      removeItem: () => {
+        throw new Error("blocked");
+      },
+    } as Storage;
+
+    expect(readStoredSessionId(storage)).toBeNull();
+    expect(() => persistSessionId("session", storage)).not.toThrow();
+    expect(() => persistSessionId(null, storage)).not.toThrow();
+  });
 });

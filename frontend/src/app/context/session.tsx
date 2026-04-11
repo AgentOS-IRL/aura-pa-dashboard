@@ -9,7 +9,11 @@ function getStorage(): Storage | null {
     return null;
   }
 
-  return window.localStorage;
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
 }
 
 export function readStoredSessionId(storage?: Storage | null): string | null {
@@ -18,7 +22,11 @@ export function readStoredSessionId(storage?: Storage | null): string | null {
     return null;
   }
 
-  return target.getItem(SESSION_STORAGE_KEY);
+  try {
+    return target.getItem(SESSION_STORAGE_KEY);
+  } catch {
+    return null;
+  }
 }
 
 export function persistSessionId(sessionId: string | null, storage?: Storage | null): void {
@@ -28,9 +36,17 @@ export function persistSessionId(sessionId: string | null, storage?: Storage | n
   }
 
   if (sessionId) {
-    target.setItem(SESSION_STORAGE_KEY, sessionId);
+    try {
+      target.setItem(SESSION_STORAGE_KEY, sessionId);
+    } catch {
+      // ignore storage errors
+    }
   } else {
-    target.removeItem(SESSION_STORAGE_KEY);
+    try {
+      target.removeItem(SESSION_STORAGE_KEY);
+    } catch {
+      // ignore storage errors
+    }
   }
 }
 
