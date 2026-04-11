@@ -51,16 +51,20 @@ curl -X POST http://localhost:4000/sessions/my-session/audio \\
 
 ## Transcript persistence
 
-Every message published on `aura/transcript/{sessionId}` is now persisted to a local SQLite store so the server can replay past transcripts without re-reading Redis. A background listener duplicates the existing Redis connection, subscribes to `aura/transcript/*`, normalizes incoming payloads, and writes them to disk using `better-sqlite3`.
+Transcripts are now ingested through a dedicated HTTP endpoint instead of the retired Redis listener. The client posts the text for each session using `POST /sessions/{sessionId}/transcript` and the Express route persists the payload with the optional metadata into the same SQLite store that powers replay.
 
-### Configuration
+### Transcript endpoint
 
-- `TRANSCRIPT_DB_PATH` controls where the binary SQLite file lives (default: `backend/data/transcripts.db`). The helper under `backend/src/config/database.ts` creates the parent directory automatically, so you only need to make sure the directory is writable. The `backend/data/.gitkeep` file keeps the directory versioned even though `*.db*` files are ignored.
-- The listener shares the same Redis configuration as the audio endpoint, so no extra host/port settings are required.
+- `POST /sessions/{sessionId}/transcript` – accepts `application/json` bodies containing:
+  - `payload` (string) – the transcript text to persist.
+  - `metadata` (optional object) – any ancillary data (e.g., speaker, source) that should be recorded alongside the payload.
+- The route trims the `sessionId` path parameter, validates the payload is present, and returns `201` on success, `400` when validation fails, or `500` when persistence throws.
+- Since the listener is gone, callers must now push transcripts explicitly to this endpoint rather than relying on Redis pub/sub.
 
-### Schema
+### Storage configuration
 
-- Table `transcripts` now stores entries with `session_id`, `payload`, optional JSON `metadata`, and an ISO `received_at` timestamp so you can audit when each chunk arrived.
+- `TRANSCRIPT_DB_PATH` controls where the SQLite file lives (default: `backend/data/transcripts.db`). The helper under `backend/src/config/database.ts` creates the parent directory automatically, so only ensure the directory is writable. `backend/data/.gitkeep` keeps the directory tracked even though `*.db*` files are ignored.
+- Save operations still use the `transcripts` table with `session_id`, `payload`, optional JSON `metadata`, and the ISO `received_at` timestamp so you can audit when each chunk arrived.
 
 Inspect the SQLite file with standard tools (e.g., `sqlite3 backend/data/transcripts.db`) or point `TRANSCRIPT_DB_PATH` elsewhere in production before retrieving historical transcripts.
 
