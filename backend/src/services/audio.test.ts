@@ -33,6 +33,7 @@ describe('recordAudioChunk', () => {
     const chunk = Buffer.from('audio-data');
     await recordAudioChunk('session-123', chunk);
 
+    // Assert the routed key uses the shared agentos/aura/audio namespace so cleanup consumers see it.
     expect(mockRpushBuffer).toHaveBeenCalledWith(`${AUDIO_KEY_PREFIX}/session-123`, chunk);
     expect(mockExpire).toHaveBeenCalledWith(`${AUDIO_KEY_PREFIX}/session-123`, AUDIO_TTL_SECONDS);
   });
