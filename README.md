@@ -8,9 +8,9 @@
 
 ## Backend Health Service
 
-A new `backend/` workspace hosts an Express service that still exposes `GET /health` plus Swagger UI at `GET /docs`, but now also offers `POST /sessions/{sessionId}/audio` for streaming client recordings into a per-session Redis list. Each audio list is stored under `agentos/aura/audio/{sessionId}` with a 3-day TTL, and the backend keeps the uploaded blob in memory before forwarding to Redis. The service runs on `PORT 4000` by default, and `backend/README.md` documents installation, dev/start commands, and the `npm run lint`/`npm run test` automation.
+A new `backend/` workspace hosts an Express service that lives beneath the configured `AURA_BASE_PATH` (default `/aura`), so the health endpoint is `GET /aura/health` and the Swagger UI lives at `GET /aura/docs`. The stack still accepts `POST /aura/sessions/{sessionId}/audio` for streaming client recordings into a per-session Redis list, each list is stored under `agentos/aura/audio/{sessionId}` with a 3-day TTL, and the backend keeps uploaded blobs in memory before forwarding to Redis. The service runs on `PORT 4000` by default, and `backend/README.md` documents installation, dev/start commands, and the `npm run lint`/`npm run test` automation.
 
-The Aura Assistant dashboard now opens a dedicated session ID every time you tap **Wake Assistant**, displays that identifier and upload status next to the action button, and streams every VAD-detected chunk to `POST /sessions/{sessionId}/audio` so the backend, Redis list, and downstream systems always see the same session context.
+The Aura Assistant dashboard now opens a dedicated session ID every time you tap **Wake Assistant**, displays that identifier and upload status next to the action button, and streams every VAD-detected chunk to `POST /aura/sessions/{sessionId}/audio` so the backend, Redis list, and downstream systems always see the same session context.
 
 ## Workspace scripts
 
@@ -34,7 +34,7 @@ Because each script `cd`s into `backend/` or `frontend/`, you can rely on this t
 
 ## Deploying to Aura
 
-`npm run deploy` simply runs `./package_deploy.sh`, which builds both the frontend and backend workspaces, syncs the repository to the target server over SSH, copies the exported frontend bundle (`frontend/$FRONTEND_BUILD_DIR`, defaulting to `frontend/out`) into `$SERVER_PATH/frontend/$FRONTEND_BUILD_DIR`, and finally restarts the remote `docker compose` stack. The exported directory is produced by `npm run build:frontend` (a Next.js `next build` + `next export` run), and the backend's Express service mounts that same folder via `express.static()` with a SPA fallback, so the dashboard served on port 3006 locally matches what the container exposes.
+`npm run deploy` simply runs `./package_deploy.sh`, which builds both the frontend and backend workspaces, syncs the repository to the target server over SSH, copies the exported frontend bundle (`frontend/$FRONTEND_BUILD_DIR`, defaulting to `frontend/out`) into `$SERVER_PATH/frontend/$FRONTEND_BUILD_DIR`, and finally restarts the remote `docker compose` stack. Because the app now exports under the `/aura` prefix, the static files that the backend serves live inside the `frontend/$FRONTEND_BUILD_DIR/aura` subdirectory, so keep that structure intact when you sync the build artifacts. The exported directory is produced by `npm run build:frontend` (a Next.js `next build` + `next export` run), and the backend's Express service mounts that same folder via `express.static()` with a SPA fallback, so the dashboard served on port 3006 locally matches what the container exposes.
 
 The script requires the following environment variables (set them in the same shell you use for deployment):
 

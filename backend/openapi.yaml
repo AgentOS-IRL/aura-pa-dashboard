@@ -6,6 +6,13 @@ info:
   contact:
     name: Aura Platform Team
     email: platform-team@example.com
+servers:
+  - url: '{basePath}'
+    description: Swagger docs use the configured `AURA_BASE_PATH` (default `/aura`).
+    variables:
+      basePath:
+        default: /aura
+        description: Override with your runtime base path so the UI and generated clients call the right routes.
 paths:
   /health:
     get:

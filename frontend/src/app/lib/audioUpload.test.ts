@@ -23,7 +23,7 @@ describe('uploadAudioChunk', () => {
 
         expect(fetchMock).toHaveBeenCalledOnce();
         const [calledUrl, options] = fetchMock.mock.calls[0];
-        expect(calledUrl).toBe('http://localhost:4000/sessions/session-test/audio');
+        expect(calledUrl).toBe('http://localhost:4000/aura/sessions/session-test/audio');
         expect(options).toBeDefined();
         expect(options?.method).toBe('POST');
 

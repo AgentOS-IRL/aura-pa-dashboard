@@ -19,7 +19,7 @@ describe("fetchTranscripts", () => {
 
     await fetchTranscripts("session-123");
 
-    expect(fetchMock).toHaveBeenCalledWith("http://localhost:4000/sessions/session-123/transcript", {
+    expect(fetchMock).toHaveBeenCalledWith("http://localhost:4000/aura/sessions/session-123/transcript", {
       method: "GET",
     });
   });
@@ -36,7 +36,7 @@ describe("fetchTranscripts", () => {
 
     await fetchTranscripts("session-xyz", 5);
 
-    expect(fetchMock).toHaveBeenCalledWith("http://localhost:4000/sessions/session-xyz/transcript?limit=5", {
+    expect(fetchMock).toHaveBeenCalledWith("http://localhost:4000/aura/sessions/session-xyz/transcript?limit=5", {
       method: "GET",
     });
   });

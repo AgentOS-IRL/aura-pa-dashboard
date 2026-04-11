@@ -2,24 +2,27 @@ import type { Metadata } from "next";
 import "./globals.css";
 import AppShell from "../components/AppShell";
 import { SessionProvider } from "./context/session";
+import { AURA_BASE_PATH } from "./lib/auraPath";
+
+const iconPrefix = AURA_BASE_PATH === "/" ? "" : AURA_BASE_PATH;
 
 export const metadata: Metadata = {
   title: "Aura PA Dashboard",
   description:
     "Real-time patient administration insights that keep Aura's teams aligned across clinic, scheduling, and triage workflows.",
   icons: {
-    icon: "/favicon.ico",
-    shortcut: "/favicon.ico",
-    apple: "/apple-touch-icon.png",
+    icon: `${iconPrefix}/favicon.ico`,
+    shortcut: `${iconPrefix}/favicon.ico`,
+    apple: `${iconPrefix}/apple-touch-icon.png`,
     other: [
       {
         rel: "icon",
-        url: "/icon-192x192.png",
+        url: `${iconPrefix}/icon-192x192.png`,
         sizes: "192x192",
       },
       {
         rel: "icon",
-        url: "/icon-512x512.png",
+        url: `${iconPrefix}/icon-512x512.png`,
         sizes: "512x512",
       },
     ],
