@@ -23,9 +23,9 @@ describe("fetchTranscripts", () => {
 
     vi.stubGlobal("fetch", fetchMock);
 
-    const result = await fetchTranscripts("session-123");
+    const result = await fetchTranscripts();
 
-    expect(fetchMock).toHaveBeenCalledWith("http://localhost:4000/aura/sessions/session-123/transcript", {
+    expect(fetchMock).toHaveBeenCalledWith("http://localhost:4000/aura/transcripts", {
       method: "GET",
     });
     expect(result).toEqual({
@@ -53,9 +53,9 @@ describe("fetchTranscripts", () => {
 
     vi.stubGlobal("fetch", fetchMock);
 
-    const pageInfo = await fetchTranscripts("session-xyz", { limit: 5, page: 2 });
+    const pageInfo = await fetchTranscripts({ limit: 5, page: 2 });
 
-    expect(fetchMock).toHaveBeenCalledWith("http://localhost:4000/aura/sessions/session-xyz/transcript?limit=5&page=2", {
+    expect(fetchMock).toHaveBeenCalledWith("http://localhost:4000/aura/transcripts?limit=5&page=2", {
       method: "GET",
     });
     expect(pageInfo.page).toBe(2);
@@ -74,10 +74,6 @@ describe("fetchTranscripts", () => {
 
     vi.stubGlobal("fetch", fetchMock);
 
-    await expect(fetchTranscripts("session-1")).rejects.toThrow("Failed to fetch transcripts (500)");
-  });
-
-  it("throws when no session id is provided", async () => {
-    await expect(fetchTranscripts("")).rejects.toThrow("Session ID is required");
+    await expect(fetchTranscripts()).rejects.toThrow("Failed to fetch transcripts (500)");
   });
 });

@@ -23,13 +23,8 @@ interface FetchTranscriptsOptions {
   page?: number;
 }
 
-export async function fetchTranscripts(sessionId: string, options?: FetchTranscriptsOptions): Promise<TranscriptPageResponse> {
-  const normalizedId = sessionId?.trim();
-  if (!normalizedId) {
-    throw new Error("Session ID is required to read transcripts");
-  }
-
-  const path = `${BACKEND_PATH_PREFIX}/sessions/${encodeURIComponent(normalizedId)}/transcript`;
+export async function fetchTranscripts(options?: FetchTranscriptsOptions): Promise<TranscriptPageResponse> {
+  const path = `${BACKEND_PATH_PREFIX}/transcripts`;
   const params = new URLSearchParams();
 
   if (typeof options?.limit === "number" && Number.isFinite(options.limit) && options.limit > 0) {

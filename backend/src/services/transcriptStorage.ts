@@ -52,6 +52,10 @@ export function createTranscriptStorage(db: Database.Database) {
     'SELECT session_id, payload, metadata, received_at FROM transcripts WHERE session_id = ? ORDER BY received_at DESC, id DESC LIMIT ? OFFSET ?'
   );
   const countStmt = db.prepare('SELECT COUNT(*) AS total FROM transcripts WHERE session_id = ?');
+  const selectLatestStmt = db.prepare(
+    'SELECT session_id, payload, metadata, received_at FROM transcripts ORDER BY received_at DESC, id DESC LIMIT ? OFFSET ?'
+  );
+  const countAllStmt = db.prepare('SELECT COUNT(*) AS total FROM transcripts');
 
   const DEFAULT_LIMIT = 25;
   const MAX_LIMIT = 100;
@@ -141,6 +145,36 @@ export function createTranscriptStorage(db: Database.Database) {
     };
   }
 
+  function getLatestTranscripts(options?: { page?: number; limit?: number }) {
+    const limit = normalizeLimit(options?.limit);
+    const page = normalizePage(options?.page);
+    const offset = (page - 1) * limit;
+
+    const rows = selectLatestStmt.all(limit, offset) as Array<{
+      session_id: string;
+      payload: string;
+      metadata: string | null;
+      received_at: string;
+    }>;
+    const countRow = countAllStmt.get() as { total: number } | undefined;
+    const total = typeof countRow?.total === 'number' ? countRow.total : 0;
+
+    const transcripts = rows.map((row) => ({
+      sessionId: row.session_id,
+      payload: row.payload,
+      metadata: parseMetadata(row.metadata),
+      receivedAt: row.received_at
+    }));
+
+    return {
+      transcripts,
+      page,
+      limit,
+      total,
+      hasMore: page * limit < total
+    };
+  }
+
   function getRecentTranscripts(sessionId: string, limit?: number): TranscriptRecord[] {
     return getTranscriptPage(sessionId, { page: DEFAULT_PAGE, limit }).transcripts;
   }
@@ -148,11 +182,13 @@ export function createTranscriptStorage(db: Database.Database) {
   return {
     saveTranscript,
     getRecentTranscripts,
-    getTranscriptPage
+    getTranscriptPage,
+    getLatestTranscripts
   };
 }
 
 const defaultStorage = createTranscriptStorage(getTranscriptDatabase());
 
-export const { saveTranscript, getRecentTranscripts, getTranscriptPage } = defaultStorage;
+export const { saveTranscript, getRecentTranscripts, getTranscriptPage, getLatestTranscripts } =
+  defaultStorage;
 export type TranscriptStorage = ReturnType<typeof createTranscriptStorage>;

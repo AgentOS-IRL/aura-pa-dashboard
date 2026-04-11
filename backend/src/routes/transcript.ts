@@ -1,11 +1,10 @@
 import { Router, Request, Response } from 'express';
 import { getTranscriptPage, saveTranscript } from '../services/transcriptStorage';
+import { normalizeLimitParam, normalizePageParam } from './pagination';
 
 const router = Router();
 
-export const MAX_TRANSCRIPT_LIMIT = 100;
-const DEFAULT_TRANSCRIPT_LIMIT = 25;
-const DEFAULT_TRANSCRIPT_PAGE = 1;
+export { MAX_TRANSCRIPT_LIMIT } from './pagination';
 
 interface TranscriptRequestBody {
   payload?: unknown;
@@ -52,51 +51,29 @@ router.post('/:sessionId/transcript', (req: Request<{ sessionId: string }, unkno
 router.get(
   '/:sessionId/transcript',
   (
-    req: Request<{ sessionId: string }, unknown, unknown, { limit?: string; page?: string }>,
+    req: Request<{ sessionId: string }, unknown, unknown, { limit?: string | string[]; page?: string | string[] }>,
     res: Response
   ) => {
     const sessionId = (typeof req.params.sessionId === 'string' ? req.params.sessionId.trim() : '');
-    const limitParam = req.query.limit;
-    const pageParam = req.query.page;
-    let normalizedLimit = DEFAULT_TRANSCRIPT_LIMIT;
-    let normalizedPage = DEFAULT_TRANSCRIPT_PAGE;
 
     if (!sessionId) {
       return res.status(400).json({ error: 'sessionId path parameter is required' });
     }
 
-    if (limitParam !== undefined) {
-      const limitString = typeof limitParam === 'string' ? limitParam.trim() : '';
-      if (!limitString || !/^[0-9]+$/.test(limitString)) {
-        return res.status(400).json({ error: 'limit must be a positive integer' });
-      }
-
-      const parsed = Number.parseInt(limitString, 10);
-      if (!Number.isFinite(parsed) || parsed <= 0) {
-        return res.status(400).json({ error: 'limit must be a positive integer' });
-      }
-
-      normalizedLimit = Math.min(parsed, MAX_TRANSCRIPT_LIMIT);
+    const limitResult = normalizeLimitParam(req.query.limit);
+    if (limitResult.error) {
+      return res.status(400).json({ error: limitResult.error });
     }
 
-    if (pageParam !== undefined) {
-      const pageString = typeof pageParam === 'string' ? pageParam.trim() : '';
-      if (!pageString || !/^[0-9]+$/.test(pageString)) {
-        return res.status(400).json({ error: 'page must be a positive integer' });
-      }
-
-      const parsed = Number.parseInt(pageString, 10);
-      if (!Number.isFinite(parsed) || parsed <= 0) {
-        return res.status(400).json({ error: 'page must be a positive integer' });
-      }
-
-      normalizedPage = parsed;
+    const pageResult = normalizePageParam(req.query.page);
+    if (pageResult.error) {
+      return res.status(400).json({ error: pageResult.error });
     }
 
     try {
       const transcriptPage = getTranscriptPage(sessionId, {
-        limit: normalizedLimit,
-        page: normalizedPage
+        limit: limitResult.limit,
+        page: pageResult.page
       });
       return res.status(200).json(transcriptPage);
     } catch (error) {

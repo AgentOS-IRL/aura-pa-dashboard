@@ -82,3 +82,51 @@ describe('createTranscriptStorage', () => {
     expect(page.transcripts).toHaveLength(1);
   });
 });
+
+describe('getLatestTranscripts', () => {
+  beforeEach(() => {
+    db = new Database(':memory:');
+  });
+
+  it('returns transcripts sorted by newest entries across all sessions', () => {
+    const storage = createTranscriptStorage(db);
+    const sessionName = 'session-history';
+    ['first', 'second', 'third', 'fourth'].forEach((value) => storage.saveTranscript(sessionName, value));
+    storage.saveTranscript('session-other', 'fifth');
+
+    const page = storage.getLatestTranscripts({ limit: 3, page: 1 });
+
+    expect(page.transcripts).toHaveLength(3);
+    expect(page.transcripts.map((record) => record.payload)).toEqual(['fifth', 'fourth', 'third']);
+    expect(page.page).toBe(1);
+    expect(page.limit).toBe(3);
+    expect(page.total).toBe(5);
+    expect(page.hasMore).toBe(true);
+  });
+
+  it('paginates through the global history', () => {
+    const storage = createTranscriptStorage(db);
+    ['a', 'b', 'c', 'd', 'e', 'f'].forEach((value) => storage.saveTranscript('session', value));
+
+    const page = storage.getLatestTranscripts({ limit: 4, page: 2 });
+
+    expect(page.transcripts).toHaveLength(2);
+    expect(page.transcripts.map((record) => record.payload)).toEqual(['b', 'a']);
+    expect(page.page).toBe(2);
+    expect(page.limit).toBe(4);
+    expect(page.total).toBe(6);
+    expect(page.hasMore).toBe(false);
+  });
+
+  it('caps overly large limits to the configured maximum', () => {
+    const storage = createTranscriptStorage(db);
+
+    storage.saveTranscript('session', 'value');
+
+    const page = storage.getLatestTranscripts({ limit: 999 });
+
+    expect(page.limit).toBe(100);
+    expect(page.total).toBe(1);
+    expect(page.transcripts).toHaveLength(1);
+  });
+});
