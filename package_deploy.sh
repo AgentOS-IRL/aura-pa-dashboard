@@ -24,12 +24,28 @@ USAGE
   exit 1
 }
 
+resolve_home_path() {
+  local value="$1"
+
+  if [[ "$value" == "~" ]]; then
+    printf '%s' "$HOME"
+    return
+  fi
+
+  if [[ "$value" == "~/"* ]]; then
+    printf '%s' "$HOME/${value:2}"
+    return
+  fi
+
+  printf '%s' "$value"
+}
 
 
 SSH_KEY="${SSH_KEY:-$HOME/.ssh/homeserver}"
 SERVER_USER="${SERVER_USER:-sanjeevhalyal}"
 SERVER_HOST="${SERVER_HOST:-192.168.8.129}"
 SERVER_PATH="${SERVER_PATH:-/opt/stacks/aura-pa-dashboard}"
+CODEX_AUTH_SOURCE="$(resolve_home_path "${CODEX_AUTH_PATH:-$HOME/.codex/auth.json"}")"
 
 required_vars=(SSH_KEY SERVER_USER SERVER_HOST SERVER_PATH)
 missing=()
@@ -41,6 +57,10 @@ done
 
 if (( ${#missing[@]} )); then
   die "Missing required environment variables: ${missing[*]}"
+fi
+
+if [[ ! -f "$CODEX_AUTH_SOURCE" ]]; then
+  die "Codex auth file not found at $CODEX_AUTH_SOURCE. Create it or point CODEX_AUTH_PATH at a valid credential file."
 fi
 
 RESTART=false
@@ -100,7 +120,13 @@ if [[ ! -d "$FRONTEND_BUILD_PATH" ]]; then
 fi
 
 log "Preparing remote directories"
-ssh_exec "set -euo pipefail; mkdir -p \"$SERVER_PATH/frontend\" \"$SERVER_PATH/uploads\" \"$SERVER_PATH/data\""
+ssh_exec "set -euo pipefail; mkdir -p \"$SERVER_PATH/frontend\" \"$SERVER_PATH/uploads\" \"$SERVER_PATH/data\" \"$SERVER_PATH/.codex\" \"$SERVER_PATH/agent_os_chat/.codex\""
+
+log "Copying Codex auth credentials to the server"
+scp "${SSH_ARGS[@]}" "$CODEX_AUTH_SOURCE" "$SERVER_USER_HOST":"$SERVER_PATH/.codex/auth.json"
+scp "${SSH_ARGS[@]}" "$CODEX_AUTH_SOURCE" "$SERVER_USER_HOST":"$SERVER_PATH/agent_os_chat/.codex/auth.json"
+ssh_exec "chmod 700 \"$SERVER_PATH/.codex\" \"$SERVER_PATH/agent_os_chat/.codex\""
+ssh_exec "chmod 600 \"$SERVER_PATH/.codex/auth.json\" \"$SERVER_PATH/agent_os_chat/.codex/auth.json\""
 
 log "Setting permissions for persistent directories"
 if ! ssh_exec "chmod 777 \"$SERVER_PATH/uploads\" \"$SERVER_PATH/data\""; then
