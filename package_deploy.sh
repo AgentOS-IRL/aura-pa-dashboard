@@ -120,13 +120,7 @@ if [[ ! -d "$FRONTEND_BUILD_PATH" ]]; then
 fi
 
 log "Preparing remote directories"
-ssh_exec "set -euo pipefail; mkdir -p \"$SERVER_PATH/frontend\" \"$SERVER_PATH/uploads\" \"$SERVER_PATH/data\" \"$SERVER_PATH/.codex\" \"$SERVER_PATH/agent_os_chat/.codex\""
-
-log "Copying Codex auth credentials to the server"
-scp "${SSH_ARGS[@]}" "$CODEX_AUTH_SOURCE" "$SERVER_USER_HOST":"$SERVER_PATH/.codex/auth.json"
-scp "${SSH_ARGS[@]}" "$CODEX_AUTH_SOURCE" "$SERVER_USER_HOST":"$SERVER_PATH/agent_os_chat/.codex/auth.json"
-ssh_exec "chmod 700 \"$SERVER_PATH/.codex\" \"$SERVER_PATH/agent_os_chat/.codex\""
-ssh_exec "chmod 600 \"$SERVER_PATH/.codex/auth.json\" \"$SERVER_PATH/agent_os_chat/.codex/auth.json\""
+ssh_exec "set -euo pipefail; mkdir -p \"$SERVER_PATH/frontend\" \"$SERVER_PATH/uploads\" \"$SERVER_PATH/data\""
 
 log "Setting permissions for persistent directories"
 if ! ssh_exec "chmod 777 \"$SERVER_PATH/uploads\" \"$SERVER_PATH/data\""; then
@@ -151,6 +145,13 @@ rsync -az --delete "${RSYNC_EXCLUDES[@]}" -e "$RSYNC_SSH_CMD" ./ "$SERVER_USER_H
 
 log "Copying built frontend bundle"
 rsync -az --delete -e "$RSYNC_SSH_CMD" "$FRONTEND_BUILD_PATH/" "$SERVER_USER_HOST":"$SERVER_PATH/frontend/$FRONTEND_BUILD_DIR/"
+
+log "Copying Codex auth credentials to the server"
+ssh_exec "set -euo pipefail; mkdir -p \"$SERVER_PATH/.codex\" \"$SERVER_PATH/agent_os_chat/.codex\""
+scp "${SSH_ARGS[@]}" "$CODEX_AUTH_SOURCE" "$SERVER_USER_HOST":"$SERVER_PATH/.codex/auth.json"
+scp "${SSH_ARGS[@]}" "$CODEX_AUTH_SOURCE" "$SERVER_USER_HOST":"$SERVER_PATH/agent_os_chat/.codex/auth.json"
+ssh_exec "chmod 700 \"$SERVER_PATH/.codex\" \"$SERVER_PATH/agent_os_chat/.codex\""
+ssh_exec "chmod 600 \"$SERVER_PATH/.codex/auth.json\" \"$SERVER_PATH/agent_os_chat/.codex/auth.json\""
 
 log "Success! Files pushed to $SERVER_PATH."
 
