@@ -3,7 +3,14 @@ import path from 'path';
 import express, { Express, Response } from 'express';
 
 export const frontendBuildDir = process.env.FRONTEND_BUILD_DIR ?? 'out';
-export const frontendDistPath = path.join(__dirname, '..', '..', 'frontend', frontendBuildDir);
+export const frontendDistPath = path.join(
+  __dirname,
+  '..',
+  '..',
+  '..',
+  'frontend',
+  frontendBuildDir
+);
 
 export function ensureFrontendDistPathExists() {
   if (!fs.existsSync(frontendDistPath)) {
