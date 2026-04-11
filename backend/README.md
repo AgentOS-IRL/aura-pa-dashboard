@@ -9,6 +9,8 @@ cd backend
 npm install
 ```
 
+To exercise the Codex-powered workflows that this service relies on (e.g., `agentHealth` diagnostics and `openaiClient` usage tracking), create a Codex environment for this repo via https://chatgpt.com/codex/cloud/settings/environments. Once the environment exists, `npm run lint` and `npm run test` can reference the same configuration as AgentOS and the helper services.
+
 ## Running the service
 
 ```bash
@@ -20,6 +22,12 @@ npm run start   # runs the compiled dist bundle
 The service honors the `PORT` environment variable; omit it to use the fallback `4000`.
 
 The runtime now uses the `AURA_BASE_PATH` environment variable (default `/aura`) so every route, including `/health`, `/docs`, and `/sessions`, is mounted beneath that prefix. If you override the base path, keep `frontend` and deploy scripts in sync (`NEXT_PUBLIC_AURA_BASE_PATH` on the frontend should match).
+
+## AgentOS status monitoring
+
+The backend now duplicates the Redis connection and subscribes to the `agentos/status` channel so it can track every reported task (`taskId`/`label` or `agentName`). Each JSON message is sanitized, normalized (lowercased health values, ISO timestamps), and stored in memory alongside the last time it was seen. This snapshot is surfaced via `GET /aura/health` in the new `agentHealth` array (empty when no events have arrived), which allows downstream services to consume `{ id, health, lastChecked, label? }` without replaying Redis.
+
+Point the service at `redis://192.168.8.129:6379` (or any `REDIS_URL`) so the subscriber can connect to AgentOS, and ensure the instance emits messages to `agentos/status`. Since manual verification is not supported, run `npm run lint && npm run test` after deploying or changing this logic to prove the new subscriber compiles and the route stays typed.
 
 ## Redis-backed audio capture
 
@@ -134,7 +142,7 @@ The response looks like:
 
 ## Verification
 
-Run `npm run lint` to exercise ESLint (`src/**/*.ts`) and `npm run test` (alias for `npm run build`) to ensure the bundle compiles.
+Run `npm run lint` and `npm run test` to exercise ESLint (`src/**/*.ts`) and Vitest so the subscriber and new route stay typed and tested.
 
 ## Dockerized runtime
 
