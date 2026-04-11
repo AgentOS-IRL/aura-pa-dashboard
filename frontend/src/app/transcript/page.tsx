@@ -47,11 +47,16 @@ export default function TranscriptPage() {
       return;
     }
 
-    if (lastSessionRef.current !== activeSessionId) {
-      setCurrentPage(1);
+    const sessionChanged = lastSessionRef.current !== activeSessionId;
+    if (sessionChanged) {
+      setTranscripts([]);
       setPaginationMeta({ total: 0, limit: TRANSCRIPTS_PAGE_SIZE, hasMore: false });
+      if (currentPage !== 1) {
+        lastSessionRef.current = activeSessionId;
+        setCurrentPage(1);
+        return;
+      }
       lastSessionRef.current = activeSessionId;
-      return;
     }
 
     setLoading(true);
