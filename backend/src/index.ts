@@ -5,6 +5,7 @@ import cors from 'cors';
 import morgan from 'morgan';
 import swaggerUi from 'swagger-ui-express';
 import YAML from 'yamljs';
+import { startTranscriptListener, stopTranscriptListener } from './services/transcriptListener';
 import audioRouter from './routes/audio';
 import healthRouter from './routes/health';
 
@@ -49,14 +50,28 @@ export function startServer() {
   const port = Number.parseInt(process.env.PORT ?? '4000', 10);
   const app = createApp();
   const server = http.createServer(app);
+  let shuttingDown = false;
 
   const shutdown = (signal: string) => {
     console.log(`Received ${signal}, shutting down gracefully...`);
 
-    server.close(() => {
-      console.log('Server closed, exiting.');
-      process.exit(0);
-    });
+    if (shuttingDown) {
+      return;
+    }
+    shuttingDown = true;
+
+    (async () => {
+      try {
+        await stopTranscriptListener();
+      } catch (error) {
+        console.error('Error while stopping transcript listener', error);
+      }
+
+      server.close(() => {
+        console.log('Server closed, exiting.');
+        process.exit(0);
+      });
+    })();
 
     setTimeout(() => {
       console.error('Force exiting after shutdown timeout.');
@@ -66,6 +81,10 @@ export function startServer() {
 
   ['SIGINT', 'SIGTERM', 'SIGQUIT'].forEach((signal) => {
     process.on(signal, () => shutdown(signal));
+  });
+
+  startTranscriptListener().catch((error) => {
+    console.error('Failed to start transcript listener', error);
   });
 
   server.listen(port, () => {
