@@ -18,6 +18,15 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
+## Available routes
+
+The static export now includes two entry points:
+
+- `/` renders the assistant experience.
+- `/transcript` is a placeholder for the transcript history that will load once the persistence layer is wired up.
+
+Because the app runs as a static export (`output: "export"`), both routes are built at `npm run build` and must be deployed together even though the transcript page currently only shows placeholder copy and navigation back to the assistant.
+
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
 ## Assistant session uploads
