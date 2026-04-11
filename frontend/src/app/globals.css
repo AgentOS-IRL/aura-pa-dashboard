@@ -69,6 +69,30 @@ body {
   .placeholder-panel {
     @apply rounded-3xl border border-slate-200/70 dark:border-slate-800/60 bg-white/80 dark:bg-slate-900/80 shadow-xl p-8 space-y-4;
   }
+
+  .transcript-input-panel {
+    @apply rounded-3xl border border-slate-200/70 dark:border-slate-800/60 bg-white/80 dark:bg-slate-900/80 shadow-xl px-6 py-6 space-y-4;
+  }
+
+  .transcript-alert {
+    @apply rounded-3xl border border-slate-200/70 dark:border-slate-800/60 bg-white/95 dark:bg-slate-900/80 shadow-lg px-6 py-5 space-y-2;
+  }
+
+  .transcript-list {
+    @apply rounded-3xl border border-slate-200/70 dark:border-slate-800/60 bg-white/80 dark:bg-slate-900/70 shadow-xl p-6 space-y-4 max-h-[min(60vh,520px)] overflow-y-auto;
+  }
+
+  .transcript-card {
+    @apply rounded-2xl border border-slate-100/80 dark:border-slate-800/40 bg-slate-50/80 dark:bg-slate-900/70 shadow-sm p-5;
+  }
+
+  .transcript-card__metadata {
+    @apply mt-4 flex flex-wrap gap-2;
+  }
+
+  .metadata-badge {
+    @apply text-xs font-semibold uppercase tracking-wide rounded-full px-3 py-1 bg-slate-100/80 dark:bg-slate-800/70 text-slate-600 dark:text-slate-300;
+  }
 }
 
 @layer utilities {

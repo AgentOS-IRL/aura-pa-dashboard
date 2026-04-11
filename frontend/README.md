@@ -23,9 +23,9 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 The static export now includes two entry points:
 
 - `/` renders the assistant experience.
-- `/transcript` is a placeholder for the transcript history that will load once the persistence layer is wired up.
+- `/transcript` now renders the persisted transcript history for the session that the assistant generated. The page reads the active session ID from a shared context (which also persists it to `localStorage`) and falls back to any manual session ID you paste into the input. The history view refreshes itself automatically and lets you re-request the data with the Refresh button.
 
-Because the app runs as a static export (`output: "export"`), both routes are built at `npm run build` and must be deployed together even though the transcript page currently only shows placeholder copy and navigation back to the assistant.
+Because the app runs as a static export (`output: "export"`), both routes are built at `npm run build` and must be deployed together so the transcript page can always reach the same backend that the assistant uses.
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 

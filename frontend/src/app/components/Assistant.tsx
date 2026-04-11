@@ -2,7 +2,8 @@
 
 import { useMicVAD, utils } from '@ricky0123/vad-react';
 import { Mic, MicOff, Waves, Trash2 } from 'lucide-react';
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
+import { useSessionContext } from '../context/session';
 import { createSessionId, uploadAudioChunk } from '../lib/audioUpload';
 
 interface AudioSegment {
@@ -15,7 +16,6 @@ const RETRY_DELAY_MS = 2000;
 
 export default function Assistant() {
     const [segments, setSegments] = useState<AudioSegment[]>([]);
-    const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
     const [sessionStatus, setSessionStatus] = useState('Idle');
     const [uploadStatus, setUploadStatus] = useState('Awaiting session start');
     const [uploadError, setUploadError] = useState<string | null>(null);
@@ -24,6 +24,11 @@ export default function Assistant() {
     const uploadInFlightRef = useRef(false);
     const uploadQueueRef = useRef<ArrayBuffer[]>([]);
     const processingRef = useRef(false);
+    const { sessionId, setSessionId } = useSessionContext();
+
+    useEffect(() => {
+        sessionIdRef.current = sessionId;
+    }, [sessionId]);
 
     const processUploadQueue = useCallback(async () => {
         if (processingRef.current) {
@@ -126,7 +131,7 @@ export default function Assistant() {
             sessionIdRef.current = newSessionId;
             uploadQueueRef.current = [];
             processingRef.current = false;
-            setCurrentSessionId(newSessionId);
+            setSessionId(newSessionId);
             setSessionStatus('Session active');
             setUploadStatus('Awaiting audio chunk...');
             setUploadError(null);
@@ -185,14 +190,14 @@ export default function Assistant() {
 
                         <div className="space-y-1 text-sm text-slate-500 pt-3">
                             <p className="text-xs uppercase tracking-wide text-slate-400">Session ID</p>
-                            <p className="font-mono text-slate-900 dark:text-white break-all">
-                                {currentSessionId ?? 'Tap "Wake Assistant" to start a session'}
-                            </p>
+                      <p className="font-mono text-slate-900 dark:text-white break-all">
+                        {sessionId ?? 'Tap "Wake Assistant" to start a session'}
+                      </p>
                             <p className="text-xs text-slate-500">Session status: {sessionStatus}</p>
                             <p className={`text-xs ${uploadError ? 'text-rose-500' : 'text-slate-500'}`}>
                                 Upload status: {uploadStatus}
                                 {uploadInFlight && ' · Sending...'}
-                            </p>
+                    </p>
                             {uploadError && <p className="text-xs text-rose-500">Error: {uploadError}</p>}
                         </div>
                     </div>

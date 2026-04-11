@@ -68,6 +68,43 @@ Transcripts are now ingested through a dedicated HTTP endpoint instead of the re
 
 Inspect the SQLite file with standard tools (e.g., `sqlite3 backend/data/transcripts.db`) or point `TRANSCRIPT_DB_PATH` elsewhere in production before retrieving historical transcripts.
 
+## Transcript retrieval
+
+When you need to show what Aura previously captured, call the read endpoint to list the most recent transcript rows for a session.
+
+### Transcript read endpoint
+
+- `GET /sessions/{sessionId}/transcript` – returns JSON that wraps the latest transcript rows for `sessionId`. You can optionally pass `limit` in the query string to cap how many rows come back (defaults to 25). The payload is always an array named `transcripts`.
+- Each row contains:
+  - `sessionId` (string) – the session that produced the record.
+  - `payload` (string) – the text that was captured for that chunk.
+  - `metadata` (object|null) – any context stored at ingest time (e.g., speaker, source). If no metadata was saved, this field is `null`.
+  - `receivedAt` (string) – ISO timestamp describing when the row was stored.
+- The route returns `200` with the records on success, `400` for missing session IDs or malformed query params, and `500` if the storage layer throws.
+
+### Sample curl
+
+```bash
+curl -X GET http://localhost:4000/sessions/session-abc/transcript?limit=10
+```
+
+The response looks like:
+
+```json
+{
+  "transcripts": [
+    {
+      "sessionId": "session-abc",
+      "payload": "Hey Aura, show me the transcript",
+      "metadata": {
+        "source": "web"
+      },
+      "receivedAt": "2026-04-01T12:00:00Z"
+    }
+  ]
+}
+```
+
 ## Verification
 
 Run `npm run lint` to exercise ESLint (`src/**/*.ts`) and `npm run test` (alias for `npm run build`) to ensure the bundle compiles.
