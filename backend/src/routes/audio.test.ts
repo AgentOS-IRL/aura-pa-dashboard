@@ -39,12 +39,7 @@ describe('audio route', () => {
     expect(transcribeAndSaveAudioSpy).toHaveBeenCalledWith(
       'session-42',
       expect.any(Buffer),
-      'executor-42',
-      undefined,
-      {
-        fileName: 'chunk.webm',
-        contentType: 'audio/webm'
-      }
+      'executor-42'
     );
   });
 

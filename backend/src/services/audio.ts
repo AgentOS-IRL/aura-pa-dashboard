@@ -1,27 +1,17 @@
-import { type OpenAITranscriptionResult } from './openaiTranscribeClient';
 import {
-  DEFAULT_TRANSCRIBE_MODEL,
-  DEFAULT_TRANSCRIBE_RESPONSE_FORMAT,
-  OpenAITranscribeClient,
-  type OpenAITranscribeOptions,
-  type UploadFileOptions
-} from './openaiTranscribeClient';
+  DeepgramTranscribeClient,
+  DeepgramTranscribeOptions,
+  DeepgramTranscriptionResult,
+  DEFAULT_DEEPGRAM_METADATA
+} from './deepgramTranscribeClient';
 import { saveTranscript } from './transcriptStorage';
 
-const defaultTranscribeClient = new OpenAITranscribeClient();
+const defaultTranscribeClient = new DeepgramTranscribeClient();
 
 function normalizeSessionId(value: string): string {
   const trimmed = value?.trim();
   if (!trimmed) {
     throw new Error('sessionId is required to persist transcripts');
-  }
-  return trimmed;
-}
-
-function normalizeExecutorId(value: string): string {
-  const trimmed = value?.trim();
-  if (!trimmed) {
-    throw new Error('executorId is required to persist transcripts');
   }
   return trimmed;
 }
@@ -33,7 +23,7 @@ function ensureBuffer(chunk: Buffer): Buffer {
   return chunk;
 }
 
-function getTextPayload(transcription: OpenAITranscriptionResult): string {
+function getTextPayload(transcription: DeepgramTranscriptionResult | string): string {
   if (typeof transcription === 'string') {
     return transcription;
   }
@@ -45,34 +35,31 @@ function getTextPayload(transcription: OpenAITranscriptionResult): string {
   return JSON.stringify(transcription);
 }
 
-function buildBaseMetadata(executorId: string, options?: OpenAITranscribeOptions) {
+function buildBaseMetadata(options?: DeepgramTranscribeOptions) {
   return {
     source: 'transcribe',
-    executorId,
-    model: options?.model ?? DEFAULT_TRANSCRIBE_MODEL,
-    response_format: options?.response_format ?? DEFAULT_TRANSCRIBE_RESPONSE_FORMAT
+    model: options?.model ?? DEFAULT_DEEPGRAM_METADATA.model,
+    language: options?.language ?? DEFAULT_DEEPGRAM_METADATA.language,
+    smart_format: options?.smart_format ?? DEFAULT_DEEPGRAM_METADATA.smart_format,
+    utterances: options?.utterances ?? DEFAULT_DEEPGRAM_METADATA.utterances
   } as Record<string, unknown>;
 }
 
 export async function transcribeAndSaveAudio(
   sessionId: string,
   chunk: Buffer,
-  executorId: string,
-  options?: OpenAITranscribeOptions,
-  uploadOptions?: UploadFileOptions,
-  client: OpenAITranscribeClient = defaultTranscribeClient
-): Promise<OpenAITranscriptionResult> {
+  options?: DeepgramTranscribeOptions,
+  client: DeepgramTranscribeClient = defaultTranscribeClient
+): Promise<DeepgramTranscriptionResult> {
   const normalizedSessionId = normalizeSessionId(sessionId);
-  const normalizedExecutorId = normalizeExecutorId(executorId);
   const safeChunk = ensureBuffer(chunk);
-  const metadata = buildBaseMetadata(normalizedExecutorId, options);
+  const metadata = buildBaseMetadata(options);
 
   try {
     const transcription = await client.transcribeStream(
       normalizedSessionId,
       safeChunk,
-      options,
-      uploadOptions
+      options
     );
     const payload = getTextPayload(transcription);
     saveTranscript(normalizedSessionId, payload, metadata);

@@ -26,11 +26,11 @@ This repository now exposes the key AgentOS configuration knobs that control the
 
 - The configuration module validates the file at startup and caches the parsed credentials, but you can force a reload by setting `CODEX_AUTH_PATH` to a new file and restarting the process.
 
-## OpenAI transcription credentials
+## Deepgram transcription credentials
 
-- The new transcription helper immediately validates `OPENAI_API_KEY` and refuses to start when the variable is missing or empty. Store the same key you would use with the OpenAI SDK.
-- Override `OPENAI_BASE_URL`, `OPENAI_ORG_ID`, or `OPENAI_PROJECT_ID` when your deployment requires a proxy or enterprise scoped project.
-- See `backend/README.md` for a usage example and reminder that `gpt-4o-transcribe`/`response_format: "json"` are the defaults this service sends on every request.
+- The new transcription helper immediately validates `DEEPGRAM_API_KEY` and refuses to start when the variable is missing or empty. Store the Deepgram key you use for other Deepgram SDK integrations.
+- Override `DEEPGRAM_BASE_URL` when your deployment requires a proxy or alternate Deepgram host.
+- See `backend/README.md` for a usage example and a reminder that `nova-3`, `language: "en"`, `smart_format: true`, and `utterances: true` are the defaults this service sends on every request.
 
 ## Deployment expectations
 

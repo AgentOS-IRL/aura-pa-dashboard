@@ -8,7 +8,7 @@
 
 ## Backend Health Service
 
-A new `backend/` workspace hosts an Express service that lives beneath the configured `AURA_BASE_PATH` (default `/aura`), so the health endpoint is `GET /aura/health` and the Swagger UI lives at `GET /aura/docs`. The stack still accepts `POST /aura/sessions/{sessionId}/audio`, but that route now streams every upload through the `OpenAITranscribeClient`, and each transcription (success or error) is stored via `saveTranscript` along with metadata such as the executor identifier and transcription options. The service runs on `PORT 4000` by default, and `backend/README.md` documents installation, dev/start commands, the transcription helper configuration (required `OPENAI_API_KEY`, optional `OPENAI_BASE_URL`, `OPENAI_ORG_ID`, `OPENAI_PROJECT_ID`), and the `npm run lint`/`npm run test` automation.
+A new `backend/` workspace hosts an Express service that lives beneath the configured `AURA_BASE_PATH` (default `/aura`), so the health endpoint is `GET /aura/health` and the Swagger UI lives at `GET /aura/docs`. The stack still accepts `POST /aura/sessions/{sessionId}/audio`, but that route now streams every upload through the `DeepgramTranscribeClient`, and each transcription (success or error) is stored via `saveTranscript` along with metadata such as the executor identifier and transcription options. The service runs on `PORT 4000` by default, and `backend/README.md` documents installation, dev/start commands, the transcription helper configuration (required `DEEPGRAM_API_KEY`, optional `DEEPGRAM_BASE_URL`), and the `npm run lint`/`npm run test` automation.
 
 The Aura Assistant dashboard now opens a dedicated session ID every time you tap **Wake Assistant**, displays that identifier and upload status next to the action button, and streams every VAD-detected chunk to `POST /aura/sessions/{sessionId}/audio` so the backend and downstream systems still see the same session context while the transcription pipeline persists each chunk’s text output instead of raw audio.
 
@@ -51,7 +51,7 @@ Because the script builds the frontend and backend locally before syncing, expec
 
 ## Codex / OpenAI configuration
 
-The backend now exposes both the original Codex client and a standalone OpenAI transcription client, so refer to `backend/README.md` for the new transcription helper’s setup steps (required `OPENAI_API_KEY`, optional `OPENAI_BASE_URL`, `OPENAI_ORG_ID`, and `OPENAI_PROJECT_ID`).
+The backend now exposes both the original Codex client and a standalone Deepgram transcription client, so refer to `backend/README.md` for the new transcription helper’s setup steps (required `DEEPGRAM_API_KEY`, optional `DEEPGRAM_BASE_URL`).
 
 The health service now depends on the same Codex configuration that AgentOS uses:
 
