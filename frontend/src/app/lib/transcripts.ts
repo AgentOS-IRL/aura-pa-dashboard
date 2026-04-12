@@ -62,6 +62,7 @@ export interface TranscriptPageResponse {
 interface FetchTranscriptsOptions {
   limit?: number;
   page?: number;
+  signal?: AbortSignal;
 }
 
 export async function fetchTranscripts(options?: FetchTranscriptsOptions): Promise<TranscriptPageResponse> {
@@ -79,7 +80,7 @@ export async function fetchTranscripts(options?: FetchTranscriptsOptions): Promi
   const query = params.toString();
   const url = `${BACKEND_BASE_URL}${path}${query ? `?${query}` : ""}`;
 
-  const response = await fetch(url, { method: "GET" });
+  const response = await fetch(url, { method: "GET", signal: options?.signal });
   if (!response.ok) {
     const message = await response.text().catch(() => response.statusText);
     throw new Error(`Failed to fetch transcripts (${response.status}): ${message}`);

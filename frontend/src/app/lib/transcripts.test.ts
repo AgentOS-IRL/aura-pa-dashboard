@@ -27,6 +27,7 @@ describe("fetchTranscripts", () => {
 
     expect(fetchMock).toHaveBeenCalledWith("http://localhost:4000/aura/transcripts", {
       method: "GET",
+      signal: undefined
     });
     expect(result).toEqual({
       transcripts: [],
@@ -57,6 +58,7 @@ describe("fetchTranscripts", () => {
 
     expect(fetchMock).toHaveBeenCalledWith("http://localhost:4000/aura/transcripts?limit=5&page=2", {
       method: "GET",
+      signal: undefined
     });
     expect(pageInfo.page).toBe(2);
     expect(pageInfo.limit).toBe(5);

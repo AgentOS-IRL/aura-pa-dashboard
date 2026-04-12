@@ -45,6 +45,23 @@ vi.mock("../lib/classifications", () => ({
   deleteClassification: vi.fn()
 }));
 
+vi.mock("../lib/transcripts", () => ({
+  fetchTranscripts: vi.fn(() =>
+    Promise.resolve({
+      transcripts: [],
+      total: 0,
+      limit: 25,
+      hasMore: false
+    })
+  ),
+  deleteAllTranscripts: vi.fn()
+}));
+
+vi.mock("../lib/transcriptClassifications", () => ({
+  saveTranscriptClassification: vi.fn(),
+  deleteTranscriptClassification: vi.fn()
+}));
+
 describe("SettingsPage", () => {
   afterEach(() => {
     vi.clearAllMocks();
@@ -55,13 +72,17 @@ describe("SettingsPage", () => {
 
     await screen.findByRole("tab", { name: "Usage monitoring" });
     screen.getByRole("tab", { name: "Classification metadata" });
+    screen.getByRole("tab", { name: "Transcript history" });
 
     await screen.findByRole("heading", { name: "Usage monitoring" });
     await screen.findByText("Raw payload");
 
     fireEvent.click(screen.getByRole("tab", { name: "Classification metadata" }));
-
     await screen.findByRole("heading", { name: "Manage classification metadata" });
     expect(screen.queryByText("Raw payload")).toBeNull();
+
+    fireEvent.click(screen.getByRole("tab", { name: "Transcript history" }));
+    await screen.findByRole("heading", { name: "Global transcript history" });
+    expect(screen.queryByRole("heading", { name: "Manage classification metadata" })).toBeNull();
   });
 });
