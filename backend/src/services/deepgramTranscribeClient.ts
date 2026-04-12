@@ -1,4 +1,5 @@
 import { Readable } from "stream";
+import type { Uploadable } from "@deepgram/sdk/dist/cjs/core/file/exports";
 import { DeepgramClient } from "@deepgram/sdk";
 import { getDeepgramConfig, type DeepgramConfig } from "../config/deepgram";
 
@@ -60,10 +61,10 @@ export class DeepgramTranscribeClient {
 
   public async transcribeStream(
     sessionId: string,
-    input: Buffer | NodeJS.ReadableStream,
+    input: Uploadable,
     options?: DeepgramTranscribeOptions
   ): Promise<DeepgramTranscriptionResult> {
-    const mediaStream: NodeJS.ReadableStream = Buffer.isBuffer(input)
+    const mediaStream: Uploadable = Buffer.isBuffer(input)
       ? Readable.from(input)
       : input;
     const requestOptions = {
