@@ -210,6 +210,92 @@ paths:
           description: Transcript table cleared
         '500':
           description: Backend failed to delete the transcripts
+  /transcripts/{transcriptId}/classifications:
+    get:
+      tags:
+        - Transcript
+      summary: List classifications attached to a transcript
+      parameters:
+        - name: transcriptId
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        '200':
+          description: Classifications assigned to the transcript
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TranscriptClassificationAssignment'
+        '400':
+          description: Missing or invalid transcriptId
+        '500':
+          description: Unable to read classifications for the transcript
+    post:
+      tags:
+        - Transcript
+      summary: Attach a classification to a transcript
+      parameters:
+        - name: transcriptId
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: string
+              required:
+                - id
+      responses:
+        '200':
+          description: Updated list of classifications for the transcript
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TranscriptClassificationAssignment'
+        '400':
+          description: Missing transcriptId or classification id
+        '404':
+          description: Classification not found
+        '500':
+          description: Unable to assign the classification
+  /transcripts/{transcriptId}/classifications/{classificationId}:
+    delete:
+      tags:
+        - Transcript
+      summary: Remove a classification from a transcript
+      parameters:
+        - name: transcriptId
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+        - name: classificationId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Classification removed
+        '400':
+          description: Missing or invalid path parameters
+        '500':
+          description: Unable to remove the classification
   /classifications:
     get:
       tags:
@@ -300,6 +386,9 @@ components:
     TranscriptRecord:
       type: object
       properties:
+        id:
+          type: integer
+          description: Unique identifier for the transcript row
         sessionId:
           type: string
           description: Session that produced the transcript entry
@@ -315,7 +404,13 @@ components:
           type: string
           format: date-time
           description: When the transcript was recorded
+        classifications:
+          type: array
+          items:
+            $ref: '#/components/schemas/ClassificationRecord'
+          description: Labels that were assigned to the transcript
       required:
+        - id
         - sessionId
         - payload
         - receivedAt
@@ -375,6 +470,31 @@ components:
       required:
         - id
         - name
+    TranscriptClassificationAssignment:
+      type: object
+      properties:
+        transcriptId:
+          type: integer
+          description: Identifier for the transcript that owns the assignment
+        classificationId:
+          type: string
+          description: Identifier for the attached classification
+        name:
+          type: string
+          description: Friendly name of the classification
+        description:
+          type: string
+          nullable: true
+          description: Optional details for the classification
+        assignedAt:
+          type: string
+          format: date-time
+          description: When the assignment was created
+      required:
+        - transcriptId
+        - classificationId
+        - name
+        - assignedAt
     CodexUsage:
       type: object
       properties:

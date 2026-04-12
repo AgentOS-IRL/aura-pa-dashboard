@@ -15,19 +15,26 @@ export function createSessionId() {
     return `session-${Date.now()}-${suffix}`;
 }
 
-export async function uploadAudioChunk(sessionId: string, wavBuffer: ArrayBuffer) {
-    if (!sessionId) {
-        throw new Error('Missing session ID for audio upload');
-    }
+export async function uploadAudioChunk(sessionId: string, wavBuffer: ArrayBuffer, executorId?: string) {
+  if (!sessionId) {
+    throw new Error('Missing session ID for audio upload');
+  }
 
-    const url = `${BACKEND_BASE_URL}${BACKEND_PATH_PREFIX}/sessions/${encodeURIComponent(sessionId)}/audio`;
-    const formData = new FormData();
-    formData.append('audio', new Blob([wavBuffer], { type: 'audio/wav' }), `${sessionId}.wav`);
+  const url = `${BACKEND_BASE_URL}${BACKEND_PATH_PREFIX}/sessions/${encodeURIComponent(sessionId)}/audio`;
+  const formData = new FormData();
+  formData.append('audio', new Blob([wavBuffer], { type: 'audio/wav' }), `${sessionId}.wav`);
 
-    const response = await fetch(url, {
-        method: 'POST',
-        body: formData,
-    });
+  const normalizedExecutorId = (executorId ?? process.env.NEXT_PUBLIC_EXECUTOR_ID ?? '').trim();
+  const headers: Record<string, string> = {};
+  if (normalizedExecutorId) {
+    headers[EXECUTOR_ID_HEADER] = normalizedExecutorId;
+  }
+
+  const response = await fetch(url, {
+    method: 'POST',
+    body: formData,
+    headers,
+  });
 
     if (!response.ok) {
         const message = await response.text().catch(() => response.statusText);

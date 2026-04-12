@@ -62,6 +62,49 @@ describe("fetchTranscripts", () => {
     expect(pageInfo.limit).toBe(5);
   });
 
+  it("normalizes transcript records and attached classifications", async () => {
+    const transcriptRow = {
+      id: 42,
+      sessionId: "session-1",
+      payload: "hello aura",
+      metadata: { speaker: "user" },
+      receivedAt: "2026-04-01T12:00:00Z",
+      classifications: [
+        { id: "cat-1", name: "First", description: "desc" }
+      ]
+    };
+
+    const fetchMock = vi.fn(() =>
+      Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({
+          transcripts: [transcriptRow],
+          page: 1,
+          limit: 25,
+          total: 1,
+          hasMore: false
+        })
+      })
+    );
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await fetchTranscripts();
+
+    expect(result.transcripts).toEqual([
+      {
+        id: 42,
+        sessionId: "session-1",
+        payload: "hello aura",
+        metadata: { speaker: "user" },
+        receivedAt: "2026-04-01T12:00:00Z",
+        classifications: [
+          { id: "cat-1", name: "First", description: "desc" }
+        ]
+      }
+    ]);
+  });
+
   it("throws when the backend returns an error", async () => {
     const fetchMock = vi.fn(() =>
       Promise.resolve({

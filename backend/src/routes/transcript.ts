@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { getTranscriptPage, saveTranscript } from '../services/transcriptStorage';
 import { normalizeLimitParam, normalizePageParam } from './pagination';
+import { attachTranscriptClassifications } from './transcriptPageHelpers';
 
 const router = Router();
 
@@ -71,10 +72,12 @@ router.get(
     }
 
     try {
-      const transcriptPage = getTranscriptPage(sessionId, {
-        limit: limitResult.limit,
-        page: pageResult.page
-      });
+      const transcriptPage = attachTranscriptClassifications(
+        getTranscriptPage(sessionId, {
+          limit: limitResult.limit,
+          page: pageResult.page
+        })
+      );
       return res.status(200).json(transcriptPage);
     } catch (error) {
       console.error('Unable to fetch transcripts for session', sessionId, error);

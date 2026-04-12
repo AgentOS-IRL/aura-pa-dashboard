@@ -26,6 +26,8 @@ describe('createTranscriptStorage', () => {
     expect(rows[0].payload).toBe('hello');
     expect(rows[0].metadata).toEqual({ source: 'redis' });
     expect(new Date(rows[0].receivedAt).toString()).not.toContain('Invalid Date');
+    expect(typeof rows[0].id).toBe('number');
+    expect(rows[0].id).toBeGreaterThan(0);
   });
 
   it('supports buffers for payloads and trims session ids', () => {

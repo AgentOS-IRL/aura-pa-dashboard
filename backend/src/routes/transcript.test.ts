@@ -8,6 +8,9 @@ vi.mock('../services/transcriptStorage', () => ({
   getLatestTranscripts: vi.fn(),
   deleteAllTranscripts: vi.fn()
 }));
+vi.mock('../services/transcriptClassificationStorage', () => ({
+  getClassificationsForTranscripts: vi.fn()
+}));
 
 import {
   getTranscriptPage,
@@ -15,6 +18,7 @@ import {
   saveTranscript,
   deleteAllTranscripts
 } from '../services/transcriptStorage';
+import { getClassificationsForTranscripts } from '../services/transcriptClassificationStorage';
 import { createApp } from '../index';
 import { withAuraBasePath } from '../config/auraPath';
 import { MAX_TRANSCRIPT_LIMIT } from './transcript';
@@ -24,6 +28,12 @@ const saveTranscriptMock = vi.mocked(saveTranscript);
 const getTranscriptPageMock = vi.mocked(getTranscriptPage);
 const getLatestTranscriptsMock = vi.mocked(getLatestTranscripts);
 const deleteAllTranscriptsMock = vi.mocked(deleteAllTranscripts);
+const classificationMock = vi.mocked(getClassificationsForTranscripts);
+
+beforeEach(() => {
+  classificationMock.mockReset();
+  classificationMock.mockReturnValue(new Map());
+});
 
 describe('transcript route', () => {
   beforeEach(() => {
@@ -96,7 +106,7 @@ describe('transcript GET route', () => {
 
   it('returns transcripts with pagination metadata when the service succeeds', async () => {
     const rows = [
-      { sessionId: 'session-1', payload: 'hello', metadata: null, receivedAt: '2026-04-01T12:00:00Z' }
+      { id: 1, sessionId: 'session-1', payload: 'hello', metadata: null, receivedAt: '2026-04-01T12:00:00Z' }
     ];
     getTranscriptPageMock.mockReturnValue({
       transcripts: rows,
@@ -111,13 +121,14 @@ describe('transcript GET route', () => {
       .expect(200);
 
     expect(response.body).toEqual({
-      transcripts: rows,
+      transcripts: rows.map((row) => ({ ...row, classifications: [] })),
       page: 1,
       limit: 25,
       total: rows.length,
       hasMore: false
     });
     expect(getTranscriptPageMock).toHaveBeenCalledWith('session-1', { limit: 25, page: 1 });
+    expect(classificationMock).toHaveBeenCalledWith([rows[0].id]);
   });
 
   it('forwards pagination params to the storage helper', async () => {

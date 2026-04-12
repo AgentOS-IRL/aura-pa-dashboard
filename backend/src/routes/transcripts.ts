@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { deleteAllTranscripts, getLatestTranscripts } from '../services/transcriptStorage';
 import { normalizeLimitParam, normalizePageParam } from './pagination';
+import { attachTranscriptClassifications } from './transcriptPageHelpers';
 
 const router = Router();
 
@@ -21,10 +22,12 @@ router.get(
     }
 
     try {
-      const transcriptPage = getLatestTranscripts({
-        limit: limitResult.limit,
-        page: pageResult.page
-      });
+      const transcriptPage = attachTranscriptClassifications(
+        getLatestTranscripts({
+          limit: limitResult.limit,
+          page: pageResult.page
+        })
+      );
 
       return res.status(200).json(transcriptPage);
     } catch (error) {
