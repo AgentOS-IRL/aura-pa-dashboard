@@ -7,13 +7,11 @@ vi.mock('./transcriptStorage', () => ({
 }));
 
 import {
-  DEFAULT_TRANSCRIBE_MODEL,
-  DEFAULT_TRANSCRIBE_RESPONSE_FORMAT,
-  type OpenAITranscribeClient,
-  type OpenAITranscribeOptions,
-  type OpenAITranscriptionResult,
-  type UploadFileOptions
-} from './openaiTranscribeClient';
+  DeepgramTranscribeClient,
+  DeepgramTranscribeOptions,
+  DeepgramTranscriptionResult,
+  DEFAULT_DEEPGRAM_METADATA
+} from './deepgramTranscribeClient';
 import { transcribeAndSaveAudio } from './audio';
 
 describe('transcribeAndSaveAudio', () => {
@@ -21,38 +19,36 @@ describe('transcribeAndSaveAudio', () => {
     saveTranscriptMock.mockReset();
   });
 
-  type TranscribeMock = MockedFunction<
-    (
-      sessionId: string,
-      chunk: Buffer,
-      options?: OpenAITranscribeOptions,
-      uploadOptions?: UploadFileOptions
-    ) => Promise<OpenAITranscriptionResult>
-  >;
+  type TranscribeMock = MockedFunction<(
+    sessionId: string,
+    chunk: Buffer,
+    options?: DeepgramTranscribeOptions
+  ) => Promise<DeepgramTranscriptionResult>>;
 
   function createMockClient() {
     const transcribeStream = vi.fn() as TranscribeMock;
+    transcribeStream.mockResolvedValue({ text: 'transcribed text', transcript: 'transcribed text', utterances: [], raw: {} });
     return {
-      transcribeStream
-    } as OpenAITranscribeClient & { transcribeStream: TranscribeMock };
+      transcribeStream,
+    } as DeepgramTranscribeClient & { transcribeStream: TranscribeMock };
   }
 
   it('runs the transcribe client and persists the returned text', async () => {
     const mockClient = createMockClient();
-    const transcriptionResult: OpenAITranscriptionResult = { text: 'transcribed text' } as OpenAITranscriptionResult;
-    mockClient.transcribeStream.mockResolvedValueOnce(transcriptionResult);
 
-    const result = await transcribeAndSaveAudio('session-1', Buffer.from('audio'), 'executor-1', undefined, undefined, mockClient);
+    const result = await transcribeAndSaveAudio('session-1', Buffer.from('audio'), 'executor-1', undefined, mockClient);
 
-    expect(result).toBe(transcriptionResult);
+    expect(result.text).toBe('transcribed text');
     expect(saveTranscriptMock).toHaveBeenCalledWith(
       'session-1',
       'transcribed text',
       expect.objectContaining({
         source: 'transcribe',
         executorId: 'executor-1',
-        model: DEFAULT_TRANSCRIBE_MODEL,
-        response_format: DEFAULT_TRANSCRIBE_RESPONSE_FORMAT
+        model: DEFAULT_DEEPGRAM_METADATA.model,
+        language: DEFAULT_DEEPGRAM_METADATA.language,
+        smart_format: DEFAULT_DEEPGRAM_METADATA.smart_format,
+        utterances: DEFAULT_DEEPGRAM_METADATA.utterances
       })
     );
     expect(mockClient.transcribeStream).toHaveBeenCalledTimes(1);
@@ -60,10 +56,10 @@ describe('transcribeAndSaveAudio', () => {
 
   it('falls back to stringifying the full response when text is missing', async () => {
     const mockClient = createMockClient();
-    const payload = { words: ['a', 'b'] };
-    mockClient.transcribeStream.mockResolvedValueOnce(payload as unknown as OpenAITranscriptionResult);
+    const payload = { words: ['a', 'b'] } as unknown as DeepgramTranscriptionResult;
+    mockClient.transcribeStream.mockResolvedValueOnce(payload);
 
-    await transcribeAndSaveAudio('session-1', Buffer.from('audio'), 'executor-1', undefined, undefined, mockClient);
+    await transcribeAndSaveAudio('session-1', Buffer.from('audio'), 'executor-1', undefined, mockClient);
 
     expect(saveTranscriptMock).toHaveBeenCalledWith(
       'session-1',
@@ -77,18 +73,17 @@ describe('transcribeAndSaveAudio', () => {
 
   it('includes overridden options in the metadata', async () => {
     const mockClient = createMockClient();
-    mockClient.transcribeStream.mockResolvedValueOnce({ text: 'text' } as OpenAITranscriptionResult);
-    const options: OpenAITranscribeOptions = { model: 'custom-model', response_format: 'verbose_json' };
+    const options: DeepgramTranscribeOptions = { model: 'custom-model', language: 'es' };
 
-    await transcribeAndSaveAudio('session-1', Buffer.from('audio'), 'executor-2', options, undefined, mockClient);
+    await transcribeAndSaveAudio('session-1', Buffer.from('audio'), 'executor-2', options, mockClient);
 
     expect(saveTranscriptMock).toHaveBeenCalledWith(
       'session-1',
-      'text',
+      'transcribed text',
       expect.objectContaining({
         executorId: 'executor-2',
         model: 'custom-model',
-        response_format: 'verbose_json'
+        language: 'es'
       })
     );
   });
@@ -99,7 +94,7 @@ describe('transcribeAndSaveAudio', () => {
     mockClient.transcribeStream.mockRejectedValueOnce(failure);
 
     await expect(
-      transcribeAndSaveAudio('session-9', Buffer.from('audio'), 'executor-3', undefined, undefined, mockClient)
+      transcribeAndSaveAudio('session-9', Buffer.from('audio'), 'executor-3', undefined, mockClient)
     ).rejects.toThrow('boom');
 
     expect(saveTranscriptMock).toHaveBeenCalledWith(
@@ -116,32 +111,14 @@ describe('transcribeAndSaveAudio', () => {
 
   it('validates the inputs', async () => {
     const mockClient = createMockClient();
-    mockClient.transcribeStream.mockResolvedValue({ text: 'ok' } as OpenAITranscriptionResult);
+    mockClient.transcribeStream.mockResolvedValue({ text: 'ok', transcript: 'ok', utterances: [], raw: {} });
 
     await expect(
-      transcribeAndSaveAudio('   ', Buffer.from('audio'), 'executor-4', undefined, undefined, mockClient)
+      transcribeAndSaveAudio('   ', Buffer.from('audio'), 'executor-4', undefined, mockClient)
     ).rejects.toThrow('sessionId is required');
 
     await expect(
-      transcribeAndSaveAudio('session-5', Buffer.from(''), 'executor-4', undefined, undefined, mockClient)
+      transcribeAndSaveAudio('session-5', Buffer.from(''), 'executor-4', undefined, mockClient)
     ).rejects.toThrow('audio chunk must be a non-empty Buffer');
-  });
-
-  it('passes upload metadata through to the client', async () => {
-    const mockClient = createMockClient();
-    mockClient.transcribeStream.mockResolvedValueOnce({ text: 'ok' } as OpenAITranscriptionResult);
-    const uploadOptions: UploadFileOptions = {
-      fileName: 'recording.webm',
-      contentType: 'audio/webm'
-    };
-
-    await transcribeAndSaveAudio('session-10', Buffer.from('audio'), 'executor-5', undefined, uploadOptions, mockClient);
-
-    expect(mockClient.transcribeStream).toHaveBeenCalledWith(
-      'session-10',
-      expect.any(Buffer),
-      undefined,
-      uploadOptions
-    );
   });
 });

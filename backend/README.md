@@ -11,15 +11,14 @@ npm install
 
 To exercise the Codex-powered workflows that this service relies on (e.g., `agentHealth` diagnostics and `CodexClient` usage tracking via `backend/src/services/codexClient.ts`), create a Codex environment for this repo via https://chatgpt.com/codex/cloud/settings/environments. Once the environment exists, `npm run lint` and `npm run test` can reference the same configuration as AgentOS and the helper services.
 
-## OpenAI transcription client
+## Deepgram transcription client
 
-The backend now ships a dedicated OpenAI transcription helper (`backend/src/services/openaiTranscribeClient.ts`) so future routes can call the official `audio.transcriptions.create` API without touching the Codex-only helpers. The client reads its credentials from the same process that deployers already configure for other SDKs, but it keeps `gpt-4o-transcribe` as the default model and `response_format: "json"` so callers can focus on streaming audio.
+The backend now ships a dedicated Deepgram helper (`backend/src/services/deepgramTranscribeClient.ts`) that forces every upload through `nova-3` with `language: "en"`, `smart_format: true`, and `utterances: true`. The client also filters utterances with confidence below `0.8`, joins the remaining text, and returns both the final transcript plus the individual utterance metadata so callers can store a clean string alongside the raw Deepgram response.
 
 ### Configuration
 
-- `OPENAI_API_KEY` (required) – the secret key used for transcripts. The service fails fast if this variable is missing or empty.
-- `OPENAI_BASE_URL` (optional) – override the base URL when pointing at a proxy or alternate OpenAI host.
-- `OPENAI_ORG_ID` and `OPENAI_PROJECT_ID` (optional) – passed through to the SDK so enterprise deployments can scope their requests.
+- `DEEPGRAM_API_KEY` (required) – the secret key used for Deepgram requests. The service fails fast if this variable is missing or empty.
+- `DEEPGRAM_BASE_URL` (optional) – override the endpoint when pointing at a proxy or alternate Deepgram host.
 
 Read more about these knobs in `docs/agent-os-core-config.md` before pushing changes to production.
 
@@ -27,9 +26,9 @@ Read more about these knobs in `docs/agent-os-core-config.md` before pushing cha
 
 ```ts
 import fs from "fs";
-import { OpenAITranscribeClient } from "./services/openaiTranscribeClient";
+import { DeepgramTranscribeClient } from "./services/deepgramTranscribeClient";
 
-const client = new OpenAITranscribeClient();
+const client = new DeepgramTranscribeClient();
 const transcript = await client.transcribeStream(
   "session-123",
   fs.createReadStream("uploads/recording.webm")
@@ -58,30 +57,30 @@ Point the service at `redis://192.168.8.129:6379` (or any `REDIS_URL`) so the su
 
 ## Audio transcription ingest
 
-The audio ingestion route now streams each `multipart/form-data` upload through the `OpenAITranscribeClient` and persists the resulting text (or an error marker) via `saveTranscript`. Each row records metadata such as `source: "transcribe"`, the executor identifier, and the transcription options so you can understand how the text was produced. Errors still save a row with `payload: ""` and metadata that includes `error: true` and the vendor error message, ensuring the transcript table reflects attempted uploads even when the vendor call fails.
+The audio ingestion route now streams each `multipart/form-data` upload through the `DeepgramTranscribeClient` and persists the resulting text (or an error marker) via `saveTranscript`. Each row records metadata such as `source: "transcribe"`, the executor identifier, and the transcription options so you can understand how the text was produced. Errors still save a row with `payload: ""` and metadata that includes `error: true` and the vendor error message, ensuring the transcript table reflects attempted uploads even when the vendor call fails.
 
 ### Configuration
 
 - `FRONTEND_URL` (default `http://localhost:3000`) sets which origin the Express/CORS middleware exposes via `Access-Control-Allow-Origin`. Override this in production with your dashboard host so only trusted frontends can call `/aura/sessions/{sessionId}/audio`.
 - The Express stack also sets `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: require-corp` so the Aura Assistant dashboard can stay cross-origin isolated for VAD/SharedArrayBuffer usage while still delegating uploads to this API.
-- `OPENAI_API_KEY` (required) plus the optional `OPENAI_BASE_URL`, `OPENAI_ORG_ID`, and `OPENAI_PROJECT_ID` variables configure the transcription client described above, so the audio route can reach OpenAI without additional wiring.
+- `DEEPGRAM_API_KEY` (required) plus the optional `DEEPGRAM_BASE_URL` variables configure the transcription client described above, so the audio route can reach Deepgram without additional wiring.
 
 ### Upload endpoint
 
 - `POST /aura/sessions/{sessionId}/audio` – accepts `multipart/form-data` uploads and expects a single `audio` field containing the raw blob.
-- The route keeps the blob in memory, sends it to `OpenAITranscribeClient.transcribeStream`, and saves the transcript response rather than writing audio to Redis.
+-- The route keeps the blob in memory, sends it to `DeepgramTranscribeClient.transcribeStream`, and saves the transcript response rather than writing audio to Redis.
 - Every request to this route responds with the configured CORS headers so the Next.js client on `FRONTEND_URL` (or `*` in dev) can POST audio without being blocked by the browser.
 
 ### Executor health gating
 
-Every chunk still requires the caller to supply the executor identifier AgentOS publishes via the `agentos/status` channel. Provide it either as the `X-Aura-Executor-Id` request header or the `?executorId=` query parameter so the backend can look up the same value from the in-memory `agentHealth` snapshot before transcribing. Only the normalized health strings `health`, `healthy`, `green`, `up`, or `ok` are considered healthy; any other value (missing entry or `down`, `critical`, etc.) causes the route to skip transcription, log a warning, and return `409 Conflict` with a clear message rather than calling OpenAI.
+Every chunk still requires the caller to supply the executor identifier AgentOS publishes via the `agentos/status` channel. Provide it either as the `X-Aura-Executor-Id` request header or the `?executorId=` query parameter so the backend can look up the same value from the in-memory `agentHealth` snapshot before transcribing. Only the normalized health strings `health`, `healthy`, `green`, `up`, or `ok` are considered healthy; any other value (missing entry or `down`, `critical`, etc.) causes the route to skip transcription, log a warning, and return `409 Conflict` with a clear message rather than calling Deepgram.
 
 Please keep `/aura/health` open as the source of truth for executor readiness—operations teams must ensure AgentOS has published a healthy status for the desired executor before streaming audio chunks to avoid the new guard rejecting uploads.
 
 ### Sample curl
 
 ```bash
-OPENAI_API_KEY=sk-... \
+DEEPGRAM_API_KEY=dg-... \
   curl -X POST http://localhost:4000/aura/sessions/my-session/audio \
   -F "audio=@/path/to/recording.webm" \
   -H "Content-Type: multipart/form-data"
