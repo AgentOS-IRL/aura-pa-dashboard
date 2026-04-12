@@ -150,7 +150,12 @@ export default function SettingsPage() {
   );
 
   useEffect(() => {
-    loadUsage({ showLoader: true });
+    if (activeView !== "usage") {
+      return;
+    }
+
+    // Only show full loader if we don't have usage data yet
+    loadUsage({ showLoader: !usage });
 
     const interval = setInterval(() => {
       loadUsage();
@@ -159,7 +164,7 @@ export default function SettingsPage() {
     return () => {
       clearInterval(interval);
     };
-  }, [loadUsage]);
+  }, [loadUsage, activeView, usage === null]);
 
   const loadClassifications = useCallback(
     async (options?: { showLoader?: boolean }) => {
