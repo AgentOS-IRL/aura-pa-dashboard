@@ -6,23 +6,9 @@ import {
   getClassificationsForTranscripts,
   removeClassificationFromTranscript
 } from '../services/transcriptClassificationStorage';
+import { parseTranscriptId } from '../utils/transcriptId';
 
 const router = Router();
-
-const TRANSCRIPT_ID_PATTERN = /^[1-9]\d*$/;
-
-function parseTranscriptId(value: unknown): number | null {
-  if (typeof value !== 'string') {
-    return null;
-  }
-
-  const normalized = value.trim();
-  if (!normalized || !TRANSCRIPT_ID_PATTERN.test(normalized)) {
-    return null;
-  }
-
-  return Number(normalized);
-}
 
 function parseClassificationId(value: unknown): string | null {
   if (typeof value !== 'string') {
@@ -73,6 +59,10 @@ router.post('/:transcriptId/classifications', (req: Request<{ transcriptId: stri
     const assignments = getClassificationsForTranscripts([transcriptId]).get(transcriptId) ?? [];
     return res.status(200).json(assignments);
   } catch (error) {
+    if (!doesTranscriptExist(transcriptId)) {
+      return res.status(404).json({ error: 'transcript not found' });
+    }
+
     console.error('Unable to assign classification to transcript', transcriptId, classificationId, error);
     return res.status(500).json({ error: 'Unable to assign classification to transcript' });
   }

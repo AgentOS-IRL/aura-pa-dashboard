@@ -64,6 +64,16 @@ describe('transcript classifications route', () => {
     expect(classificationMock).not.toHaveBeenCalled();
   });
 
+  it('rejects non-numeric transcript ids for classification assignments', async () => {
+    await request(app)
+      .post(withAuraBasePath('/transcripts/09abc/classifications'))
+      .send({ id: 'cat-one' })
+      .expect(400);
+
+    expect(assignMock).not.toHaveBeenCalled();
+    expect(transcriptExistsMock).not.toHaveBeenCalled();
+  });
+
   it('attaches a classification and returns the updated list', async () => {
     const assignment = {
       transcriptId: 7,
@@ -117,6 +127,22 @@ describe('transcript classifications route', () => {
       .expect(404);
 
     expect(assignMock).not.toHaveBeenCalled();
+  });
+
+  it('returns 404 if the transcript disappears after validation', async () => {
+    const classification = { id: 'cat-three', name: 'Third', description: 'desc' };
+    classificationRecordMock.mockReturnValueOnce(classification);
+    transcriptExistsMock.mockReturnValueOnce(true).mockReturnValueOnce(false);
+    assignMock.mockImplementation(() => {
+      throw new Error('FOREIGN KEY constraint failed');
+    });
+
+    await request(app)
+      .post(withAuraBasePath('/transcripts/5/classifications'))
+      .send({ id: 'cat-three' })
+      .expect(404);
+
+    expect(assignMock).toHaveBeenCalledWith(5, 'cat-three');
   });
 
   it('rejects non-numeric transcript ids', async () => {

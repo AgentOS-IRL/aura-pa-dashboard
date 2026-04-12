@@ -1,5 +1,6 @@
 import type Database from 'better-sqlite3';
 import { getTranscriptDatabase } from '../config/database';
+import { normalizeTranscriptId } from '../utils/transcriptId';
 
 export interface TranscriptClassificationAssignment {
   transcriptId: number;
@@ -7,19 +8,6 @@ export interface TranscriptClassificationAssignment {
   name: string;
   description: string | null;
   assignedAt: string;
-}
-
-function normalizeTranscriptId(value: number | string | undefined): number {
-  if (value === undefined || value === null) {
-    throw new Error('transcriptId is required');
-  }
-
-  const candidate = typeof value === 'string' ? parseInt(value.trim(), 10) : value;
-  if (!Number.isFinite(candidate) || candidate <= 0) {
-    throw new Error('transcriptId must be a positive integer');
-  }
-
-  return Math.floor(candidate);
 }
 
 function normalizeClassificationId(value: string | undefined): string {
