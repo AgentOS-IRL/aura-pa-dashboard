@@ -48,7 +48,7 @@ export interface CodexUsage {
     promo: unknown | null;
 }
 
-export interface OpenAIClientOptions {
+export interface CodexClientOptions {
     modelId?: string;
     baseUrl?: string;
     usageUrl?: string;
@@ -57,7 +57,7 @@ export interface OpenAIClientOptions {
     timeout?: number;
 }
 
-export class OpenAIClient {
+export class CodexClient {
     private modelId: string;
     private baseUrl: string;
     private usageUrl: string;
@@ -67,7 +67,7 @@ export class OpenAIClient {
     private accessToken: string;
     private accountId: string;
 
-    constructor(options?: OpenAIClientOptions) {
+    constructor(options?: CodexClientOptions) {
         this.modelId = options?.modelId || DEFAULT_MODEL_ID;
         this.baseUrl = options?.baseUrl || CODEX_RESPONSES_URL;
         this.usageUrl = options?.usageUrl || CODEX_USAGE_URL;
@@ -107,7 +107,7 @@ export class OpenAIClient {
 
     private loadAuth() {
         if (!fs.existsSync(this.authPath)) {
-            throw new Error(`OpenAIClient requires Codex auth. Expected auth file at ${this.authPath}.`);
+            throw new Error(`CodexClient requires Codex auth. Expected auth file at ${this.authPath}.`);
         }
 
         const auth = JSON.parse(fs.readFileSync(this.authPath, 'utf8')) as Record<string, unknown>;
@@ -346,4 +346,4 @@ export class OpenAIClient {
 }
 
 // Keep the name consistent with the file
-export const OpenRouterTool = OpenAIClient;
+export const OpenRouterTool = CodexClient;
