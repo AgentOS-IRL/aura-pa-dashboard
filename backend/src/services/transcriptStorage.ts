@@ -1,5 +1,6 @@
 import type Database from 'better-sqlite3';
 import { getTranscriptDatabase } from '../config/database';
+import { classifyTranscriptWithCodex } from './transcriptClassificationWorker';
 
 export interface TranscriptRecord {
   id: number;
@@ -95,7 +96,7 @@ export function createTranscriptStorage(db: Database.Database) {
     return page > 0 ? page : DEFAULT_PAGE;
   }
 
-  function saveTranscript(sessionId: string, body: string | Buffer, metadata?: Record<string, unknown>): void {
+  function saveTranscript(sessionId: string, body: string | Buffer, metadata?: Record<string, unknown>): TranscriptRecord {
     const normalizedSessionId = sessionId?.trim();
 
     if (!normalizedSessionId) {
@@ -106,7 +107,20 @@ export function createTranscriptStorage(db: Database.Database) {
     const serializedMetadata = ensureMetadata(metadata);
     const receivedAt = new Date().toISOString();
 
-    insertStmt.run(normalizedSessionId, payload, serializedMetadata, receivedAt);
+    const result = insertStmt.run(normalizedSessionId, payload, serializedMetadata, receivedAt);
+    const record: TranscriptRecord = {
+      id: typeof result.lastInsertRowid === 'number' ? result.lastInsertRowid : Number(result.lastInsertRowid ?? 0),
+      sessionId: normalizedSessionId,
+      payload,
+      metadata: parseMetadata(serializedMetadata),
+      receivedAt
+    };
+
+    void classifyTranscriptWithCodex(record).catch((error) => {
+      console.error('Background transcript classification failed', record.id, error);
+    });
+
+    return record;
   }
 
   function getTranscriptPage(

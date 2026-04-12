@@ -1,5 +1,11 @@
 import Database from 'better-sqlite3';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+vi.mock('./transcriptClassificationWorker', () => ({
+  classifyTranscriptWithCodex: vi.fn().mockResolvedValue(undefined)
+}));
+
+import { classifyTranscriptWithCodex } from './transcriptClassificationWorker';
 import { createTranscriptStorage } from './transcriptStorage';
 
 let db: Database.Database;
@@ -13,11 +19,15 @@ describe('createTranscriptStorage', () => {
     db = new Database(':memory:');
   });
 
+  beforeEach(() => {
+    vi.mocked(classifyTranscriptWithCodex).mockReset().mockResolvedValue(undefined);
+  });
+
   it('creates the transcripts table and persists the values', () => {
     const storage = createTranscriptStorage(db);
 
     const sessionId = 'session-abc';
-    storage.saveTranscript(sessionId, 'hello', { source: 'redis' });
+    const saved = storage.saveTranscript(sessionId, 'hello', { source: 'redis' });
 
     const rows = storage.getRecentTranscripts(sessionId);
 
@@ -28,6 +38,15 @@ describe('createTranscriptStorage', () => {
     expect(new Date(rows[0].receivedAt).toString()).not.toContain('Invalid Date');
     expect(typeof rows[0].id).toBe('number');
     expect(rows[0].id).toBeGreaterThan(0);
+    expect(saved).toEqual(rows[0]);
+  });
+
+  it('kicks off classification for each saved transcript', () => {
+    const storage = createTranscriptStorage(db);
+
+    const saved = storage.saveTranscript('session-job', 'payload');
+
+    expect(classifyTranscriptWithCodex).toHaveBeenCalledWith(saved);
   });
 
   it('supports buffers for payloads and trims session ids', () => {

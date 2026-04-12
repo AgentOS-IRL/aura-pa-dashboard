@@ -36,11 +36,7 @@ describe('audio route', () => {
       })
       .expect(201);
 
-    expect(transcribeAndSaveAudioSpy).toHaveBeenCalledWith(
-      'session-42',
-      expect.any(Buffer),
-      'executor-42'
-    );
+    expect(transcribeAndSaveAudioSpy).toHaveBeenCalledWith('session-42', expect.any(Buffer));
   });
 
   it('rejects missing files', async () => {

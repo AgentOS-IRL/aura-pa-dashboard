@@ -42,8 +42,8 @@ describe('transcript classification storage', () => {
     transcriptStorage.saveTranscript('session-2', 'payload');
     const transcript = transcriptStorage.getLatestTranscripts({ limit: 1 }).transcripts[0];
 
-    const first = mappingStorage.assignClassificationToTranscript(transcript.id, 'cat-2');
-    const second = mappingStorage.assignClassificationToTranscript(transcript.id, 'cat-2');
+    mappingStorage.assignClassificationToTranscript(transcript.id, 'cat-2');
+    mappingStorage.assignClassificationToTranscript(transcript.id, 'cat-2');
 
     const assignments = mappingStorage.getClassificationsForTranscript(transcript.id);
     expect(assignments).toHaveLength(1);
