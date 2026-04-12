@@ -72,4 +72,25 @@ describe('createClassificationStorage', () => {
     expect(deleted).toBe(2);
     expect(storage.listClassifications()).toHaveLength(0);
   });
+
+  it('deleteClassificationById trims input and returns number removed', () => {
+    const storage = createClassificationStorage(db);
+
+    storage.saveClassification({ id: 'cat-1', name: 'First' });
+    storage.saveClassification({ id: 'cat-2', name: 'Second' });
+
+    const deleted = storage.deleteClassificationById('  cat-2  ');
+
+    expect(deleted).toBe(1);
+    expect(storage.listClassifications()).toHaveLength(1);
+    expect(storage.getClassificationById('cat-2')).toBeNull();
+  });
+
+  it('deleteClassificationById returns 0 when no row matches', () => {
+    const storage = createClassificationStorage(db);
+
+    const deleted = storage.deleteClassificationById('missing');
+
+    expect(deleted).toBe(0);
+  });
 });

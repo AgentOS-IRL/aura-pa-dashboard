@@ -9,6 +9,7 @@ import audioRouter from './routes/audio';
 import healthRouter from './routes/health';
 import transcriptRouter from './routes/transcript';
 import transcriptsRouter from './routes/transcripts';
+import classificationsRouter from './routes/classifications';
 import usageRouter from './routes/usage';
 import {
   configureFrontendStatic,
@@ -65,6 +66,7 @@ export function createApp() {
   app.use(withAuraBasePath('/sessions'), audioRouter);
   app.use(withAuraBasePath('/sessions'), transcriptRouter);
   app.use(withAuraBasePath('/transcripts'), transcriptsRouter);
+  app.use(withAuraBasePath('/classifications'), classificationsRouter);
   app.use(withAuraBasePath('/usage'), usageRouter);
 
   app.use(withAuraBasePath('/health'), healthRouter);

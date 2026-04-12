@@ -210,6 +210,77 @@ paths:
           description: Transcript table cleared
         '500':
           description: Backend failed to delete the transcripts
+  /classifications:
+    get:
+      tags:
+        - Classification
+      summary: List stored classifications
+      responses:
+        '200':
+          description: All stored classifications
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ClassificationRecord'
+    post:
+      tags:
+        - Classification
+      summary: Upsert a classification record
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: string
+                name:
+                  type: string
+                description:
+                  type: string
+                  nullable: true
+              required:
+                - id
+                - name
+            examples:
+              classification:
+                value:
+                  id: cat-1
+                  name: High Priority
+                  description: Critical workflows
+      responses:
+        '200':
+          description: Classification saved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClassificationRecord'
+        '400':
+          description: Missing id or name in payload
+        '500':
+          description: Backend failed to persist the classification
+  /classifications/{id}:
+    delete:
+      tags:
+        - Classification
+      summary: Delete a stored classification
+      parameters:
+        - name: id
+          in: path
+          description: Identifier for the classification to remove
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Classification deleted (or already absent)
+        '400':
+          description: Missing or invalid classification id
+        '500':
+          description: Backend failed to delete the classification
   /usage:
     get:
       tags:
@@ -288,6 +359,22 @@ components:
         limit: 25
         total: 2
         hasMore: false
+    ClassificationRecord:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Classification identifier
+        name:
+          type: string
+          description: Friendly label for the classification
+        description:
+          type: string
+          nullable: true
+          description: Optional details for the classification
+      required:
+        - id
+        - name
     CodexUsage:
       type: object
       properties:
