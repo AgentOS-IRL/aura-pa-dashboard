@@ -11,6 +11,33 @@ npm install
 
 To exercise the Codex-powered workflows that this service relies on (e.g., `agentHealth` diagnostics and `CodexClient` usage tracking via `backend/src/services/codexClient.ts`), create a Codex environment for this repo via https://chatgpt.com/codex/cloud/settings/environments. Once the environment exists, `npm run lint` and `npm run test` can reference the same configuration as AgentOS and the helper services.
 
+## OpenAI transcription client
+
+The backend now ships a dedicated OpenAI transcription helper (`backend/src/services/openaiTranscribeClient.ts`) so future routes can call the official `audio.transcriptions.create` API without touching the Codex-only helpers. The client reads its credentials from the same process that deployers already configure for other SDKs, but it keeps `gpt-4o-transcribe` as the default model and `response_format: "json"` so callers can focus on streaming audio.
+
+### Configuration
+
+- `OPENAI_API_KEY` (required) – the secret key used for transcripts. The service fails fast if this variable is missing or empty.
+- `OPENAI_BASE_URL` (optional) – override the base URL when pointing at a proxy or alternate OpenAI host.
+- `OPENAI_ORG_ID` and `OPENAI_PROJECT_ID` (optional) – passed through to the SDK so enterprise deployments can scope their requests.
+
+Read more about these knobs in `docs/agent-os-core-config.md` before pushing changes to production.
+
+### Example usage
+
+```ts
+import fs from "fs";
+import { OpenAITranscribeClient } from "./services/openaiTranscribeClient";
+
+const client = new OpenAITranscribeClient();
+const transcript = await client.transcribeStream(
+  "session-123",
+  fs.createReadStream("uploads/recording.webm")
+);
+
+console.log(transcript.text);
+```
+
 ## Running the service
 
 ```bash

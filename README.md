@@ -51,6 +51,8 @@ Because the script builds the frontend and backend locally before syncing, expec
 
 ## Codex / OpenAI configuration
 
+The backend now exposes both the original Codex client and a standalone OpenAI transcription client, so refer to `backend/README.md` for the new transcription helper’s setup steps (required `OPENAI_API_KEY`, optional `OPENAI_BASE_URL`, `OPENAI_ORG_ID`, and `OPENAI_PROJECT_ID`).
+
 The health service now depends on the same Codex configuration that AgentOS uses:
 
 - Supply credentials via `~/.codex/auth.json` (or override the location with `CODEX_AUTH_PATH`). The file must contain a non-empty `api_key` or `token` entry so the OpenAI helper can authenticate with the Responses API.
