@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { deleteAllTranscripts, getLatestTranscripts } from '../services/transcriptStorage';
+import { deleteAllTranscripts, getLatestTranscripts, getTranscriptsByClassification } from '../services/transcriptStorage';
 import { normalizeLimitParam, normalizePageParam } from './pagination';
 import { attachTranscriptClassifications } from './transcriptPageHelpers';
 
@@ -8,7 +8,7 @@ const router = Router();
 router.get(
   '/',
   (
-    req: Request<unknown, unknown, unknown, { limit?: string | string[]; page?: string | string[] }>,
+    req: Request<unknown, unknown, unknown, { limit?: string | string[]; page?: string | string[]; classificationId?: string | string[] }>,
     res: Response
   ) => {
     const limitResult = normalizeLimitParam(req.query.limit);
@@ -21,13 +21,21 @@ router.get(
       return res.status(400).json({ error: pageResult.error });
     }
 
+    const classificationId = Array.isArray(req.query.classificationId)
+      ? req.query.classificationId[0]
+      : req.query.classificationId;
+
     try {
-      const transcriptPage = attachTranscriptClassifications(
-        getLatestTranscripts({
-          limit: limitResult.limit,
-          page: pageResult.page
-        })
-      );
+      const options = {
+        limit: limitResult.limit,
+        page: pageResult.page
+      };
+
+      const result = classificationId
+        ? getTranscriptsByClassification(classificationId, options)
+        : getLatestTranscripts(options);
+
+      const transcriptPage = attachTranscriptClassifications(result);
 
       return res.status(200).json(transcriptPage);
     } catch (error) {

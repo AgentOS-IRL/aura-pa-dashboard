@@ -7,6 +7,8 @@ vi.mock('./transcriptClassificationWorker', () => ({
 
 import { classifyTranscriptWithCodex } from './transcriptClassificationWorker';
 import { createTranscriptStorage } from './transcriptStorage';
+import { createTranscriptClassificationStorage } from './transcriptClassificationStorage';
+import { createClassificationStorage } from './classificationStorage';
 
 let db: Database.Database;
 
@@ -149,6 +151,63 @@ describe('getLatestTranscripts', () => {
     expect(page.limit).toBe(100);
     expect(page.total).toBe(1);
     expect(page.transcripts).toHaveLength(1);
+  });
+});
+
+describe('getTranscriptsByClassification', () => {
+  beforeEach(() => {
+    db = new Database(':memory:');
+  });
+
+  it('returns transcripts filtered by classification', () => {
+    const storage = createTranscriptStorage(db);
+    const classificationStorage = createClassificationStorage(db);
+    const mappingStorage = createTranscriptClassificationStorage(db);
+
+    classificationStorage.saveClassification({ id: 'cat-1', name: 'First' });
+    classificationStorage.saveClassification({ id: 'cat-2', name: 'Second' });
+
+    storage.saveTranscript('s1', 't1');
+    storage.saveTranscript('s1', 't2');
+    storage.saveTranscript('s1', 't3');
+
+    const transcripts = storage.getLatestTranscripts({ limit: 10 }).transcripts;
+
+    // t3 is transcripts[0], t2 is transcripts[1], t1 is transcripts[2]
+    mappingStorage.assignClassificationToTranscript(transcripts[0].id, 'cat-1');
+    mappingStorage.assignClassificationToTranscript(transcripts[2].id, 'cat-1');
+    mappingStorage.assignClassificationToTranscript(transcripts[1].id, 'cat-2');
+
+    const cat1Page = storage.getTranscriptsByClassification('cat-1', { limit: 10 });
+    expect(cat1Page.total).toBe(2);
+    expect(cat1Page.transcripts.map(t => t.payload)).toEqual(['t3', 't1']);
+
+    const cat2Page = storage.getTranscriptsByClassification('cat-2', { limit: 10 });
+    expect(cat2Page.total).toBe(1);
+    expect(cat2Page.transcripts.map(t => t.payload)).toEqual(['t2']);
+  });
+
+  it('paginates transcripts for a classification', () => {
+    const storage = createTranscriptStorage(db);
+    const classificationStorage = createClassificationStorage(db);
+    const mappingStorage = createTranscriptClassificationStorage(db);
+
+    classificationStorage.saveClassification({ id: 'cat-p', name: 'Paging' });
+
+    for (let i = 1; i <= 5; i++) {
+      const saved = storage.saveTranscript('s', `t${i}`);
+      mappingStorage.assignClassificationToTranscript(saved.id, 'cat-p');
+    }
+
+    const page1 = storage.getTranscriptsByClassification('cat-p', { limit: 2, page: 1 });
+    expect(page1.transcripts).toHaveLength(2);
+    expect(page1.transcripts.map(t => t.payload)).toEqual(['t5', 't4']);
+    expect(page1.hasMore).toBe(true);
+
+    const page3 = storage.getTranscriptsByClassification('cat-p', { limit: 2, page: 3 });
+    expect(page3.transcripts).toHaveLength(1);
+    expect(page3.transcripts.map(t => t.payload)).toEqual(['t1']);
+    expect(page3.hasMore).toBe(false);
   });
 });
 

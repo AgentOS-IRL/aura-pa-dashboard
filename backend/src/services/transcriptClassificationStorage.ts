@@ -9,6 +9,13 @@ export interface TranscriptClassificationAssignment {
   assignedAt: string;
 }
 
+export interface ClassificationStats {
+  id: string;
+  name: string;
+  description: string | null;
+  count: number;
+}
+
 function normalizeTranscriptId(value: number | string | undefined): number {
   if (value === undefined || value === null) {
     throw new Error('transcriptId is required');
@@ -162,13 +169,28 @@ export function createTranscriptClassificationStorage(db: Database.Database) {
     return rows.map((row) => row.transcript_id);
   }
 
+  function getClassificationStats(): ClassificationStats[] {
+    const stmt = db.prepare(
+      `
+        SELECT c.id, c.name, c.description, COUNT(tc.transcript_id) as count
+        FROM classifications c
+        LEFT JOIN transcript_classifications tc ON c.id = tc.classification_id
+        GROUP BY c.id, c.name, c.description
+        ORDER BY c.name COLLATE NOCASE ASC, c.id ASC
+      `
+    );
+
+    return stmt.all() as ClassificationStats[];
+  }
+
   return {
     assignClassificationToTranscript,
     removeClassificationFromTranscript,
     getClassificationsForTranscript,
     getClassificationsForTranscripts,
     clearClassificationsForTranscript,
-    listTranscriptIdsForClassification
+    listTranscriptIdsForClassification,
+    getClassificationStats
   };
 }
 
@@ -180,5 +202,6 @@ export const {
   getClassificationsForTranscript,
   getClassificationsForTranscripts,
   clearClassificationsForTranscript,
-  listTranscriptIdsForClassification
+  listTranscriptIdsForClassification,
+  getClassificationStats
 } = defaultStorage;

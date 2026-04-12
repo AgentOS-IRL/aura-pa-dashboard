@@ -101,4 +101,33 @@ describe('transcript classification storage', () => {
     expect(Array.isArray(assignments)).toBe(true);
     expect(assignments).toHaveLength(0);
   });
+
+  it('returns classification stats with transcript counts', () => {
+    classificationStorage.saveClassification({ id: 'cat-1', name: 'First', description: 'Desc 1' });
+    classificationStorage.saveClassification({ id: 'cat-2', name: 'Second', description: 'Desc 2' });
+
+    transcriptStorage.saveTranscript('session-1', 'payload 1');
+    transcriptStorage.saveTranscript('session-1', 'payload 2');
+    const transcripts = transcriptStorage.getLatestTranscripts({ limit: 2 }).transcripts;
+
+    // Assign 2 transcripts to cat-1, 1 transcript to cat-2
+    mappingStorage.assignClassificationToTranscript(transcripts[0].id, 'cat-1');
+    mappingStorage.assignClassificationToTranscript(transcripts[1].id, 'cat-1');
+    mappingStorage.assignClassificationToTranscript(transcripts[0].id, 'cat-2');
+
+    const stats = mappingStorage.getClassificationStats();
+    expect(stats).toHaveLength(2);
+
+    const stat1 = stats.find((s) => s.id === 'cat-1');
+    expect(stat1).toBeDefined();
+    expect(stat1?.name).toBe('First');
+    expect(stat1?.description).toBe('Desc 1');
+    expect(stat1?.count).toBe(2);
+
+    const stat2 = stats.find((s) => s.id === 'cat-2');
+    expect(stat2).toBeDefined();
+    expect(stat2?.name).toBe('Second');
+    expect(stat2?.description).toBe('Desc 2');
+    expect(stat2?.count).toBe(1);
+  });
 });

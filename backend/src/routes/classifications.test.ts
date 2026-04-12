@@ -8,6 +8,10 @@ vi.mock('../services/classificationStorage', () => ({
   deleteClassificationById: vi.fn()
 }));
 
+vi.mock('../services/transcriptClassificationStorage', () => ({
+  getClassificationStats: vi.fn()
+}));
+
 import { createApp } from '../index';
 import { withAuraBasePath } from '../config/auraPath';
 import {
@@ -15,17 +19,39 @@ import {
   saveClassification,
   deleteClassificationById
 } from '../services/classificationStorage';
+import { getClassificationStats } from '../services/transcriptClassificationStorage';
 
 const app = createApp();
 const listMock = vi.mocked(listClassifications);
 const saveMock = vi.mocked(saveClassification);
 const deleteMock = vi.mocked(deleteClassificationById);
+const statsMock = vi.mocked(getClassificationStats);
 
 describe('classifications route', () => {
   beforeEach(() => {
     listMock.mockReset();
     saveMock.mockReset();
     deleteMock.mockReset();
+    statsMock.mockReset();
+  });
+
+  it('returns classification stats', async () => {
+    const stats = [{ id: 'cat-1', name: 'First', description: null, count: 5 }];
+    statsMock.mockReturnValue(stats);
+
+    await request(app)
+      .get(withAuraBasePath('/classifications/stats'))
+      .expect(200, stats);
+  });
+
+  it('maps stats failures to 500', async () => {
+    statsMock.mockImplementation(() => {
+      throw new Error('oops');
+    });
+
+    await request(app)
+      .get(withAuraBasePath('/classifications/stats'))
+      .expect(500);
   });
 
   it('returns classifications list', async () => {
