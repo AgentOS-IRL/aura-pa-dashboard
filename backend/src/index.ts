@@ -17,6 +17,7 @@ import {
 } from './config/frontend';
 import { auraBasePath, withAuraBasePath } from './config/auraPath';
 import { startAgentHealthSubscriber, stopAgentHealthSubscriber } from './services/agentHealth';
+import './services/classificationStorage';
 
 const swaggerDocument = YAML.load(path.join(__dirname, '..', 'openapi.yaml'));
 
