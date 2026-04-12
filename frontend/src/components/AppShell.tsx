@@ -7,7 +7,7 @@ import { stripAuraBasePath } from "../app/lib/auraPath";
 const navigationItems = [
   { label: "Home", href: "/" },
   { label: "Transcript", href: "/transcript" },
-  { label: "Configuration", href: "/configuration" },
+  { label: "Settings", href: "/settings" },
 ];
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
