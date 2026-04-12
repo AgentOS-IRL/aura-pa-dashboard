@@ -118,6 +118,13 @@ Inspect the SQLite file with standard tools (e.g., `sqlite3 backend/data/transcr
 - The table is created alongside the other schema objects when the service boots, so inspect it with the same SQLite file (`sqlite3 backend/data/transcripts.db`).
 - Use SQL such as `SELECT * FROM transcript_classifications WHERE transcript_id = ?;` or `SELECT transcript_id FROM transcript_classifications WHERE classification_id = ?;` to understand which labels are attached to which transcripts.
 
+## Automated transcript classification
+
+- After every transcript row is saved, the background worker at `backend/src/services/transcriptClassificationWorker.ts` enumerates the entries in the `classifications` table, builds a prompt that lists each identifier/name/description, and calls the `CodexClient.executeStructured` helper with a `{ classificationIds: string[] }` schema so Codex returns the matching IDs.
+- The worker deduplicates, trims, and filters the returned classification IDs before calling `assignClassificationToTranscript`, so the SQLite join table always reflects the latest labels without blocking the original ingestion flow.
+- Classification only runs when the payload contains text and when at least one classification exists; any failures (missing auth, network errors, schema parse issues, etc.) are logged (`Unable to classify transcript with Codex` / `Background transcript classification failed`) but never stop the transcript from being saved.
+- This automation relies on the Codex credentials stored at `~/.codex/auth.json` (or whatever path you set via `CODEX_AUTH_PATH`), so provision that file before running the service so the worker can authenticate. Adjust the Codex model or prompt by editing `backend/src/services/codexClient.ts` or the worker itself.
+
 ## Transcript retrieval
 
 When you need to show what Aura previously captured, call one of the read endpoints to paginate stored transcript rows. The storage layer tracks every session, so you can either scope the query to a specific session or read the entire global history that mixes entries from every session.
