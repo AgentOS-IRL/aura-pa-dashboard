@@ -5,7 +5,10 @@ const BACKEND_BASE_URL = (process.env.NEXT_PUBLIC_BACKEND_URL ?? (isProd ? '' : 
 const EXECUTOR_ID_HEADER = 'x-aura-executor-id';
 
 export function getExecutorId() {
-    return process.env.NEXT_PUBLIC_EXECUTOR_ID?.trim() || null;
+    if (process.env.NEXT_PUBLIC_EXECUTOR_ID) {
+        return process.env.NEXT_PUBLIC_EXECUTOR_ID?.trim();
+    }
+    return undefined;
 }
 
 export function createSessionId() {
