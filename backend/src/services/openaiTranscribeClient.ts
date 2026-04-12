@@ -1,5 +1,4 @@
-import { Readable } from "stream";
-import OpenAI, { type AudioResponseFormat } from "openai";
+import OpenAI, { toFile, type AudioResponseFormat } from "openai";
 import { getOpenAITranscribeConfig, type OpenAITranscribeConfig } from "../config/openaiTranscribe";
 
 type AudioTranscriptionParams = Parameters<OpenAI["audio"]["transcriptions"]["create"]>[0];
@@ -17,14 +16,6 @@ const DEFAULT_PAYLOAD: Pick<AudioTranscriptionParams, "model" | "response_format
   response_format: DEFAULT_RESPONSE_FORMAT,
 };
 
-function ensureReadable(input: Buffer | NodeJS.ReadableStream): NodeJS.ReadableStream {
-  if (Buffer.isBuffer(input)) {
-    return Readable.from(input);
-  }
-
-  return input;
-}
-
 export class OpenAITranscribeClient {
   private readonly client: OpenAI;
 
@@ -41,13 +32,18 @@ export class OpenAITranscribeClient {
   public async transcribeStream(
     sessionId: string,
     input: Buffer | NodeJS.ReadableStream,
-    options?: OpenAITranscribeOptions
+    options?: OpenAITranscribeOptions,
+    uploadOptions?: UploadFileOptions
   ): Promise<AudioTranscriptionResult> {
     try {
+      const fileName = uploadOptions?.fileName ?? `${sessionId}.audio`;
+      const fileOptions = uploadOptions?.contentType ? { type: uploadOptions.contentType } : undefined;
+      const file = await toFile(input, fileName, fileOptions);
+
       const payload: AudioTranscriptionParams = {
         ...DEFAULT_PAYLOAD,
         ...options,
-        file: ensureReadable(input),
+        file,
       };
 
       return await this.client.audio.transcriptions.create(payload);
@@ -59,3 +55,11 @@ export class OpenAITranscribeClient {
 }
 
 export type { AudioTranscriptionResult as OpenAITranscriptionResult };
+
+export const DEFAULT_TRANSCRIBE_MODEL = DEFAULT_MODEL;
+export const DEFAULT_TRANSCRIBE_RESPONSE_FORMAT = DEFAULT_RESPONSE_FORMAT;
+
+export interface UploadFileOptions {
+  fileName?: string;
+  contentType?: string;
+}

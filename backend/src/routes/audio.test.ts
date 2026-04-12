@@ -1,47 +1,26 @@
+import '../tests/setup';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import request from 'supertest';
 
-vi.mock('../config/redis', () => {
-  const rpushBuffer = vi.fn();
-  const expire = vi.fn();
-
-  return {
-    redisClient: {
-      rpushBuffer,
-      expire
-    }
-  };
-});
-
-import { redisClient } from '../config/redis';
 import * as audioService from '../services/audio';
 import { createApp } from '../index';
 import { withAuraBasePath } from '../config/auraPath';
 import * as agentHealthService from '../services/agentHealth';
 
-type RedisClientWithBuffer = typeof redisClient & {
-  rpushBuffer: ReturnType<typeof vi.fn>;
-};
-
-const mockRpushBuffer = (redisClient as RedisClientWithBuffer).rpushBuffer;
-const mockExpire = redisClient.expire as ReturnType<typeof vi.fn>;
-
-const recordAudioChunkSpy = vi.spyOn(audioService, 'recordAudioChunk');
+type TranscribeResult = Awaited<ReturnType<typeof audioService.transcribeAndSaveAudio>>;
+const transcribeAndSaveAudioSpy = vi.spyOn(audioService, 'transcribeAndSaveAudio');
 const getAgentHealthEntrySpy = vi.spyOn(agentHealthService, 'getAgentHealthEntry');
 const app = createApp();
 const EXECUTOR_HEADER = 'x-aura-executor-id';
 
 describe('audio route', () => {
   beforeEach(() => {
-    mockRpushBuffer.mockReset();
-    mockExpire.mockReset();
-    recordAudioChunkSpy.mockReset();
-    recordAudioChunkSpy.mockResolvedValue(undefined);
+    transcribeAndSaveAudioSpy.mockReset();
+    transcribeAndSaveAudioSpy.mockResolvedValue(undefined as unknown as TranscribeResult);
     getAgentHealthEntrySpy.mockReset();
   });
 
-  it('returns 201 when the chunk is stored', async () => {
-    recordAudioChunkSpy.mockResolvedValueOnce(undefined);
+  it('returns 201 when transcription succeeds', async () => {
     getAgentHealthEntrySpy.mockReturnValueOnce({
       id: 'executor-42',
       health: 'green',
@@ -57,12 +36,21 @@ describe('audio route', () => {
       })
       .expect(201);
 
-    expect(recordAudioChunkSpy).toHaveBeenCalledWith('session-42', expect.any(Buffer));
+    expect(transcribeAndSaveAudioSpy).toHaveBeenCalledWith(
+      'session-42',
+      expect.any(Buffer),
+      'executor-42',
+      undefined,
+      {
+        fileName: 'chunk.webm',
+        contentType: 'audio/webm'
+      }
+    );
   });
 
   it('rejects missing files', async () => {
     await request(app).post(withAuraBasePath('/sessions/session-42/audio')).expect(400);
-    expect(recordAudioChunkSpy).not.toHaveBeenCalled();
+    expect(transcribeAndSaveAudioSpy).not.toHaveBeenCalled();
   });
 
   it('requires an executor identifier', async () => {
@@ -74,7 +62,7 @@ describe('audio route', () => {
       })
       .expect(400);
 
-    expect(recordAudioChunkSpy).not.toHaveBeenCalled();
+    expect(transcribeAndSaveAudioSpy).not.toHaveBeenCalled();
     expect(getAgentHealthEntrySpy).not.toHaveBeenCalled();
   });
 
@@ -90,7 +78,7 @@ describe('audio route', () => {
       })
       .expect(409);
 
-    expect(recordAudioChunkSpy).not.toHaveBeenCalled();
+    expect(transcribeAndSaveAudioSpy).not.toHaveBeenCalled();
   });
 
   it('rejects when the executor is not healthy', async () => {
@@ -109,11 +97,11 @@ describe('audio route', () => {
       })
       .expect(409);
 
-    expect(recordAudioChunkSpy).not.toHaveBeenCalled();
+    expect(transcribeAndSaveAudioSpy).not.toHaveBeenCalled();
   });
 
-  it('maps service failures to 500', async () => {
-    recordAudioChunkSpy.mockRejectedValueOnce(new Error('boom'));
+  it('maps transcription failures to 500', async () => {
+    transcribeAndSaveAudioSpy.mockRejectedValueOnce(new Error('boom'));
     getAgentHealthEntrySpy.mockReturnValueOnce({
       id: 'executor-42',
       health: 'green',

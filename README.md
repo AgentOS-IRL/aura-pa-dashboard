@@ -8,9 +8,9 @@
 
 ## Backend Health Service
 
-A new `backend/` workspace hosts an Express service that lives beneath the configured `AURA_BASE_PATH` (default `/aura`), so the health endpoint is `GET /aura/health` and the Swagger UI lives at `GET /aura/docs`. The stack still accepts `POST /aura/sessions/{sessionId}/audio` for streaming client recordings into a per-session Redis list, each list is stored under `agentos/aura/audio/{sessionId}` with a 3-day TTL, and the backend keeps uploaded blobs in memory before forwarding to Redis. The service runs on `PORT 4000` by default, and `backend/README.md` documents installation, dev/start commands, and the `npm run lint`/`npm run test` automation.
+A new `backend/` workspace hosts an Express service that lives beneath the configured `AURA_BASE_PATH` (default `/aura`), so the health endpoint is `GET /aura/health` and the Swagger UI lives at `GET /aura/docs`. The stack still accepts `POST /aura/sessions/{sessionId}/audio`, but that route now streams every upload through the `OpenAITranscribeClient`, and each transcription (success or error) is stored via `saveTranscript` along with metadata such as the executor identifier and transcription options. The service runs on `PORT 4000` by default, and `backend/README.md` documents installation, dev/start commands, the transcription helper configuration (required `OPENAI_API_KEY`, optional `OPENAI_BASE_URL`, `OPENAI_ORG_ID`, `OPENAI_PROJECT_ID`), and the `npm run lint`/`npm run test` automation.
 
-The Aura Assistant dashboard now opens a dedicated session ID every time you tap **Wake Assistant**, displays that identifier and upload status next to the action button, and streams every VAD-detected chunk to `POST /aura/sessions/{sessionId}/audio` so the backend, Redis list, and downstream systems always see the same session context.
+The Aura Assistant dashboard now opens a dedicated session ID every time you tap **Wake Assistant**, displays that identifier and upload status next to the action button, and streams every VAD-detected chunk to `POST /aura/sessions/{sessionId}/audio` so the backend and downstream systems still see the same session context while the transcription pipeline persists each chunk’s text output instead of raw audio.
 
 ## Workspace scripts
 
