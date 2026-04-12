@@ -1,15 +1,16 @@
-import OpenAI, { toFile, type AudioResponseFormat } from "openai";
+import OpenAI, { toFile } from "openai";
 import { getOpenAITranscribeConfig, type OpenAITranscribeConfig } from "../config/openaiTranscribe";
 
-type AudioTranscriptionParams = Parameters<OpenAI["audio"]["transcriptions"]["create"]>[0];
-type AudioTranscriptionResult = Awaited<
-  ReturnType<OpenAI["audio"]["transcriptions"]["create"]>
->;
+type AudioTranscriptionParams = OpenAI.Audio.Transcriptions.TranscriptionCreateParamsNonStreaming;
+type OpenAITranscriptionPayload = OpenAI.Audio.TranscriptionCreateResponse & {
+  _request_id?: string | null | undefined;
+};
 
+export type OpenAITranscriptionResult = OpenAITranscriptionPayload | string;
 export type OpenAITranscribeOptions = Partial<Omit<AudioTranscriptionParams, "file">>;
 
-const DEFAULT_MODEL = "gpt-4o-transcribe";
-const DEFAULT_RESPONSE_FORMAT: AudioResponseFormat = "json";
+const DEFAULT_MODEL: OpenAI.Audio.AudioModel = "gpt-4o-transcribe";
+const DEFAULT_RESPONSE_FORMAT: OpenAI.Audio.AudioResponseFormat = "json";
 
 const DEFAULT_PAYLOAD: Pick<AudioTranscriptionParams, "model" | "response_format"> = {
   model: DEFAULT_MODEL,
@@ -34,7 +35,7 @@ export class OpenAITranscribeClient {
     input: Buffer | NodeJS.ReadableStream,
     options?: OpenAITranscribeOptions,
     uploadOptions?: UploadFileOptions
-  ): Promise<AudioTranscriptionResult> {
+  ): Promise<OpenAITranscriptionResult> {
     try {
       const fileName = uploadOptions?.fileName ?? `${sessionId}.audio`;
       const fileOptions = uploadOptions?.contentType ? { type: uploadOptions.contentType } : undefined;
@@ -46,15 +47,14 @@ export class OpenAITranscribeClient {
         file,
       };
 
-      return await this.client.audio.transcriptions.create(payload);
+      const response = await this.client.audio.transcriptions.create(payload);
+      return response as OpenAITranscriptionResult;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       throw new Error(`OpenAI transcription failed for session "${sessionId}": ${message}`);
     }
   }
 }
-
-export type { AudioTranscriptionResult as OpenAITranscriptionResult };
 
 export const DEFAULT_TRANSCRIBE_MODEL = DEFAULT_MODEL;
 export const DEFAULT_TRANSCRIBE_RESPONSE_FORMAT = DEFAULT_RESPONSE_FORMAT;

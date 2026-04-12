@@ -61,7 +61,7 @@ describe('transcribeAndSaveAudio', () => {
   it('falls back to stringifying the full response when text is missing', async () => {
     const mockClient = createMockClient();
     const payload = { words: ['a', 'b'] };
-    mockClient.transcribeStream.mockResolvedValueOnce(payload as OpenAITranscriptionResult);
+    mockClient.transcribeStream.mockResolvedValueOnce(payload as unknown as OpenAITranscriptionResult);
 
     await transcribeAndSaveAudio('session-1', Buffer.from('audio'), 'executor-1', undefined, undefined, mockClient);
 

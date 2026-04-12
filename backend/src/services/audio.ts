@@ -33,6 +33,18 @@ function ensureBuffer(chunk: Buffer): Buffer {
   return chunk;
 }
 
+function getTextPayload(transcription: OpenAITranscriptionResult): string {
+  if (typeof transcription === 'string') {
+    return transcription;
+  }
+
+  if (transcription && typeof transcription === 'object' && 'text' in transcription) {
+    return transcription.text;
+  }
+
+  return JSON.stringify(transcription);
+}
+
 function buildBaseMetadata(executorId: string, options?: OpenAITranscribeOptions) {
   return {
     source: 'transcribe',
@@ -62,7 +74,7 @@ export async function transcribeAndSaveAudio(
       options,
       uploadOptions
     );
-    const payload = transcription.text ?? JSON.stringify(transcription);
+    const payload = getTextPayload(transcription);
     saveTranscript(normalizedSessionId, payload, metadata);
     return transcription;
   } catch (error) {

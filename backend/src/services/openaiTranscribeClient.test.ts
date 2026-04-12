@@ -42,6 +42,7 @@ vi.mock("../config/openaiTranscribe", () => ({
 }));
 
 import { toFile } from "openai";
+import type { FileLike } from "openai/uploads";
 import { OpenAITranscribeClient } from "./openaiTranscribeClient";
 import { getOpenAITranscribeConfig } from "../config/openaiTranscribe";
 const getOpenAIConfigMock = vi.mocked(getOpenAITranscribeConfig);
@@ -56,12 +57,27 @@ function ensureOpenAIMocks() {
   return { createTranscriptionMock, openAIConstructorMock };
 }
 
+function createFileLike(name?: string | null): FileLike {
+  return {
+    name: name ?? "file",
+    lastModified: Date.now(),
+    size: 0,
+    type: "application/octet-stream",
+    async text() {
+      return "";
+    },
+    slice(this: FileLike) {
+      return this;
+    },
+  };
+}
+
 describe("OpenAITranscribeClient", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     const { createTranscriptionMock } = ensureOpenAIMocks();
     createTranscriptionMock.mockResolvedValue({ text: "done" });
-    toFileMocked.mockImplementation(async (value) => value);
+    toFileMocked.mockImplementation(async (_value, name) => createFileLike(name));
   });
 
   it("initializes the OpenAI SDK with the resolved configuration", () => {
@@ -81,6 +97,8 @@ describe("OpenAITranscribeClient", () => {
   it("sends the default model and response format, while honoring overrides", async () => {
     const client = new OpenAITranscribeClient();
     const chunkStream = Readable.from("chunk");
+    const fileLikeStub = createFileLike("session-a.audio");
+    toFileMocked.mockResolvedValueOnce(fileLikeStub);
 
     await client.transcribeStream(
       "session-a",
@@ -94,6 +112,7 @@ describe("OpenAITranscribeClient", () => {
     const { createTranscriptionMock } = ensureOpenAIMocks();
     expect(createTranscriptionMock).toHaveBeenCalledTimes(1);
     const payload = createTranscriptionMock.mock.calls[0][0] as Record<string, unknown>;
+    expect(payload.file).toBe(fileLikeStub);
     expect(payload.model).toBe("custom-model");
     expect(payload.response_format).toBe("json");
     expect(payload.temperature).toBe(0.4);
@@ -103,12 +122,14 @@ describe("OpenAITranscribeClient", () => {
   it("marks buffer uploads as files before sending", async () => {
     const client = new OpenAITranscribeClient();
     const buffer = Buffer.from("audio-data");
+    const fileLikeStub = createFileLike("session-b.audio");
+    toFileMocked.mockResolvedValueOnce(fileLikeStub);
 
     await client.transcribeStream("session-b", buffer);
 
     const { createTranscriptionMock } = ensureOpenAIMocks();
     const payload = createTranscriptionMock.mock.calls[0][0] as Record<string, unknown>;
-    expect(payload.file).toBe(buffer);
+    expect(payload.file).toBe(fileLikeStub);
     expect(toFileMocked).toHaveBeenCalledWith(buffer, "session-b.audio", undefined);
   });
 
