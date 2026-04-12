@@ -63,7 +63,9 @@ export class DeepgramTranscribeClient {
     input: Buffer | NodeJS.ReadableStream,
     options?: DeepgramTranscribeOptions
   ): Promise<DeepgramTranscriptionResult> {
-    const mediaStream = Buffer.isBuffer(input) ? Readable.from(input) : input;
+    const mediaStream: NodeJS.ReadableStream = Buffer.isBuffer(input)
+      ? Readable.from(input)
+      : input;
     const requestOptions = {
       ...DEFAULT_DEEPGRAM_OPTIONS,
       ...options,
@@ -71,7 +73,7 @@ export class DeepgramTranscribeClient {
 
     try {
       const response = (await this.client.listen.v1.media.transcribeFile(
-        mediaStream as any,
+        mediaStream,
         requestOptions
       )) as DeepgramListenResponse;
       const alternative = response.results?.channels?.[0]?.alternatives?.[0];

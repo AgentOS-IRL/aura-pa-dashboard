@@ -57,7 +57,7 @@ Point the service at `redis://192.168.8.129:6379` (or any `REDIS_URL`) so the su
 
 ## Audio transcription ingest
 
-The audio ingestion route now streams each `multipart/form-data` upload through the `DeepgramTranscribeClient` and persists the resulting text (or an error marker) via `saveTranscript`. Each row records metadata such as `source: "transcribe"`, the executor identifier, and the transcription options so you can understand how the text was produced. Errors still save a row with `payload: ""` and metadata that includes `error: true` and the vendor error message, ensuring the transcript table reflects attempted uploads even when the vendor call fails.
+The audio ingestion route now streams each `multipart/form-data` upload through the `DeepgramTranscribeClient` and persists the resulting text (or an error marker) via `saveTranscript`. Each row records metadata such as `source: "transcribe"`, the executor identifier, and the transcription options so you can understand how the text was produced. Errors still save a row with `payload: ""` and metadata that includes `error: true` and the vendor error message, ensuring the transcript table reflects attempted uploads even when the vendor call fails. Uploads whose Deepgram response is empty or whitespace-only no longer create transcript rows, so operators won’t see blank entries for those chunks.
 
 ### Configuration
 

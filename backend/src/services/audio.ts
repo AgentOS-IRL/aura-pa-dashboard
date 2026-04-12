@@ -62,7 +62,12 @@ export async function transcribeAndSaveAudio(
       options
     );
     const payload = getTextPayload(transcription);
-    saveTranscript(normalizedSessionId, payload, metadata);
+    const trimmedPayload = payload?.trim() ?? '';
+    if (trimmedPayload.length > 0) {
+      saveTranscript(normalizedSessionId, payload, metadata);
+    } else {
+      // Deepgram sometimes returns empty or whitespace-only text; skip persistence to avoid blank rows.
+    }
     return transcription;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
