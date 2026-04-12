@@ -1,6 +1,5 @@
 import { Readable } from "stream";
-import type { Uploadable } from "@deepgram/sdk/dist/cjs/core/file/exports";
-import { DeepgramClient } from "@deepgram/sdk";
+import { DeepgramClient, type Uploadable } from "@deepgram/sdk";
 import { getDeepgramConfig, type DeepgramConfig } from "../config/deepgram";
 
 const DEFAULT_MODEL = "nova-3";
