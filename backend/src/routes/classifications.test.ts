@@ -1,5 +1,5 @@
 import '../tests/setup';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import request from 'supertest';
 
 vi.mock('../services/classificationStorage', () => ({

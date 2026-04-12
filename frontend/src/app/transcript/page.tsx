@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { Loader2, RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
+import { fetchClassifications, type ClassificationRecord } from "../lib/classifications";
+import { deleteTranscriptClassification, saveTranscriptClassification } from "../lib/transcriptClassifications";
 import { deleteAllTranscripts, fetchTranscripts, type TranscriptRecord } from "../lib/transcripts";
 
 const formatReceivedAt = (value: string) => {
@@ -12,6 +14,9 @@ const formatReceivedAt = (value: string) => {
   }
   return parsed.toLocaleString();
 };
+
+type AssignmentEntry = { loading: boolean; error: string | null };
+type RemovalEntry = { loading: boolean; error: string | null };
 
 export default function TranscriptPage() {
   const TRANSCRIPTS_PAGE_SIZE = 25;
@@ -27,6 +32,12 @@ export default function TranscriptPage() {
     limit: TRANSCRIPTS_PAGE_SIZE,
     hasMore: false
   });
+  const [classificationCatalog, setClassificationCatalog] = useState<ClassificationRecord[]>([]);
+  const [classificationCatalogLoading, setClassificationCatalogLoading] = useState(false);
+  const [classificationCatalogError, setClassificationCatalogError] = useState<string | null>(null);
+  const [pendingClassification, setPendingClassification] = useState<Record<number, string>>({});
+  const [assignmentState, setAssignmentState] = useState<Record<number, AssignmentEntry>>({});
+  const [removalState, setRemovalState] = useState<Record<string, RemovalEntry>>({});
 
   useEffect(() => {
     let canceled = false;
@@ -61,8 +72,112 @@ export default function TranscriptPage() {
     };
   }, [currentPage, refreshIndex]);
 
+  useEffect(() => {
+    let canceled = false;
+
+    setClassificationCatalogLoading(true);
+    setClassificationCatalogError(null);
+
+    fetchClassifications()
+      .then((data) => {
+        if (canceled) {
+          return;
+        }
+        setClassificationCatalog(data);
+      })
+      .catch((err) => {
+        if (canceled) {
+          return;
+        }
+        setClassificationCatalogError(err instanceof Error ? err.message : String(err));
+      })
+      .finally(() => {
+        if (!canceled) {
+          setClassificationCatalogLoading(false);
+        }
+      });
+
+    return () => {
+      canceled = true;
+    };
+  }, [refreshIndex]);
+
   const handleRefresh = () => {
     setRefreshIndex((prev) => prev + 1);
+  };
+
+  const updateAssignmentStatus = (transcriptId: number, updates: Partial<AssignmentEntry>) => {
+    setAssignmentState((prev) => {
+      const current = prev[transcriptId] ?? { loading: false, error: null };
+      return { ...prev, [transcriptId]: { ...current, ...updates } };
+    });
+  };
+
+  const updateRemovalStatus = (key: string, updates: Partial<RemovalEntry>) => {
+    setRemovalState((prev) => {
+      const current = prev[key] ?? { loading: false, error: null };
+      return { ...prev, [key]: { ...current, ...updates } };
+    });
+  };
+
+  const getRemovalKey = (transcriptId: number, classificationId: string) =>
+    `${transcriptId}:${classificationId}`;
+
+  const handleAssignClassification = async (transcriptId: number) => {
+    const classificationId = pendingClassification[transcriptId];
+    if (!classificationId) {
+      return;
+    }
+
+    updateAssignmentStatus(transcriptId, { loading: true, error: null });
+
+    try {
+      const assignments = await saveTranscriptClassification(transcriptId, classificationId);
+      setTranscripts((records) =>
+        records.map((record) =>
+          record.id === transcriptId
+            ? {
+                ...record,
+                classifications: assignments.map((assignment) => ({
+                  id: assignment.classificationId,
+                  name: assignment.name,
+                  description: assignment.description
+                }))
+              }
+            : record
+        )
+      );
+      setPendingClassification((prev) => ({ ...prev, [transcriptId]: "" }));
+    } catch (err) {
+      updateAssignmentStatus(transcriptId, {
+        error: err instanceof Error ? err.message : String(err)
+      });
+    } finally {
+      updateAssignmentStatus(transcriptId, { loading: false });
+    }
+  };
+
+  const handleRemoveClassification = async (transcriptId: number, classificationId: string) => {
+    const key = getRemovalKey(transcriptId, classificationId);
+    updateRemovalStatus(key, { loading: true, error: null });
+
+    try {
+      await deleteTranscriptClassification(transcriptId, classificationId);
+      setTranscripts((records) =>
+        records.map((record) =>
+          record.id === transcriptId
+            ? {
+                ...record,
+                classifications: record.classifications.filter((entry) => entry.id !== classificationId)
+              }
+            : record
+        )
+      );
+    } catch (err) {
+      updateRemovalStatus(key, { error: err instanceof Error ? err.message : String(err) });
+    } finally {
+      updateRemovalStatus(key, { loading: false });
+    }
   };
 
   const handleDeleteAll = async () => {
@@ -181,6 +296,13 @@ export default function TranscriptPage() {
         </div>
       )}
 
+      {classificationCatalogError && (
+        <div className="transcript-alert">
+          <p className="text-base font-semibold text-rose-600">Unable to load classifications</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400">{classificationCatalogError}</p>
+        </div>
+      )}
+
       {loading && (
         <div className="transcript-alert flex items-center gap-3">
           <Loader2 className="w-5 h-5 text-blue-500 animate-spin" />
@@ -193,32 +315,115 @@ export default function TranscriptPage() {
       {transcripts.length > 0 && (
         <section className="transcript-list mx-auto max-w-4xl">
           <ul className="space-y-4">
-            {transcripts.map((record) => (
-              <li key={`${record.sessionId}-${record.receivedAt}-${record.payload}`}>
-                <article className="transcript-card">
-                  <header className="flex items-center justify-between gap-3">
-                    <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-                      {formatReceivedAt(record.receivedAt)}
-                    </p>
-                    <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                      {record.sessionId}
-                    </span>
-                  </header>
-                  <p className="mt-3 text-base leading-relaxed text-slate-900 dark:text-slate-100">{record.payload}</p>
-                  {record.metadata && (
-                    <div className="transcript-card__metadata">
-                      {Object.entries(record.metadata).map(([key, value]) => (
-                        <span key={key} className="metadata-badge">
-                          {key}: {typeof value === "string" ? value : JSON.stringify(value)}
-                        </span>
-                      ))}
+            {transcripts.map((record) => {
+              const availableClassifications = classificationCatalog.filter(
+                (catalogEntry) => !record.classifications.some((assigned) => assigned.id === catalogEntry.id)
+              );
+              const selectionValue = pendingClassification[record.id] ?? "";
+              const assignmentEntry = assignmentState[record.id] ?? { loading: false, error: null };
+              const isAssignDisabled =
+                !selectionValue || assignmentEntry.loading || availableClassifications.length === 0;
+              return (
+                <li key={`${record.sessionId}-${record.receivedAt}-${record.payload}`}>
+                  <article className="transcript-card">
+                    <header className="flex items-center justify-between gap-3">
+                      <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                        {formatReceivedAt(record.receivedAt)}
+                      </p>
+                      <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                        {record.sessionId}
+                      </span>
+                    </header>
+                    <p className="mt-3 text-base leading-relaxed text-slate-900 dark:text-slate-100">{record.payload}</p>
+                    {record.metadata && (
+                      <div className="transcript-card__metadata">
+                        {Object.entries(record.metadata).map(([key, value]) => (
+                          <span key={key} className="metadata-badge">
+                            {key}: {typeof value === "string" ? value : JSON.stringify(value)}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    <div className="mt-3 space-y-2">
+                      <p className="text-xs font-semibold uppercase tracking-[0.4em] text-slate-500 dark:text-slate-400">
+                        Classifications
+                      </p>
+                      <div>
+                        {record.classifications.length > 0 ? (
+                          <div className="flex flex-wrap gap-2">
+                            {record.classifications.map((classification) => {
+                              const removalKey = getRemovalKey(record.id, classification.id);
+                              const removalEntry = removalState[removalKey];
+                              return (
+                                <span key={removalKey} className="metadata-badge flex items-center gap-2">
+                                  <span>{classification.name || classification.id}</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemoveClassification(record.id, classification.id)}
+                                    disabled={removalEntry?.loading ?? false}
+                                    className="text-[0.65rem] font-semibold uppercase tracking-[0.4em] text-rose-500 hover:text-rose-700 focus:outline-none disabled:opacity-50"
+                                  >
+                                    {removalEntry?.loading ? "Removing…" : "Remove"}
+                                  </button>
+                                  {removalEntry?.error && (
+                                    <span className="text-xs text-rose-600 block">{removalEntry.error}</span>
+                                  )}
+                                </span>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <p className="text-xs text-slate-500 dark:text-slate-400">No classifications assigned yet.</p>
+                        )}
+                      </div>
+                      {classificationCatalogLoading ? (
+                        <p className="text-xs text-slate-500 dark:text-slate-400">Loading available labels…</p>
+                      ) : classificationCatalog.length === 0 ? (
+                        <p className="text-xs text-slate-500 dark:text-slate-400">
+                          Create classifications from the classifications page to attach labels here.
+                        </p>
+                      ) : (
+                        <div className="flex flex-wrap gap-2 items-center">
+                          <select
+                            value={selectionValue}
+                            onChange={(event) =>
+                              setPendingClassification((prev) => ({
+                                ...prev,
+                                [record.id]: event.target.value
+                              }))
+                            }
+                            disabled={assignmentEntry.loading || availableClassifications.length === 0}
+                            className="rounded-md border border-slate-300 bg-white px-3 py-1 text-sm text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+                          >
+                            <option value="">Select a label</option>
+                            {availableClassifications.map((classification) => (
+                              <option key={classification.id} value={classification.id}>
+                                {classification.name}
+                              </option>
+                            ))}
+                          </select>
+                          <button
+                            type="button"
+                            onClick={() => handleAssignClassification(record.id)}
+                            disabled={isAssignDisabled}
+                            className="rounded-full bg-slate-800 px-4 py-1 text-xs font-semibold text-white hover:bg-slate-900 disabled:opacity-40"
+                          >
+                            {assignmentEntry.loading ? "Assigning…" : "Add label"}
+                          </button>
+                          {availableClassifications.length === 0 && (
+                            <p className="text-xs text-slate-500 dark:text-slate-400">All labels assigned.</p>
+                          )}
+                        </div>
+                      )}
+                      {assignmentState[record.id]?.error && (
+                        <p className="text-xs text-rose-600">{assignmentState[record.id]?.error}</p>
+                      )}
                     </div>
-                  )}
-                </article>
-              </li>
-            ))}
+                  </article>
+                </li>
+              );
+            })}
           </ul>
-          <div className="transcript-pagination">
             <div className="space-y-1">
               <p className="text-xs font-semibold uppercase tracking-[0.4em] text-slate-500 dark:text-slate-400">
                 Page {currentPage} of {totalPages}

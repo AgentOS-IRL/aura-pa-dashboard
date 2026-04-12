@@ -2,6 +2,7 @@ import type Database from 'better-sqlite3';
 import { getTranscriptDatabase } from '../config/database';
 
 export interface TranscriptRecord {
+  id: number;
   sessionId: string;
   payload: string;
   metadata: Record<string, unknown> | null;
@@ -49,14 +50,15 @@ export function createTranscriptStorage(db: Database.Database) {
     'INSERT INTO transcripts (session_id, payload, metadata, received_at) VALUES (?, ?, ?, ?)'
   );
   const selectPageStmt = db.prepare(
-    'SELECT session_id, payload, metadata, received_at FROM transcripts WHERE session_id = ? ORDER BY received_at DESC, id DESC LIMIT ? OFFSET ?'
+    'SELECT id, session_id, payload, metadata, received_at FROM transcripts WHERE session_id = ? ORDER BY received_at DESC, id DESC LIMIT ? OFFSET ?'
   );
   const countStmt = db.prepare('SELECT COUNT(*) AS total FROM transcripts WHERE session_id = ?');
   const selectLatestStmt = db.prepare(
-    'SELECT session_id, payload, metadata, received_at FROM transcripts ORDER BY received_at DESC, id DESC LIMIT ? OFFSET ?'
+    'SELECT id, session_id, payload, metadata, received_at FROM transcripts ORDER BY received_at DESC, id DESC LIMIT ? OFFSET ?'
   );
   const countAllStmt = db.prepare('SELECT COUNT(*) AS total FROM transcripts');
   const deleteAllStmt = db.prepare('DELETE FROM transcripts');
+  const selectByIdStmt = db.prepare('SELECT 1 FROM transcripts WHERE id = ?');
 
   const DEFAULT_LIMIT = 25;
   const MAX_LIMIT = 100;
@@ -67,6 +69,11 @@ export function createTranscriptStorage(db: Database.Database) {
       return body.toString('utf-8');
     }
     return body ?? '';
+  }
+
+  function doesTranscriptExist(transcriptId: number): boolean {
+    const row = selectByIdStmt.get(transcriptId);
+    return row !== undefined;
   }
 
   function normalizeLimit(value?: number): number {
@@ -122,6 +129,7 @@ export function createTranscriptStorage(db: Database.Database) {
 
     const offset = (page - 1) * limit;
     const rows = selectPageStmt.all(normalizedSessionId, limit, offset) as Array<{
+      id: number;
       session_id: string;
       payload: string;
       metadata: string | null;
@@ -131,6 +139,7 @@ export function createTranscriptStorage(db: Database.Database) {
     const total = typeof countRow?.total === 'number' ? countRow.total : 0;
 
     const transcripts = rows.map((row) => ({
+      id: row.id,
       sessionId: row.session_id,
       payload: row.payload,
       metadata: parseMetadata(row.metadata),
@@ -152,6 +161,7 @@ export function createTranscriptStorage(db: Database.Database) {
     const offset = (page - 1) * limit;
 
     const rows = selectLatestStmt.all(limit, offset) as Array<{
+      id: number;
       session_id: string;
       payload: string;
       metadata: string | null;
@@ -161,6 +171,7 @@ export function createTranscriptStorage(db: Database.Database) {
     const total = typeof countRow?.total === 'number' ? countRow.total : 0;
 
     const transcripts = rows.map((row) => ({
+      id: row.id,
       sessionId: row.session_id,
       payload: row.payload,
       metadata: parseMetadata(row.metadata),
@@ -190,12 +201,19 @@ export function createTranscriptStorage(db: Database.Database) {
     getRecentTranscripts,
     getTranscriptPage,
     getLatestTranscripts,
-    deleteAllTranscripts
+    deleteAllTranscripts,
+    doesTranscriptExist
   };
 }
 
 const defaultStorage = createTranscriptStorage(getTranscriptDatabase());
 
-export const { saveTranscript, getRecentTranscripts, getTranscriptPage, getLatestTranscripts, deleteAllTranscripts } =
-  defaultStorage;
+export const {
+  saveTranscript,
+  getRecentTranscripts,
+  getTranscriptPage,
+  getLatestTranscripts,
+  deleteAllTranscripts,
+  doesTranscriptExist
+} = defaultStorage;
 export type TranscriptStorage = ReturnType<typeof createTranscriptStorage>;

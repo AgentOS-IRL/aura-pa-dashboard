@@ -111,6 +111,13 @@ Inspect the SQLite file with standard tools (e.g., `sqlite3 backend/data/transcr
 - Columns: `id` (TEXT PRIMARY KEY), `name` (TEXT NOT NULL), `description` (TEXT, nullable).
 - Initialized automatically every time the backend starts, ensuring the table exists before any requests run and letting teams inspect it with `sqlite3 backend/data/transcripts.db`.
 
+## Transcript classifications
+
+- The `transcript_classifications` table captures the 1→many relationship between transcript rows (`transcript_id`) and classification identifiers (`classification_id`).
+- Each row records `assigned_at` (ISO timestamp) and enforces a composite primary key (`transcript_id`, `classification_id`) plus cascading foreign keys so deleting a transcript or classification automatically drops related assignments.
+- The table is created alongside the other schema objects when the service boots, so inspect it with the same SQLite file (`sqlite3 backend/data/transcripts.db`).
+- Use SQL such as `SELECT * FROM transcript_classifications WHERE transcript_id = ?;` or `SELECT transcript_id FROM transcript_classifications WHERE classification_id = ?;` to understand which labels are attached to which transcripts.
+
 ## Transcript retrieval
 
 When you need to show what Aura previously captured, call one of the read endpoints to paginate stored transcript rows. The storage layer tracks every session, so you can either scope the query to a specific session or read the entire global history that mixes entries from every session.

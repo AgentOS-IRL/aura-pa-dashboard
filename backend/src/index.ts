@@ -9,6 +9,7 @@ import audioRouter from './routes/audio';
 import healthRouter from './routes/health';
 import transcriptRouter from './routes/transcript';
 import transcriptsRouter from './routes/transcripts';
+import transcriptClassificationsRouter from './routes/transcriptClassifications';
 import classificationsRouter from './routes/classifications';
 import usageRouter from './routes/usage';
 import {
@@ -19,6 +20,7 @@ import {
 import { auraBasePath, withAuraBasePath } from './config/auraPath';
 import { startAgentHealthSubscriber, stopAgentHealthSubscriber } from './services/agentHealth';
 import './services/classificationStorage';
+import './services/transcriptClassificationStorage';
 
 const swaggerDocument = YAML.load(path.join(__dirname, '..', 'openapi.yaml'));
 
@@ -68,6 +70,7 @@ export function createApp() {
   app.use(withAuraBasePath('/sessions'), audioRouter);
   app.use(withAuraBasePath('/sessions'), transcriptRouter);
   app.use(withAuraBasePath('/transcripts'), transcriptsRouter);
+  app.use(withAuraBasePath('/transcripts'), transcriptClassificationsRouter);
   app.use(withAuraBasePath('/classifications'), classificationsRouter);
   app.use(withAuraBasePath('/usage'), usageRouter);
 
