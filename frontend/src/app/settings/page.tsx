@@ -1,6 +1,6 @@
 "use client";
 
-import { RefreshCw, Loader2 } from "lucide-react";
+import { RefreshCw, Loader2, AlertCircle } from "lucide-react";
 import {
   FormEvent,
   useCallback,
@@ -98,11 +98,15 @@ export default function SettingsPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [lastUpdatedAt, setLastUpdatedAt] = useState<number | null>(null);
   const isMountedRef = useRef(true);
+  const transcriptAbortControllerRef = useRef<AbortController | null>(null);
   const [activeView, setActiveView] = useState<SettingsView>("usage");
 
   useEffect(() => {
     return () => {
       isMountedRef.current = false;
+      if (transcriptAbortControllerRef.current) {
+        transcriptAbortControllerRef.current.abort();
+      }
     };
   }, []);
 
@@ -355,6 +359,12 @@ export default function SettingsPage() {
 
   const loadTranscripts = useCallback(
     async (options?: { showLoader?: boolean }) => {
+      if (transcriptAbortControllerRef.current) {
+        transcriptAbortControllerRef.current.abort();
+      }
+      transcriptAbortControllerRef.current = new AbortController();
+      const signal = transcriptAbortControllerRef.current.signal;
+
       if (options?.showLoader) {
         safeSetState(() => {
           setTranscriptsLoading(true);
@@ -367,7 +377,8 @@ export default function SettingsPage() {
       try {
         const data = await fetchTranscripts({
           limit: TRANSCRIPTS_PAGE_SIZE,
-          page: transcriptsCurrentPage
+          page: transcriptsCurrentPage,
+          signal
         });
         safeSetState(() => {
           setTranscripts(data.transcripts);
@@ -378,6 +389,9 @@ export default function SettingsPage() {
           });
         });
       } catch (err) {
+        if (err instanceof Error && err.name === "AbortError") {
+          return;
+        }
         safeSetState(() => {
           setTranscripts([]);
           setTranscriptsPaginationMeta({
@@ -1000,14 +1014,21 @@ export default function SettingsPage() {
                                 return (
                                   <span key={removalKey} className="inline-flex items-center gap-2 rounded-md bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 dark:bg-blue-900/20 dark:text-blue-300 border border-blue-100 dark:border-blue-800/50">
                                     <span>{classification.name || classification.id}</span>
-                                    <button
-                                      type="button"
-                                      onClick={() => handleRemoveClassification(record.id, classification.id)}
-                                      disabled={removalEntry?.loading ?? false}
-                                      className="text-[0.65rem] font-bold uppercase tracking-wider text-rose-500 hover:text-rose-700 focus:outline-none disabled:opacity-50"
-                                    >
-                                      {removalEntry?.loading ? "…" : "Remove"}
-                                    </button>
+                                    <div className="flex items-center gap-1">
+                                      <button
+                                        type="button"
+                                        onClick={() => handleRemoveClassification(record.id, classification.id)}
+                                        disabled={removalEntry?.loading ?? false}
+                                        className="text-[0.65rem] font-bold uppercase tracking-wider text-rose-500 hover:text-rose-700 focus:outline-none disabled:opacity-50"
+                                      >
+                                        {removalEntry?.loading ? "…" : "Remove"}
+                                      </button>
+                                      {removalEntry?.error && (
+                                        <span className="text-rose-600 shrink-0" title={removalEntry.error}>
+                                          <AlertCircle className="w-3 h-3" />
+                                        </span>
+                                      )}
+                                    </div>
                                   </span>
                                 );
                               })
