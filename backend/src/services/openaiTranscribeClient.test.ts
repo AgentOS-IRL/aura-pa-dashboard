@@ -64,7 +64,7 @@ describe("OpenAITranscribeClient", () => {
     expect(createTranscriptionMock).toHaveBeenCalledTimes(1);
     const payload = createTranscriptionMock.mock.calls[0][0] as Record<string, unknown>;
     expect(payload.model).toBe("custom-model");
-    expect(payload.response_format).toBe("text");
+    expect(payload.response_format).toBe("json");
     expect(payload.temperature).toBe(0.4);
   });
 

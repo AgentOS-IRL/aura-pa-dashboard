@@ -13,7 +13,7 @@ To exercise the Codex-powered workflows that this service relies on (e.g., `agen
 
 ## OpenAI transcription client
 
-The backend now ships a dedicated OpenAI transcription helper (`backend/src/services/openaiTranscribeClient.ts`) so future routes can call the official `audio.transcriptions.create` API without touching the Codex-only helpers. The client reads its credentials from the same process that deployers already configure for other SDKs, but it keeps `gpt-4o-transcribe` as the default model and `response_format: "text"` so callers can focus on streaming audio.
+The backend now ships a dedicated OpenAI transcription helper (`backend/src/services/openaiTranscribeClient.ts`) so future routes can call the official `audio.transcriptions.create` API without touching the Codex-only helpers. The client reads its credentials from the same process that deployers already configure for other SDKs, but it keeps `gpt-4o-transcribe` as the default model and `response_format: "json"` so callers can focus on streaming audio.
 
 ### Configuration
 

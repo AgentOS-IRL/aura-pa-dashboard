@@ -30,7 +30,7 @@ This repository now exposes the key AgentOS configuration knobs that control the
 
 - The new transcription helper immediately validates `OPENAI_API_KEY` and refuses to start when the variable is missing or empty. Store the same key you would use with the OpenAI SDK.
 - Override `OPENAI_BASE_URL`, `OPENAI_ORG_ID`, or `OPENAI_PROJECT_ID` when your deployment requires a proxy or enterprise scoped project.
-- See `backend/README.md` for a usage example and reminder that `gpt-4o-transcribe`/`response_format: "text"` are the defaults this service sends on every request.
+- See `backend/README.md` for a usage example and reminder that `gpt-4o-transcribe`/`response_format: "json"` are the defaults this service sends on every request.
 
 ## Deployment expectations
 

@@ -10,7 +10,7 @@ type AudioTranscriptionResult = Awaited<
 export type OpenAITranscribeOptions = Partial<Omit<AudioTranscriptionParams, "file">>;
 
 const DEFAULT_MODEL = "gpt-4o-transcribe";
-const DEFAULT_RESPONSE_FORMAT: AudioResponseFormat = "text";
+const DEFAULT_RESPONSE_FORMAT: AudioResponseFormat = "json";
 
 const DEFAULT_PAYLOAD: Pick<AudioTranscriptionParams, "model" | "response_format"> = {
   model: DEFAULT_MODEL,
