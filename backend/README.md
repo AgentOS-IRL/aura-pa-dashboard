@@ -105,6 +105,12 @@ Transcripts are now ingested through a dedicated HTTP endpoint instead of the re
 
 Inspect the SQLite file with standard tools (e.g., `sqlite3 backend/data/transcripts.db`) or point `TRANSCRIPT_DB_PATH` elsewhere in production before retrieving historical transcripts.
 
+## Classification table
+
+- Stored in the same SQLite file (`backend/data/transcripts.db`) as the transcripts so operators can reuse the same tooling.
+- Columns: `id` (TEXT PRIMARY KEY), `name` (TEXT NOT NULL), `description` (TEXT, nullable).
+- Initialized automatically every time the backend starts, ensuring the table exists before any requests run and letting teams inspect it with `sqlite3 backend/data/transcripts.db`.
+
 ## Transcript retrieval
 
 When you need to show what Aura previously captured, call one of the read endpoints to paginate stored transcript rows. The storage layer tracks every session, so you can either scope the query to a specific session or read the entire global history that mixes entries from every session.
