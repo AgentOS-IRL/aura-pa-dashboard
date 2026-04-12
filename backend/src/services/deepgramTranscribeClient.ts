@@ -54,7 +54,7 @@ export class DeepgramTranscribeClient {
     const resolvedConfig = config ?? getDeepgramConfig();
     this.client = new DeepgramClient({
       apiKey: resolvedConfig.apiKey,
-      baseURL: resolvedConfig.baseUrl ?? undefined,
+      baseUrl: resolvedConfig.baseUrl ?? undefined,
     });
   }
 
@@ -71,7 +71,7 @@ export class DeepgramTranscribeClient {
 
     try {
       const response = (await this.client.listen.v1.media.transcribeFile(
-        mediaStream as unknown,
+        mediaStream as any,
         requestOptions
       )) as DeepgramListenResponse;
       const alternative = response.results?.channels?.[0]?.alternatives?.[0];
