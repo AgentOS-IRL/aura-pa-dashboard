@@ -59,7 +59,7 @@ describe('DeepgramTranscribeClient', () => {
     expect(getConfigMock).toHaveBeenCalledTimes(1);
     expect(deepgramConstructorMock).toHaveBeenCalledWith({
       apiKey: mockedConfig.apiKey,
-      baseURL: mockedConfig.baseUrl,
+      baseUrl: mockedConfig.baseUrl,
     });
   });
 

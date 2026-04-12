@@ -53,6 +53,22 @@ describe('transcribeAndSaveAudio', () => {
     expect(mockClient.transcribeStream).toHaveBeenCalledTimes(1);
   });
 
+  it('skips saving when Deepgram returns empty or whitespace text', async () => {
+    const mockClient = createMockClient();
+    mockClient.transcribeStream.mockResolvedValueOnce({
+      text: '   ',
+      transcript: '   ',
+      utterances: [],
+      raw: {}
+    });
+
+    const result = await transcribeAndSaveAudio('session-2', Buffer.from('audio'), undefined, mockClient);
+
+    expect(result.text).toBe('   ');
+    expect(mockClient.transcribeStream).toHaveBeenCalledTimes(1);
+    expect(saveTranscriptMock).not.toHaveBeenCalled();
+  });
+
   it('falls back to stringifying the full response when text is missing', async () => {
     const mockClient = createMockClient();
     const payload = { words: ['a', 'b'] } as unknown as DeepgramTranscriptionResult;
