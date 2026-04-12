@@ -9,6 +9,7 @@ import audioRouter from './routes/audio';
 import healthRouter from './routes/health';
 import transcriptRouter from './routes/transcript';
 import transcriptsRouter from './routes/transcripts';
+import classificationsRouter from './routes/classifications';
 import usageRouter from './routes/usage';
 import {
   configureFrontendStatic,
@@ -25,6 +26,8 @@ type BodyParserError = Error & {
   status?: number;
   type?: string;
 };
+
+const classificationRoute = withAuraBasePath('/classifications');
 
 function isTranscriptJsonRoute(req: Request) {
   return req.method === 'POST' && req.path.endsWith('/transcript');
@@ -65,6 +68,7 @@ export function createApp() {
   app.use(withAuraBasePath('/sessions'), audioRouter);
   app.use(withAuraBasePath('/sessions'), transcriptRouter);
   app.use(withAuraBasePath('/transcripts'), transcriptsRouter);
+  app.use(withAuraBasePath('/classifications'), classificationsRouter);
   app.use(withAuraBasePath('/usage'), usageRouter);
 
   app.use(withAuraBasePath('/health'), healthRouter);
@@ -72,8 +76,12 @@ export function createApp() {
   configureFrontendStatic(app, auraBasePath);
 
   app.use((err: unknown, req: Request, res: Response, next: NextFunction) => {
-    if (isTranscriptJsonRoute(req) && isBodyParserError(err)) {
-      console.warn('Invalid transcript JSON payload', err);
+    const isClassificationJsonRoute = req.method === 'POST' && req.path === classificationRoute;
+    const isKnownJsonRoute = isTranscriptJsonRoute(req) || isClassificationJsonRoute;
+
+    if (isKnownJsonRoute && isBodyParserError(err)) {
+      const routeLabel = isClassificationJsonRoute ? 'classification' : 'transcript';
+      console.warn(`Invalid ${routeLabel} JSON payload`, err);
       const status = err.status ?? 400;
       return res.status(status).json({ error: 'Invalid JSON payload' });
     }

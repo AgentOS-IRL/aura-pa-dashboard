@@ -1,7 +1,20 @@
 "use client";
 
 import { RefreshCw, Loader2 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  FormEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState
+} from "react";
+import {
+  fetchClassifications,
+  saveClassification,
+  deleteClassification,
+  type ClassificationRecord
+} from "../lib/classifications";
 import { fetchUsage, type CodexUsage, type RateLimitWindow } from "../lib/usage";
 
 const POLL_INTERVAL_MS = 30_000;
@@ -45,6 +58,18 @@ const renderWindow = (title: string, window?: RateLimitWindow) => {
   );
 };
 
+interface ClassificationFormState {
+  id: string;
+  name: string;
+  description: string;
+}
+
+const DEFAULT_CLASSIFICATION_FORM: ClassificationFormState = {
+  id: "",
+  name: "",
+  description: ""
+};
+
 export default function ConfigurationPage() {
   const [usage, setUsage] = useState<CodexUsage | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -64,6 +89,18 @@ export default function ConfigurationPage() {
       updater();
     }
   }, []);
+
+  const [classificationRecords, setClassificationRecords] = useState<ClassificationRecord[]>([]);
+  const [classificationError, setClassificationError] = useState<string | null>(null);
+  const [classificationSuccessMessage, setClassificationSuccessMessage] = useState<string | null>(null);
+  const [classificationLoading, setClassificationLoading] = useState(true);
+  const [classificationRefreshing, setClassificationRefreshing] = useState(false);
+  const [classificationSaving, setClassificationSaving] = useState(false);
+  const [classificationDeletingId, setClassificationDeletingId] = useState<string | null>(null);
+  const [classificationForm, setClassificationForm] = useState<ClassificationFormState>(() => ({
+    ...DEFAULT_CLASSIFICATION_FORM
+  }));
+  const [isEditingClassification, setIsEditingClassification] = useState(false);
 
   const loadUsage = useCallback(
     async (options?: { showLoader?: boolean }) => {
@@ -115,6 +152,161 @@ export default function ConfigurationPage() {
       clearInterval(interval);
     };
   }, [loadUsage]);
+
+  const loadClassifications = useCallback(
+    async (options?: { showLoader?: boolean }) => {
+      let success = true;
+      if (options?.showLoader) {
+        safeSetState(() => {
+          setClassificationLoading(true);
+        });
+      } else {
+        safeSetState(() => {
+          setClassificationRefreshing(true);
+        });
+      }
+
+      try {
+        const payload = await fetchClassifications();
+        safeSetState(() => {
+          setClassificationRecords(payload);
+          setClassificationError(null);
+        });
+      } catch (err) {
+        success = false;
+        const message = err instanceof Error ? err.message : String(err);
+        safeSetState(() => {
+          setClassificationError(message);
+        });
+      } finally {
+        if (options?.showLoader) {
+          safeSetState(() => {
+            setClassificationLoading(false);
+          });
+        } else {
+          safeSetState(() => {
+            setClassificationRefreshing(false);
+          });
+        }
+      }
+      return success;
+    },
+    [safeSetState]
+  );
+
+  useEffect(() => {
+    void loadClassifications({ showLoader: true });
+  }, [loadClassifications]);
+
+  const handleEditClassification = useCallback((record: ClassificationRecord) => {
+    setClassificationForm({
+      id: record.id,
+      name: record.name,
+      description: record.description ?? ""
+    });
+    setIsEditingClassification(true);
+    setClassificationError(null);
+    setClassificationSuccessMessage(null);
+  }, []);
+
+  const handleCancelEdit = useCallback(() => {
+    setClassificationForm({ ...DEFAULT_CLASSIFICATION_FORM });
+    setIsEditingClassification(false);
+    setClassificationError(null);
+    setClassificationSuccessMessage(null);
+  }, []);
+
+  const handleClassificationSave = useCallback(
+    async (event: FormEvent<HTMLFormElement>) => {
+      event.preventDefault();
+      const trimmedId = classificationForm.id.trim();
+      const trimmedName = classificationForm.name.trim();
+
+      if (!trimmedId || !trimmedName) {
+        safeSetState(() => {
+          setClassificationError("ID and name are required");
+          setClassificationSuccessMessage(null);
+        });
+        return;
+      }
+
+      safeSetState(() => {
+        setClassificationSaving(true);
+        setClassificationError(null);
+        setClassificationSuccessMessage(null);
+      });
+
+      try {
+        await saveClassification({
+          id: trimmedId,
+          name: trimmedName,
+          description: classificationForm.description.trim() || undefined
+        });
+
+        safeSetState(() => {
+          setClassificationForm({ ...DEFAULT_CLASSIFICATION_FORM });
+          setIsEditingClassification(false);
+        });
+
+        const refreshed = await loadClassifications();
+
+        if (refreshed) {
+          safeSetState(() => {
+            setClassificationSuccessMessage("Classification saved");
+          });
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        safeSetState(() => {
+          setClassificationError(message);
+        });
+      } finally {
+        safeSetState(() => {
+          setClassificationSaving(false);
+        });
+      }
+    },
+    [classificationForm, loadClassifications, safeSetState]
+  );
+
+  const handleDeleteClassification = useCallback(
+    async (id: string) => {
+      safeSetState(() => {
+        setClassificationDeletingId(id);
+        setClassificationError(null);
+        setClassificationSuccessMessage(null);
+      });
+
+      try {
+        await deleteClassification(id);
+
+        safeSetState(() => {
+          if (isEditingClassification && classificationForm.id === id) {
+            setIsEditingClassification(false);
+            setClassificationForm({ ...DEFAULT_CLASSIFICATION_FORM });
+          }
+        });
+
+        const refreshed = await loadClassifications();
+
+        if (refreshed) {
+          safeSetState(() => {
+            setClassificationSuccessMessage("Classification deleted");
+          });
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        safeSetState(() => {
+          setClassificationError(message);
+        });
+      } finally {
+        safeSetState(() => {
+          setClassificationDeletingId(null);
+        });
+      }
+    },
+    [classificationForm.id, isEditingClassification, loadClassifications, safeSetState]
+  );
 
   const rateLimit = usage?.rate_limit;
   const credits = usage?.credits;
@@ -237,6 +429,171 @@ export default function ConfigurationPage() {
           </div>
         </section>
       )}
+
+      <section className="rounded-3xl border border-slate-200/70 dark:border-slate-800/60 bg-white/80 dark:bg-slate-900/70 shadow-xl p-6 space-y-6">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="space-y-1">
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">Classifications</p>
+            <h2 className="text-2xl font-semibold text-slate-900 dark:text-white">Manage classification metadata</h2>
+            <p className="text-sm text-slate-600 dark:text-slate-300">
+              Add, edit, or remove classification records that power the configuration UI.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => void loadClassifications()}
+            disabled={classificationRefreshing}
+            className="flex items-center gap-2 rounded-full border border-slate-200/70 bg-white/90 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-300 dark:border-slate-800/60 dark:bg-slate-900/70 dark:text-slate-200 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {classificationRefreshing ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Refreshing…
+              </>
+            ) : (
+              <>
+                <RefreshCw className="w-4 h-4" />
+                Refresh list
+              </>
+            )}
+          </button>
+        </div>
+
+        {classificationSuccessMessage && (
+          <div className="transcript-alert border-emerald-200 bg-emerald-50 text-emerald-700">
+            <p className="text-sm font-semibold">{classificationSuccessMessage}</p>
+          </div>
+        )}
+
+        {classificationError && (
+          <div className="transcript-alert">
+            <p className="text-base font-semibold text-rose-600">Unable to update classifications</p>
+            <p className="text-sm text-slate-500 dark:text-slate-400">{classificationError}</p>
+          </div>
+        )}
+
+        {classificationLoading ? (
+          <div className="transcript-alert">
+            <div className="flex items-center gap-2">
+              <Loader2 className="w-5 h-5 text-blue-500 animate-spin" />
+              <p className="text-sm text-slate-500 dark:text-slate-400">Fetching classifications…</p>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <div className="hidden grid-cols-[1.5fr,1fr,2fr,auto] gap-3 px-4 py-2 text-xs uppercase tracking-[0.3em] text-slate-500 md:grid">
+              <span>ID</span>
+              <span>Name</span>
+              <span>Description</span>
+              <span className="text-right">Actions</span>
+            </div>
+            <div className="rounded-2xl border border-slate-200/70 dark:border-slate-800/60 bg-slate-50/80 dark:bg-slate-950/40">
+              {classificationRecords.length === 0 ? (
+                <div className="px-4 py-3 text-sm text-slate-500 dark:text-slate-400">No classifications saved yet.</div>
+              ) : (
+                classificationRecords.map((record) => (
+                  <div
+                    key={record.id}
+                    className="grid items-center gap-3 border-t border-slate-200/70 px-4 py-3 last:border-b dark:border-slate-800/60 md:grid-cols-[1.5fr,1fr,2fr,auto]"
+                  >
+                    <span className="font-mono text-sm text-slate-700 dark:text-slate-200">{record.id}</span>
+                    <span className="text-sm font-semibold text-slate-900 dark:text-white">{record.name}</span>
+                    <span className="text-sm text-slate-600 dark:text-slate-300">{record.description ?? "—"}</span>
+                    <div className="flex items-center justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleEditClassification(record)}
+                        className="rounded-full border border-slate-200/70 px-3 py-1 text-xs font-semibold text-slate-600 transition hover:border-slate-300 dark:border-slate-700/60 dark:text-slate-200"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteClassification(record.id)}
+                        disabled={classificationDeletingId === record.id}
+                        className="flex items-center gap-2 rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-xs font-semibold text-rose-600 transition hover:border-rose-400 hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-rose-600/50 dark:bg-rose-500/10 dark:text-rose-300"
+                      >
+                        {classificationDeletingId === record.id ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            Deleting…
+                          </>
+                        ) : (
+                          "Delete"
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+
+        <form className="space-y-4" onSubmit={handleClassificationSave}>
+          <div className="grid gap-4 md:grid-cols-2">
+            <label className="space-y-1 text-sm font-semibold text-slate-500 dark:text-slate-400">
+              <span>Identifier</span>
+              <input
+                type="text"
+                value={classificationForm.id}
+                onChange={(event) =>
+                  setClassificationForm((prev) => ({ ...prev, id: event.target.value }))
+                }
+                disabled={isEditingClassification}
+                className="w-full rounded-2xl border border-slate-200/70 bg-white/80 px-4 py-2 text-sm text-slate-700 outline-none transition focus:border-slate-400 dark:border-slate-800/60 dark:bg-slate-900/70 dark:text-slate-200"
+              />
+            </label>
+            <label className="space-y-1 text-sm font-semibold text-slate-500 dark:text-slate-400">
+              <span>Name</span>
+              <input
+                type="text"
+                value={classificationForm.name}
+                onChange={(event) =>
+                  setClassificationForm((prev) => ({ ...prev, name: event.target.value }))
+                }
+                className="w-full rounded-2xl border border-slate-200/70 bg-white/80 px-4 py-2 text-sm text-slate-700 outline-none transition focus:border-slate-400 dark:border-slate-800/60 dark:bg-slate-900/70 dark:text-slate-200"
+              />
+            </label>
+          </div>
+          <label className="space-y-1 text-sm font-semibold text-slate-500 dark:text-slate-400">
+            <span>Description</span>
+            <textarea
+              rows={3}
+              value={classificationForm.description}
+              onChange={(event) =>
+                setClassificationForm((prev) => ({ ...prev, description: event.target.value }))
+              }
+              className="w-full rounded-2xl border border-slate-200/70 bg-white/80 px-4 py-2 text-sm text-slate-700 outline-none transition focus:border-slate-400 dark:border-slate-800/60 dark:bg-slate-900/70 dark:text-slate-200"
+            />
+          </label>
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="submit"
+              disabled={classificationSaving}
+              className="flex items-center gap-2 rounded-full border border-slate-200/70 bg-white/90 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-300 dark:border-slate-800/60 dark:bg-slate-900/70 dark:text-slate-200 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {classificationSaving ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Saving…
+                </>
+              ) : (
+                "Save classification"
+              )}
+            </button>
+            {isEditingClassification && (
+              <button
+                type="button"
+                onClick={handleCancelEdit}
+                className="rounded-full border border-slate-200/70 px-4 py-2 text-sm font-semibold text-slate-600 transition hover:border-slate-300 dark:border-slate-800/60 dark:text-slate-200"
+              >
+                Cancel edit
+              </button>
+            )}
+          </div>
+        </form>
+      </section>
     </div>
   );
 }

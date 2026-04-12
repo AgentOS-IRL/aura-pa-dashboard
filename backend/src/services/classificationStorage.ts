@@ -38,6 +38,7 @@ export function createClassificationStorage(db: Database.Database) {
     'SELECT id, name, description FROM classifications ORDER BY name COLLATE NOCASE ASC, id ASC'
   );
   const deleteAllStmt = db.prepare('DELETE FROM classifications');
+  const deleteByIdStmt = db.prepare('DELETE FROM classifications WHERE id = ?');
 
   function saveClassification(input: SaveClassificationInput): ClassificationRecord {
     const id = normalizeRequiredField(input.id, 'id');
@@ -65,7 +66,19 @@ export function createClassificationStorage(db: Database.Database) {
     return typeof result.changes === 'number' ? result.changes : 0;
   }
 
-  return { saveClassification, getClassificationById, listClassifications, deleteAllClassifications };
+  function deleteClassificationById(id: string): number {
+    const normalizedId = normalizeRequiredField(id, 'id');
+    const result = deleteByIdStmt.run(normalizedId);
+    return typeof result.changes === 'number' ? result.changes : 0;
+  }
+
+  return {
+    saveClassification,
+    getClassificationById,
+    listClassifications,
+    deleteAllClassifications,
+    deleteClassificationById
+  };
 }
 
 const defaultStorage = createClassificationStorage(getTranscriptDatabase());
@@ -74,5 +87,6 @@ export const {
   saveClassification,
   getClassificationById,
   listClassifications,
-  deleteAllClassifications
+  deleteAllClassifications,
+  deleteClassificationById
 } = defaultStorage;
