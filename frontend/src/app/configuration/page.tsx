@@ -45,7 +45,7 @@ const renderWindow = (title: string, window?: RateLimitWindow) => {
   );
 };
 
-export default function DebugPage() {
+export default function ConfigurationPage() {
   const [usage, setUsage] = useState<CodexUsage | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -150,12 +150,13 @@ export default function DebugPage() {
   return (
     <div className="flex flex-col gap-8">
       <section className="space-y-4 text-center md:space-y-6 mx-auto max-w-3xl">
-        <p className="text-xs uppercase tracking-[0.4em] text-slate-500 dark:text-slate-400">Debug</p>
+        <p className="text-xs uppercase tracking-[0.4em] text-slate-500 dark:text-slate-400">Configuration</p>
         <h1 className="text-4xl md:text-5xl font-extrabold text-slate-900 dark:text-white">
-          OpenAI usage watcher
+          Configuration metrics monitor
         </h1>
         <p className="text-lg md:text-xl text-slate-600 dark:text-slate-300">
-          Polls the Codex usage endpoint every 30 seconds so you can keep an eye on rate limits and credits.
+          Polls the Codex usage endpoint every 30 seconds so you can keep configuration metrics and rate limits up to
+          date.
         </p>
         <div className="flex flex-wrap items-center justify-center gap-3">
           <button
@@ -186,13 +187,13 @@ export default function DebugPage() {
         <div className="transcript-alert">
           {error ? (
             <>
-              <p className="text-base font-semibold text-rose-600">Unable to load OpenAI usage</p>
+              <p className="text-base font-semibold text-rose-600">Unable to load configuration metrics</p>
               <p className="text-sm text-slate-500 dark:text-slate-400">{error}</p>
             </>
           ) : (
             <div className="flex items-center gap-2">
               <Loader2 className="w-5 h-5 text-blue-500 animate-spin" />
-              <p className="text-sm text-slate-500 dark:text-slate-400">Fetching usage…</p>
+              <p className="text-sm text-slate-500 dark:text-slate-400">Fetching configuration metrics…</p>
             </div>
           )}
         </div>
@@ -202,7 +203,7 @@ export default function DebugPage() {
         <section className="rounded-3xl border border-slate-200/70 dark:border-slate-800/60 bg-white/80 dark:bg-slate-900/70 shadow-xl p-6 space-y-6">
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-1">
-              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">Usage summary</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">Configuration summary</p>
               {summaryPairs.map(([label, value]) => (
                 <div key={label} className="flex items-center justify-between text-sm text-slate-700 dark:text-slate-200">
                   <span>{label}</span>
