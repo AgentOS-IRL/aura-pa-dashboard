@@ -26,6 +26,12 @@ This repository now exposes the key AgentOS configuration knobs that control the
 
 - The configuration module validates the file at startup and caches the parsed credentials, but you can force a reload by setting `CODEX_AUTH_PATH` to a new file and restarting the process.
 
+## OpenAI transcription credentials
+
+- The new transcription helper immediately validates `OPENAI_API_KEY` and refuses to start when the variable is missing or empty. Store the same key you would use with the OpenAI SDK.
+- Override `OPENAI_BASE_URL`, `OPENAI_ORG_ID`, or `OPENAI_PROJECT_ID` when your deployment requires a proxy or enterprise scoped project.
+- See `backend/README.md` for a usage example and reminder that `gpt-4o-transcribe`/`response_format: "text"` are the defaults this service sends on every request.
+
 ## Deployment expectations
 
 - `package_deploy.sh` now reads the same credential file before syncing the repository. It creates `$SERVER_PATH/.codex` and `$SERVER_PATH/agent_os_chat/.codex` on the server, copies the local credentials into both locations, and enforces restrictive permissions so only the deployed services can read them.
