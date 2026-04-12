@@ -43,6 +43,8 @@ const normalizeDescription = (value: unknown): string | null => {
   return normalized;
 };
 
+const requiredStringFields = ['id', 'name'] as const;
+
 router.get('/', (_req: Request, res: Response) => {
   try {
     const classifications = listClassifications();
@@ -54,7 +56,19 @@ router.get('/', (_req: Request, res: Response) => {
 });
 
 router.post('/', (req: Request, res: Response) => {
-  const body = req.body ?? {};
+  const body = (req.body ?? {}) as Record<string, unknown>;
+  const invalidTypeFields = requiredStringFields.filter((field) => {
+    const value = body[field];
+    return value !== undefined && value !== null && !isStringOrBuffer(value);
+  });
+
+  if (invalidTypeFields.length > 0) {
+    const fieldsText = invalidTypeFields.join(' and ');
+    return res
+      .status(400)
+      .json({ error: `${fieldsText} must be a string or Buffer` });
+  }
+
   const id = ensureRequiredField(body.id);
   const name = ensureRequiredField(body.name);
 
