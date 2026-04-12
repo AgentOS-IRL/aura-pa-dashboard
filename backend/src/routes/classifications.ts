@@ -7,32 +7,31 @@ import {
 
 const router = Router();
 
-const normalizeStringInput = (value: unknown): string => {
-  if (value instanceof Buffer) {
-    return value.toString('utf8');
-  }
+const isStringOrBuffer = (value: unknown): value is string | Buffer =>
+  typeof value === 'string' || Buffer.isBuffer(value);
 
-  if (typeof value === 'string') {
-    return value;
-  }
-
-  if (value === undefined || value === null) {
-    return '';
-  }
-
-  return String(value);
-};
+const normalizeStringInput = (value: string | Buffer): string =>
+  Buffer.isBuffer(value) ? value.toString('utf8') : value;
 
 const ensureRequiredField = (value: unknown): string | null => {
+  if (!isStringOrBuffer(value)) {
+    return null;
+  }
+
   const normalized = normalizeStringInput(value).trim();
   if (!normalized) {
     return null;
   }
+
   return normalized;
 };
 
 const normalizeDescription = (value: unknown): string | null => {
   if (value === undefined || value === null) {
+    return null;
+  }
+
+  if (!isStringOrBuffer(value)) {
     return null;
   }
 

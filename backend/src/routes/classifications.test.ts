@@ -74,6 +74,15 @@ describe('classifications route', () => {
     expect(saveMock).not.toHaveBeenCalled();
   });
 
+  it('rejects non-string or non-buffer id/name values', async () => {
+    await request(app)
+      .post(withAuraBasePath('/classifications'))
+      .send({ id: { nested: 'value' }, name: true })
+      .expect(400);
+
+    expect(saveMock).not.toHaveBeenCalled();
+  });
+
   it('maps save failures to 500', async () => {
     saveMock.mockImplementation(() => {
       throw new Error('persist failed');
@@ -111,5 +120,15 @@ describe('classifications route', () => {
     await request(app)
       .delete(withAuraBasePath('/classifications/cat-1'))
       .expect(500);
+  });
+
+  it('maps malformed JSON payload to 400', async () => {
+    await request(app)
+      .post(withAuraBasePath('/classifications'))
+      .set('Content-Type', 'application/json')
+      .send('{"id": "cat-1" invalid}')
+      .expect(400);
+
+    expect(saveMock).not.toHaveBeenCalled();
   });
 });

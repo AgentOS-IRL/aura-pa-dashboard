@@ -27,6 +27,8 @@ type BodyParserError = Error & {
   type?: string;
 };
 
+const classificationRoute = withAuraBasePath('/classifications');
+
 function isTranscriptJsonRoute(req: Request) {
   return req.method === 'POST' && req.path.endsWith('/transcript');
 }
@@ -74,8 +76,12 @@ export function createApp() {
   configureFrontendStatic(app, auraBasePath);
 
   app.use((err: unknown, req: Request, res: Response, next: NextFunction) => {
-    if (isTranscriptJsonRoute(req) && isBodyParserError(err)) {
-      console.warn('Invalid transcript JSON payload', err);
+    const isClassificationJsonRoute = req.method === 'POST' && req.path === classificationRoute;
+    const isKnownJsonRoute = isTranscriptJsonRoute(req) || isClassificationJsonRoute;
+
+    if (isKnownJsonRoute && isBodyParserError(err)) {
+      const routeLabel = isClassificationJsonRoute ? 'classification' : 'transcript';
+      console.warn(`Invalid ${routeLabel} JSON payload`, err);
       const status = err.status ?? 400;
       return res.status(status).json({ error: 'Invalid JSON payload' });
     }
