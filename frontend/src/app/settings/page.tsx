@@ -100,6 +100,8 @@ export default function SettingsPage() {
   const isMountedRef = useRef(true);
   const transcriptAbortControllerRef = useRef<AbortController | null>(null);
   const [activeView, setActiveView] = useState<SettingsView>("usage");
+  const lastTranscriptRequestIdRef = useRef(0);
+  const lastUsageRequestIdRef = useRef(0);
 
   useEffect(() => {
     return () => {
@@ -148,6 +150,7 @@ export default function SettingsPage() {
 
   const loadUsage = useCallback(
     async (options?: { showLoader?: boolean }) => {
+      const requestId = ++lastUsageRequestIdRef.current;
       if (options?.showLoader) {
         safeSetState(() => {
           setLoading(true);
@@ -160,25 +163,33 @@ export default function SettingsPage() {
 
       try {
         const payload = await fetchUsage();
+        if (requestId !== lastUsageRequestIdRef.current) {
+          return;
+        }
         safeSetState(() => {
           setUsage(payload);
           setError(null);
           setLastUpdatedAt(Date.now());
         });
       } catch (err) {
+        if (requestId !== lastUsageRequestIdRef.current) {
+          return;
+        }
         const message = err instanceof Error ? err.message : String(err);
         safeSetState(() => {
           setError(message);
         });
       } finally {
-        if (options?.showLoader) {
-          safeSetState(() => {
-            setLoading(false);
-          });
-        } else {
-          safeSetState(() => {
-            setRefreshing(false);
-          });
+        if (requestId === lastUsageRequestIdRef.current) {
+          if (options?.showLoader) {
+            safeSetState(() => {
+              setLoading(false);
+            });
+          } else {
+            safeSetState(() => {
+              setRefreshing(false);
+            });
+          }
         }
       }
     },
@@ -359,6 +370,7 @@ export default function SettingsPage() {
 
   const loadTranscripts = useCallback(
     async (options?: { showLoader?: boolean }) => {
+      const requestId = ++lastTranscriptRequestIdRef.current;
       if (transcriptAbortControllerRef.current) {
         transcriptAbortControllerRef.current.abort();
       }
@@ -380,6 +392,11 @@ export default function SettingsPage() {
           page: transcriptsCurrentPage,
           signal
         });
+
+        if (requestId !== lastTranscriptRequestIdRef.current || signal.aborted) {
+          return;
+        }
+
         safeSetState(() => {
           setTranscripts(data.transcripts);
           setTranscriptsPaginationMeta({
@@ -389,7 +406,7 @@ export default function SettingsPage() {
           });
         });
       } catch (err) {
-        if (err instanceof Error && err.name === "AbortError") {
+        if (requestId !== lastTranscriptRequestIdRef.current || (err instanceof Error && err.name === "AbortError")) {
           return;
         }
         safeSetState(() => {
@@ -402,10 +419,12 @@ export default function SettingsPage() {
           setTranscriptsError(err instanceof Error ? err.message : String(err));
         });
       } finally {
-        if (options?.showLoader) {
-          safeSetState(() => {
-            setTranscriptsLoading(false);
-          });
+        if (requestId === lastTranscriptRequestIdRef.current && !signal.aborted) {
+          if (options?.showLoader) {
+            safeSetState(() => {
+              setTranscriptsLoading(false);
+            });
+          }
         }
       }
     },
@@ -1006,30 +1025,37 @@ export default function SettingsPage() {
                           <p className="text-xs font-semibold uppercase tracking-[0.4em] text-slate-500 dark:text-slate-400">
                             Classifications
                           </p>
-                          <div className="flex flex-wrap gap-2">
+                          <div className="flex flex-wrap gap-3 items-start">
                             {record.classifications.length > 0 ? (
                               record.classifications.map((classification) => {
                                 const removalKey = getRemovalKey(record.id, classification.id);
                                 const removalEntry = removalState[removalKey];
                                 return (
-                                  <span key={removalKey} className="inline-flex items-center gap-2 rounded-md bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 dark:bg-blue-900/20 dark:text-blue-300 border border-blue-100 dark:border-blue-800/50">
-                                    <span>{classification.name || classification.id}</span>
-                                    <div className="flex items-center gap-1">
-                                      <button
-                                        type="button"
-                                        onClick={() => handleRemoveClassification(record.id, classification.id)}
-                                        disabled={removalEntry?.loading ?? false}
-                                        className="text-[0.65rem] font-bold uppercase tracking-wider text-rose-500 hover:text-rose-700 focus:outline-none disabled:opacity-50"
-                                      >
-                                        {removalEntry?.loading ? "…" : "Remove"}
-                                      </button>
-                                      {removalEntry?.error && (
-                                        <span className="text-rose-600 shrink-0" title={removalEntry.error}>
-                                          <AlertCircle className="w-3 h-3" />
-                                        </span>
-                                      )}
-                                    </div>
-                                  </span>
+                                  <div key={removalKey} className="flex flex-col gap-1.5 items-start">
+                                    <span className="inline-flex items-center gap-2 rounded-md bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 dark:bg-blue-900/20 dark:text-blue-300 border border-blue-100 dark:border-blue-800/50">
+                                      <span>{classification.name || classification.id}</span>
+                                      <div className="flex items-center gap-1">
+                                        <button
+                                          type="button"
+                                          onClick={() => handleRemoveClassification(record.id, classification.id)}
+                                          disabled={removalEntry?.loading ?? false}
+                                          className="text-[0.65rem] font-bold uppercase tracking-wider text-rose-500 hover:text-rose-700 focus:outline-none disabled:opacity-50"
+                                        >
+                                          {removalEntry?.loading ? "…" : "Remove"}
+                                        </button>
+                                        {removalEntry?.error && (
+                                          <span className="text-rose-600 shrink-0" title={removalEntry.error}>
+                                            <AlertCircle className="w-3 h-3" />
+                                          </span>
+                                        )}
+                                      </div>
+                                    </span>
+                                    {removalEntry?.error && (
+                                      <p className="text-[0.65rem] text-rose-600 font-medium px-1 max-w-[140px] leading-tight">
+                                        {removalEntry.error}
+                                      </p>
+                                    )}
+                                  </div>
                                 );
                               })
                             ) : (
