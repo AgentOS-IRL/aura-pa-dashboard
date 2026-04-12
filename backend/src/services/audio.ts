@@ -3,7 +3,8 @@ import {
   DEFAULT_TRANSCRIBE_MODEL,
   DEFAULT_TRANSCRIBE_RESPONSE_FORMAT,
   OpenAITranscribeClient,
-  type OpenAITranscribeOptions
+  type OpenAITranscribeOptions,
+  type UploadFileOptions
 } from './openaiTranscribeClient';
 import { saveTranscript } from './transcriptStorage';
 
@@ -46,6 +47,7 @@ export async function transcribeAndSaveAudio(
   chunk: Buffer,
   executorId: string,
   options?: OpenAITranscribeOptions,
+  uploadOptions?: UploadFileOptions,
   client: OpenAITranscribeClient = defaultTranscribeClient
 ): Promise<OpenAITranscriptionResult> {
   const normalizedSessionId = normalizeSessionId(sessionId);
@@ -54,7 +56,12 @@ export async function transcribeAndSaveAudio(
   const metadata = buildBaseMetadata(normalizedExecutorId, options);
 
   try {
-    const transcription = await client.transcribeStream(normalizedSessionId, safeChunk, options);
+    const transcription = await client.transcribeStream(
+      normalizedSessionId,
+      safeChunk,
+      options,
+      uploadOptions
+    );
     const payload = transcription.text ?? JSON.stringify(transcription);
     saveTranscript(normalizedSessionId, payload, metadata);
     return transcription;

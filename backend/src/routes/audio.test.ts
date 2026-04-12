@@ -36,7 +36,16 @@ describe('audio route', () => {
       })
       .expect(201);
 
-    expect(transcribeAndSaveAudioSpy).toHaveBeenCalledWith('session-42', expect.any(Buffer), 'executor-42');
+    expect(transcribeAndSaveAudioSpy).toHaveBeenCalledWith(
+      'session-42',
+      expect.any(Buffer),
+      'executor-42',
+      undefined,
+      {
+        fileName: 'chunk.webm',
+        contentType: 'audio/webm'
+      }
+    );
   });
 
   it('rejects missing files', async () => {

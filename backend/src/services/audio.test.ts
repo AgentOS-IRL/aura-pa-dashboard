@@ -11,7 +11,8 @@ import {
   DEFAULT_TRANSCRIBE_RESPONSE_FORMAT,
   type OpenAITranscribeClient,
   type OpenAITranscribeOptions,
-  type OpenAITranscriptionResult
+  type OpenAITranscriptionResult,
+  type UploadFileOptions
 } from './openaiTranscribeClient';
 import { transcribeAndSaveAudio } from './audio';
 
@@ -21,7 +22,12 @@ describe('transcribeAndSaveAudio', () => {
   });
 
   type TranscribeMock = MockedFunction<
-    (sessionId: string, chunk: Buffer, options?: OpenAITranscribeOptions) => Promise<OpenAITranscriptionResult>
+    (
+      sessionId: string,
+      chunk: Buffer,
+      options?: OpenAITranscribeOptions,
+      uploadOptions?: UploadFileOptions
+    ) => Promise<OpenAITranscriptionResult>
   >;
 
   function createMockClient() {
@@ -36,7 +42,7 @@ describe('transcribeAndSaveAudio', () => {
     const transcriptionResult: OpenAITranscriptionResult = { text: 'transcribed text' } as OpenAITranscriptionResult;
     mockClient.transcribeStream.mockResolvedValueOnce(transcriptionResult);
 
-    const result = await transcribeAndSaveAudio('session-1', Buffer.from('audio'), 'executor-1', undefined, mockClient);
+    const result = await transcribeAndSaveAudio('session-1', Buffer.from('audio'), 'executor-1', undefined, undefined, mockClient);
 
     expect(result).toBe(transcriptionResult);
     expect(saveTranscriptMock).toHaveBeenCalledWith(
@@ -57,7 +63,7 @@ describe('transcribeAndSaveAudio', () => {
     const payload = { words: ['a', 'b'] };
     mockClient.transcribeStream.mockResolvedValueOnce(payload as OpenAITranscriptionResult);
 
-    await transcribeAndSaveAudio('session-1', Buffer.from('audio'), 'executor-1', undefined, mockClient);
+    await transcribeAndSaveAudio('session-1', Buffer.from('audio'), 'executor-1', undefined, undefined, mockClient);
 
     expect(saveTranscriptMock).toHaveBeenCalledWith(
       'session-1',
@@ -74,7 +80,7 @@ describe('transcribeAndSaveAudio', () => {
     mockClient.transcribeStream.mockResolvedValueOnce({ text: 'text' } as OpenAITranscriptionResult);
     const options: OpenAITranscribeOptions = { model: 'custom-model', response_format: 'verbose_json' };
 
-    await transcribeAndSaveAudio('session-1', Buffer.from('audio'), 'executor-2', options, mockClient);
+    await transcribeAndSaveAudio('session-1', Buffer.from('audio'), 'executor-2', options, undefined, mockClient);
 
     expect(saveTranscriptMock).toHaveBeenCalledWith(
       'session-1',
@@ -93,7 +99,7 @@ describe('transcribeAndSaveAudio', () => {
     mockClient.transcribeStream.mockRejectedValueOnce(failure);
 
     await expect(
-      transcribeAndSaveAudio('session-9', Buffer.from('audio'), 'executor-3', undefined, mockClient)
+      transcribeAndSaveAudio('session-9', Buffer.from('audio'), 'executor-3', undefined, undefined, mockClient)
     ).rejects.toThrow('boom');
 
     expect(saveTranscriptMock).toHaveBeenCalledWith(
@@ -112,12 +118,30 @@ describe('transcribeAndSaveAudio', () => {
     const mockClient = createMockClient();
     mockClient.transcribeStream.mockResolvedValue({ text: 'ok' } as OpenAITranscriptionResult);
 
-    await expect(transcribeAndSaveAudio('   ', Buffer.from('audio'), 'executor-4', undefined, mockClient)).rejects.toThrow(
-      'sessionId is required'
-    );
+    await expect(
+      transcribeAndSaveAudio('   ', Buffer.from('audio'), 'executor-4', undefined, undefined, mockClient)
+    ).rejects.toThrow('sessionId is required');
 
-    await expect(transcribeAndSaveAudio('session-5', Buffer.from(''), 'executor-4', undefined, mockClient)).rejects.toThrow(
-      'audio chunk must be a non-empty Buffer'
+    await expect(
+      transcribeAndSaveAudio('session-5', Buffer.from(''), 'executor-4', undefined, undefined, mockClient)
+    ).rejects.toThrow('audio chunk must be a non-empty Buffer');
+  });
+
+  it('passes upload metadata through to the client', async () => {
+    const mockClient = createMockClient();
+    mockClient.transcribeStream.mockResolvedValueOnce({ text: 'ok' } as OpenAITranscriptionResult);
+    const uploadOptions: UploadFileOptions = {
+      fileName: 'recording.webm',
+      contentType: 'audio/webm'
+    };
+
+    await transcribeAndSaveAudio('session-10', Buffer.from('audio'), 'executor-5', undefined, uploadOptions, mockClient);
+
+    expect(mockClient.transcribeStream).toHaveBeenCalledWith(
+      'session-10',
+      expect.any(Buffer),
+      undefined,
+      uploadOptions
     );
   });
 });
