@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { getClassificationById } from '../services/classificationStorage';
+import { doesTranscriptExist } from '../services/transcriptStorage';
 import {
   assignClassificationToTranscript,
   getClassificationsForTranscripts,
@@ -8,22 +9,19 @@ import {
 
 const router = Router();
 
+const TRANSCRIPT_ID_PATTERN = /^[1-9]\d*$/;
+
 function parseTranscriptId(value: unknown): number | null {
   if (typeof value !== 'string') {
     return null;
   }
 
   const normalized = value.trim();
-  if (!normalized) {
+  if (!normalized || !TRANSCRIPT_ID_PATTERN.test(normalized)) {
     return null;
   }
 
-  const parsed = Number.parseInt(normalized, 10);
-  if (!Number.isFinite(parsed) || parsed <= 0) {
-    return null;
-  }
-
-  return parsed;
+  return Number(normalized);
 }
 
 function parseClassificationId(value: unknown): string | null {
@@ -64,6 +62,10 @@ router.post('/:transcriptId/classifications', (req: Request<{ transcriptId: stri
   const classification = getClassificationById(classificationId);
   if (!classification) {
     return res.status(404).json({ error: 'classification not found' });
+  }
+
+  if (!doesTranscriptExist(transcriptId)) {
+    return res.status(404).json({ error: 'transcript not found' });
   }
 
   try {

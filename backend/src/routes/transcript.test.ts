@@ -229,7 +229,7 @@ describe('transcripts listing route', () => {
 
   it('returns transcripts with pagination metadata when the service succeeds', async () => {
     const rows = [
-      { sessionId: 'session-1', payload: 'hello', metadata: null, receivedAt: '2026-04-01T12:00:00Z' }
+      { id: 2, sessionId: 'session-1', payload: 'hello', metadata: null, receivedAt: '2026-04-01T12:00:00Z' }
     ];
     getLatestTranscriptsMock.mockReturnValue({
       transcripts: rows,
@@ -244,13 +244,14 @@ describe('transcripts listing route', () => {
       .expect(200);
 
     expect(response.body).toEqual({
-      transcripts: rows,
+      transcripts: rows.map((row) => ({ ...row, classifications: [] })),
       page: 1,
       limit: 25,
       total: rows.length,
       hasMore: false
     });
     expect(getLatestTranscriptsMock).toHaveBeenCalledWith({ limit: 25, page: 1 });
+    expect(classificationMock).toHaveBeenCalledWith([rows[0].id]);
   });
 
   it('forwards pagination params to the storage helper', async () => {

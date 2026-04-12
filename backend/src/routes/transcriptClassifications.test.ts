@@ -10,10 +10,14 @@ vi.mock('../services/transcriptClassificationStorage', () => ({
   getClassificationsForTranscripts: vi.fn(),
   removeClassificationFromTranscript: vi.fn()
 }));
+vi.mock('../services/transcriptStorage', () => ({
+  doesTranscriptExist: vi.fn()
+ }));
 
 import { createApp } from '../index';
 import { withAuraBasePath } from '../config/auraPath';
 import { getClassificationById } from '../services/classificationStorage';
+import { doesTranscriptExist } from '../services/transcriptStorage';
 import {
   assignClassificationToTranscript,
   getClassificationsForTranscripts,
@@ -25,6 +29,7 @@ const classificationMock = vi.mocked(getClassificationsForTranscripts);
 const assignMock = vi.mocked(assignClassificationToTranscript);
 const removeMock = vi.mocked(removeClassificationFromTranscript);
 const classificationRecordMock = vi.mocked(getClassificationById);
+const transcriptExistsMock = vi.mocked(doesTranscriptExist);
 
 beforeEach(() => {
   classificationMock.mockReset();
@@ -32,6 +37,8 @@ beforeEach(() => {
   assignMock.mockReset();
   removeMock.mockReset();
   classificationRecordMock.mockReset();
+  transcriptExistsMock.mockReset();
+  transcriptExistsMock.mockReturnValue(true);
 });
 
 describe('transcript classifications route', () => {
@@ -97,6 +104,24 @@ describe('transcript classifications route', () => {
       .expect(404);
 
     expect(assignMock).not.toHaveBeenCalled();
+  });
+
+  it('returns 404 when the transcript is missing', async () => {
+    const classification = { id: 'cat-two', name: 'Second', description: 'desc' };
+    classificationRecordMock.mockReturnValueOnce(classification);
+    transcriptExistsMock.mockReturnValueOnce(false);
+
+    await request(app)
+      .post(withAuraBasePath('/transcripts/3/classifications'))
+      .send({ id: 'cat-two' })
+      .expect(404);
+
+    expect(assignMock).not.toHaveBeenCalled();
+  });
+
+  it('rejects non-numeric transcript ids', async () => {
+    await request(app).get(withAuraBasePath('/transcripts/12abc/classifications')).expect(400);
+    expect(classificationMock).not.toHaveBeenCalled();
   });
 
   it('removes a classification assignment', async () => {
