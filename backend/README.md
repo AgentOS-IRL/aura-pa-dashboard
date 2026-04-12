@@ -9,7 +9,7 @@ cd backend
 npm install
 ```
 
-To exercise the Codex-powered workflows that this service relies on (e.g., `agentHealth` diagnostics and `openaiClient` usage tracking), create a Codex environment for this repo via https://chatgpt.com/codex/cloud/settings/environments. Once the environment exists, `npm run lint` and `npm run test` can reference the same configuration as AgentOS and the helper services.
+To exercise the Codex-powered workflows that this service relies on (e.g., `agentHealth` diagnostics and `CodexClient` usage tracking via `backend/src/services/codexClient.ts`), create a Codex environment for this repo via https://chatgpt.com/codex/cloud/settings/environments. Once the environment exists, `npm run lint` and `npm run test` can reference the same configuration as AgentOS and the helper services.
 
 ## Running the service
 
