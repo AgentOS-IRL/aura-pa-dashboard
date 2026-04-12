@@ -59,3 +59,6 @@ export class OpenAITranscribeClient {
 }
 
 export type { AudioTranscriptionResult as OpenAITranscriptionResult };
+
+export const DEFAULT_TRANSCRIBE_MODEL = DEFAULT_MODEL;
+export const DEFAULT_TRANSCRIBE_RESPONSE_FORMAT = DEFAULT_RESPONSE_FORMAT;

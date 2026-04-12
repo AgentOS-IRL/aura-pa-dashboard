@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import multer from 'multer';
-import { recordAudioChunk } from '../services/audio';
+import { transcribeAndSaveAudio } from '../services/audio';
 import { getAgentHealthEntry, isHealthyStatusValue } from '../services/agentHealth';
 
 const router = Router();
@@ -70,13 +70,12 @@ router.post('/:sessionId/audio', upload.single('audio'), async (req: AudioUpload
   }
 
   try {
-    // Multer stores the blob in memory right next to this route so we never persist sensitive bytes on disk.
-    await recordAudioChunk(sessionId, req.file.buffer);
-    // Always append to agentos/aura/audio/<sessionId> to keep chunks grouped and to rely on the shared TTL cleanup.
+    // Multer keeps the blob in memory so we never persist sensitive bytes on disk before transcribing.
+    await transcribeAndSaveAudio(sessionId, req.file.buffer, executorId);
     return res.sendStatus(201);
   } catch (error) {
-    console.error('Failed to persist audio chunk for session', sessionId, error);
-    return res.status(500).json({ error: 'Unable to save audio chunk' });
+    console.error('Failed to transcribe audio upload for session', sessionId, error);
+    return res.status(500).json({ error: 'Unable to transcribe audio upload' });
   }
 });
 

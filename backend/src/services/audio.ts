@@ -1,27 +1,67 @@
-import { redisClient } from '../config/redis';
+import { type OpenAITranscriptionResult } from './openaiTranscribeClient';
+import {
+  DEFAULT_TRANSCRIBE_MODEL,
+  DEFAULT_TRANSCRIBE_RESPONSE_FORMAT,
+  OpenAITranscribeClient,
+  type OpenAITranscribeOptions
+} from './openaiTranscribeClient';
+import { saveTranscript } from './transcriptStorage';
 
-export const AUDIO_KEY_PREFIX = 'agentos/aura/audio';
-export const AUDIO_TTL_SECONDS = 3 * 24 * 60 * 60; // 3 days in seconds
+const defaultTranscribeClient = new OpenAITranscribeClient();
 
-type RedisWithBuffer = typeof redisClient & {
-  rpushBuffer: (key: string, data: Buffer) => Promise<number>;
-};
-
-const redisWithBuffer = redisClient as RedisWithBuffer;
-
-export async function recordAudioChunk(sessionId: string, chunk: Buffer): Promise<void> {
-  const normalizedSessionId = sessionId?.trim();
-
-  if (!normalizedSessionId) {
-    throw new Error('sessionId is required to persist audio chunks');
+function normalizeSessionId(value: string): string {
+  const trimmed = value?.trim();
+  if (!trimmed) {
+    throw new Error('sessionId is required to persist transcripts');
   }
+  return trimmed;
+}
 
+function normalizeExecutorId(value: string): string {
+  const trimmed = value?.trim();
+  if (!trimmed) {
+    throw new Error('executorId is required to persist transcripts');
+  }
+  return trimmed;
+}
+
+function ensureBuffer(chunk: Buffer): Buffer {
   if (!chunk || chunk.length === 0 || !Buffer.isBuffer(chunk)) {
     throw new Error('audio chunk must be a non-empty Buffer');
   }
+  return chunk;
+}
 
-  const key = `${AUDIO_KEY_PREFIX}/${normalizedSessionId}`;
+function buildBaseMetadata(executorId: string, options?: OpenAITranscribeOptions) {
+  return {
+    source: 'transcribe',
+    executorId,
+    model: options?.model ?? DEFAULT_TRANSCRIBE_MODEL,
+    response_format: options?.response_format ?? DEFAULT_TRANSCRIBE_RESPONSE_FORMAT
+  } as Record<string, unknown>;
+}
 
-  await redisWithBuffer.rpushBuffer(key, chunk);
-  await redisClient.expire(key, AUDIO_TTL_SECONDS);
+export async function transcribeAndSaveAudio(
+  sessionId: string,
+  chunk: Buffer,
+  executorId: string,
+  options?: OpenAITranscribeOptions,
+  client: OpenAITranscribeClient = defaultTranscribeClient
+): Promise<OpenAITranscriptionResult> {
+  const normalizedSessionId = normalizeSessionId(sessionId);
+  const normalizedExecutorId = normalizeExecutorId(executorId);
+  const safeChunk = ensureBuffer(chunk);
+  const metadata = buildBaseMetadata(normalizedExecutorId, options);
+
+  try {
+    const transcription = await client.transcribeStream(normalizedSessionId, safeChunk, options);
+    const payload = transcription.text ?? JSON.stringify(transcription);
+    saveTranscript(normalizedSessionId, payload, metadata);
+    return transcription;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    const errorMetadata = { ...metadata, error: true, message };
+    saveTranscript(normalizedSessionId, '', errorMetadata);
+    throw error;
+  }
 }

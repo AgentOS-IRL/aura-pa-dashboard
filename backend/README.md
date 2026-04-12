@@ -56,41 +56,36 @@ The backend now duplicates the Redis connection and subscribes to the `agentos/s
 
 Point the service at `redis://192.168.8.129:6379` (or any `REDIS_URL`) so the subscriber can connect to AgentOS, and ensure the instance emits messages to `agentos/status`. Since manual verification is not supported, run `npm run lint && npm run test` after deploying or changing this logic to prove the new subscriber compiles and the route stays typed.
 
-## Redis-backed audio capture
+## Audio transcription ingest
 
-The audio route pushes every chunk into a per-session Redis list under the key `agentos/aura/audio/{sessionId}` so the assistant can replay ordered fragments later. Each list expires after 3 days (259200 seconds) so stale recordings are cleaned up automatically.
+The audio ingestion route now streams each `multipart/form-data` upload through the `OpenAITranscribeClient` and persists the resulting text (or an error marker) via `saveTranscript`. Each row records metadata such as `source: "transcribe"`, the executor identifier, and the transcription options so you can understand how the text was produced. Errors still save a row with `payload: ""` and metadata that includes `error: true` and the vendor error message, ensuring the transcript table reflects attempted uploads even when the vendor call fails.
 
 ### Configuration
 
-- `REDIS_HOST` / `REDIS_PORT` (default `192.168.8.129:6379`) configure the target server.
-- `REDIS_PASSWORD` is used when Redis requires authentication.
-- `REDIS_URL` overrides the host/port pair if you prefer a single connection string.
 - `FRONTEND_URL` (default `http://localhost:3000`) sets which origin the Express/CORS middleware exposes via `Access-Control-Allow-Origin`. Override this in production with your dashboard host so only trusted frontends can call `/aura/sessions/{sessionId}/audio`.
 - The Express stack also sets `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: require-corp` so the Aura Assistant dashboard can stay cross-origin isolated for VAD/SharedArrayBuffer usage while still delegating uploads to this API.
-
-Retry logic with exponential backoff keeps the connection resilient, and connection events are logged for visibility.
+- `OPENAI_API_KEY` (required) plus the optional `OPENAI_BASE_URL`, `OPENAI_ORG_ID`, and `OPENAI_PROJECT_ID` variables configure the transcription client described above, so the audio route can reach OpenAI without additional wiring.
 
 ### Upload endpoint
 
 - `POST /aura/sessions/{sessionId}/audio` – accepts `multipart/form-data` uploads and expects a single `audio` field containing the raw blob.
-- The route only keeps blobs in memory; it forwards the Buffer directly to Redis without persisting files on disk.
+- The route keeps the blob in memory, sends it to `OpenAITranscribeClient.transcribeStream`, and saves the transcript response rather than writing audio to Redis.
 - Every request to this route responds with the configured CORS headers so the Next.js client on `FRONTEND_URL` (or `*` in dev) can POST audio without being blocked by the browser.
- 
+
 ### Executor health gating
 
-Every chunk now requires the caller to supply the executor identifier AgentOS publishes via the `agentos/status` channel. Provide it either as the `X-Aura-Executor-Id` request header or the `?executorId=` query parameter so the backend can look up the same value from the in-memory `agentHealth` snapshot before persisting audio. Only the normalized health strings `health`, `healthy`, `green`, `up`, or `ok` are considered healthy; any other value (missing entry or `down`, `critical`, etc.) causes the route to skip Redis, log a warning, and return `409 Conflict` with a clear message rather than persisting bytes.
+Every chunk still requires the caller to supply the executor identifier AgentOS publishes via the `agentos/status` channel. Provide it either as the `X-Aura-Executor-Id` request header or the `?executorId=` query parameter so the backend can look up the same value from the in-memory `agentHealth` snapshot before transcribing. Only the normalized health strings `health`, `healthy`, `green`, `up`, or `ok` are considered healthy; any other value (missing entry or `down`, `critical`, etc.) causes the route to skip transcription, log a warning, and return `409 Conflict` with a clear message rather than calling OpenAI.
 
 Please keep `/aura/health` open as the source of truth for executor readiness—operations teams must ensure AgentOS has published a healthy status for the desired executor before streaming audio chunks to avoid the new guard rejecting uploads.
 
 ### Sample curl
 
 ```bash
-curl -X POST http://localhost:4000/aura/sessions/my-session/audio \\
-  -F \"audio=@/path/to/recording.webm\" \\
-  -H \"Content-Type: multipart/form-data\"
+OPENAI_API_KEY=sk-... \
+  curl -X POST http://localhost:4000/aura/sessions/my-session/audio \
+  -F "audio=@/path/to/recording.webm" \
+  -H "Content-Type: multipart/form-data"
 ```
-
-`REDIS_HOST` / `REDIS_PORT` must point to a valid instance when sending chunks.
 
 ## Transcript persistence
 
