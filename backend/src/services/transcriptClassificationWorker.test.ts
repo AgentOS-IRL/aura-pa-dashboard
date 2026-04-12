@@ -69,10 +69,15 @@ describe('classifyTranscriptWithCodex', () => {
     expect(client.executeStructured).toHaveBeenCalledWith(
       expect.stringContaining('Transcript:'),
       expect.objectContaining({
-        classificationIds: expect.objectContaining({
-          type: 'array',
-          items: { type: 'string' }
-        })
+        type: 'object',
+        properties: expect.objectContaining({
+          classificationIds: expect.objectContaining({
+            type: 'array',
+            items: { type: 'string' }
+          })
+        }),
+        required: ['classificationIds'],
+        additionalProperties: false
       }),
       'TranscriptClassifications',
       'json_schema',

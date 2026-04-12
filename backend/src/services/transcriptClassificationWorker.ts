@@ -39,10 +39,15 @@ export async function classifyTranscriptWithCodex(record: TranscriptRecord, clie
 
   const prompt = buildClassificationPrompt(record, classifications);
   const schema = {
-    classificationIds: {
-      type: 'array',
-      items: { type: 'string' }
-    }
+    type: 'object',
+    properties: {
+      classificationIds: {
+        type: 'array',
+        items: { type: 'string' }
+      }
+    },
+    required: ['classificationIds'],
+    additionalProperties: false
   };
 
   try {
