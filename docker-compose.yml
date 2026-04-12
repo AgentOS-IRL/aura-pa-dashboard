@@ -13,6 +13,8 @@ services:
       NODE_ENV: "production"
       PORT: "3001"
       REDIS_HOST: "host.docker.internal"
+    env_file:
+      - .env
     extra_hosts:
       - "host.docker.internal:host-gateway"
     command: ["node", "backend/server.js"]

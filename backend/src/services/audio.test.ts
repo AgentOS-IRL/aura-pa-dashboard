@@ -36,7 +36,7 @@ describe('transcribeAndSaveAudio', () => {
   it('runs the transcribe client and persists the returned text', async () => {
     const mockClient = createMockClient();
 
-    const result = await transcribeAndSaveAudio('session-1', Buffer.from('audio'), 'executor-1', undefined, mockClient);
+    const result = await transcribeAndSaveAudio('session-1', Buffer.from('audio'), undefined, mockClient);
 
     expect(result.text).toBe('transcribed text');
     expect(saveTranscriptMock).toHaveBeenCalledWith(
@@ -44,7 +44,6 @@ describe('transcribeAndSaveAudio', () => {
       'transcribed text',
       expect.objectContaining({
         source: 'transcribe',
-        executorId: 'executor-1',
         model: DEFAULT_DEEPGRAM_METADATA.model,
         language: DEFAULT_DEEPGRAM_METADATA.language,
         smart_format: DEFAULT_DEEPGRAM_METADATA.smart_format,
@@ -59,14 +58,13 @@ describe('transcribeAndSaveAudio', () => {
     const payload = { words: ['a', 'b'] } as unknown as DeepgramTranscriptionResult;
     mockClient.transcribeStream.mockResolvedValueOnce(payload);
 
-    await transcribeAndSaveAudio('session-1', Buffer.from('audio'), 'executor-1', undefined, mockClient);
+    await transcribeAndSaveAudio('session-1', Buffer.from('audio'), undefined, mockClient);
 
     expect(saveTranscriptMock).toHaveBeenCalledWith(
       'session-1',
       JSON.stringify(payload),
       expect.objectContaining({
-        source: 'transcribe',
-        executorId: 'executor-1'
+        source: 'transcribe'
       })
     );
   });
@@ -75,13 +73,12 @@ describe('transcribeAndSaveAudio', () => {
     const mockClient = createMockClient();
     const options: DeepgramTranscribeOptions = { model: 'custom-model', language: 'es' };
 
-    await transcribeAndSaveAudio('session-1', Buffer.from('audio'), 'executor-2', options, mockClient);
+    await transcribeAndSaveAudio('session-1', Buffer.from('audio'), options, mockClient);
 
     expect(saveTranscriptMock).toHaveBeenCalledWith(
       'session-1',
       'transcribed text',
       expect.objectContaining({
-        executorId: 'executor-2',
         model: 'custom-model',
         language: 'es'
       })
@@ -94,7 +91,7 @@ describe('transcribeAndSaveAudio', () => {
     mockClient.transcribeStream.mockRejectedValueOnce(failure);
 
     await expect(
-      transcribeAndSaveAudio('session-9', Buffer.from('audio'), 'executor-3', undefined, mockClient)
+      transcribeAndSaveAudio('session-9', Buffer.from('audio'), undefined, mockClient)
     ).rejects.toThrow('boom');
 
     expect(saveTranscriptMock).toHaveBeenCalledWith(
@@ -102,7 +99,6 @@ describe('transcribeAndSaveAudio', () => {
       '',
       expect.objectContaining({
         source: 'transcribe',
-        executorId: 'executor-3',
         error: true,
         message: 'boom'
       })
@@ -114,11 +110,11 @@ describe('transcribeAndSaveAudio', () => {
     mockClient.transcribeStream.mockResolvedValue({ text: 'ok', transcript: 'ok', utterances: [], raw: {} });
 
     await expect(
-      transcribeAndSaveAudio('   ', Buffer.from('audio'), 'executor-4', undefined, mockClient)
+      transcribeAndSaveAudio('   ', Buffer.from('audio'), undefined, mockClient)
     ).rejects.toThrow('sessionId is required');
 
     await expect(
-      transcribeAndSaveAudio('session-5', Buffer.from(''), 'executor-4', undefined, mockClient)
+      transcribeAndSaveAudio('session-5', Buffer.from(''), undefined, mockClient)
     ).rejects.toThrow('audio chunk must be a non-empty Buffer');
   });
 });

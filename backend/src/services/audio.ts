@@ -16,14 +16,6 @@ function normalizeSessionId(value: string): string {
   return trimmed;
 }
 
-function normalizeExecutorId(value: string): string {
-  const trimmed = value?.trim();
-  if (!trimmed) {
-    throw new Error('executorId is required to persist transcripts');
-  }
-  return trimmed;
-}
-
 function ensureBuffer(chunk: Buffer): Buffer {
   if (!chunk || chunk.length === 0 || !Buffer.isBuffer(chunk)) {
     throw new Error('audio chunk must be a non-empty Buffer');
@@ -43,10 +35,9 @@ function getTextPayload(transcription: DeepgramTranscriptionResult | string): st
   return JSON.stringify(transcription);
 }
 
-function buildBaseMetadata(executorId: string, options?: DeepgramTranscribeOptions) {
+function buildBaseMetadata(options?: DeepgramTranscribeOptions) {
   return {
     source: 'transcribe',
-    executorId,
     model: options?.model ?? DEFAULT_DEEPGRAM_METADATA.model,
     language: options?.language ?? DEFAULT_DEEPGRAM_METADATA.language,
     smart_format: options?.smart_format ?? DEFAULT_DEEPGRAM_METADATA.smart_format,
@@ -57,14 +48,12 @@ function buildBaseMetadata(executorId: string, options?: DeepgramTranscribeOptio
 export async function transcribeAndSaveAudio(
   sessionId: string,
   chunk: Buffer,
-  executorId: string,
   options?: DeepgramTranscribeOptions,
   client: DeepgramTranscribeClient = defaultTranscribeClient
 ): Promise<DeepgramTranscriptionResult> {
   const normalizedSessionId = normalizeSessionId(sessionId);
-  const normalizedExecutorId = normalizeExecutorId(executorId);
   const safeChunk = ensureBuffer(chunk);
-  const metadata = buildBaseMetadata(normalizedExecutorId, options);
+  const metadata = buildBaseMetadata(options);
 
   try {
     const transcription = await client.transcribeStream(
