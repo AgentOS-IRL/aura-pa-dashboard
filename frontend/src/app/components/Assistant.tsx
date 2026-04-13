@@ -1,7 +1,7 @@
 "use client";
 
 import { useMicVAD, utils } from '@ricky0123/vad-react';
-import { Mic, MicOff, Waves, Trash2 } from 'lucide-react';
+import { Mic, MicOff, Waves, Trash2, Loader2 } from 'lucide-react';
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useSessionContext } from '../context/session';
 import { createSessionId, uploadAudioChunk } from '../lib/audioUpload';
@@ -177,19 +177,30 @@ export default function Assistant() {
                 <div className="flex flex-col items-center justify-center space-y-8 px-6 py-8 sm:px-10 sm:py-10 bg-white/5 dark:bg-slate-800/50 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-xl shadow-slate-900/20 backdrop-blur-sm">
                     {/* Keep the mic circle compact on phones and expand gently on larger screens. */}
                     <div
-                        className={`relative flex items-center justify-center w-32 h-32 sm:w-40 sm:h-40 rounded-full transition-all duration-700 ${vad.userSpeaking
-                            ? 'bg-blue-500 shadow-[0_0_60px_rgba(59,130,246,0.6)] scale-110'
-                            : vad.listening
-                                ? 'bg-indigo-500 shadow-[0_0_30px_rgba(99,102,241,0.3)]'
-                                : 'bg-slate-200 dark:bg-slate-700'
+                        className={`relative flex items-center justify-center w-32 h-32 sm:w-40 sm:h-40 rounded-full transition-all duration-700 ${vad.loading
+                            ? 'bg-gradient-to-br from-blue-600 to-indigo-600 shadow-[0_0_30px_rgba(37,99,235,0.4)]'
+                            : vad.userSpeaking
+                                ? 'bg-blue-500 shadow-[0_0_60px_rgba(59,130,246,0.6)] scale-110'
+                                : vad.listening
+                                    ? 'bg-indigo-500 shadow-[0_0_30px_rgba(99,102,241,0.3)]'
+                                    : 'bg-slate-200 dark:bg-slate-700'
                             }`}
                     >
-                        {vad.userSpeaking ? (
+                        {vad.loading ? (
+                            <Loader2 className="w-16 h-16 sm:w-20 sm:h-20 text-white animate-spin" />
+                        ) : vad.userSpeaking ? (
                             <Waves className="w-16 h-16 sm:w-20 sm:h-20 text-white animate-pulse" />
                         ) : vad.listening ? (
                             <Mic className="w-16 h-16 sm:w-20 sm:h-20 text-white" />
                         ) : (
                             <MicOff className="w-16 h-16 sm:w-20 sm:h-20 text-slate-400" />
+                        )}
+
+                        {vad.loading && (
+                            <>
+                                <div className="absolute inset-0 rounded-full border-4 border-blue-400 animate-ping opacity-40"></div>
+                                <div className="absolute -inset-4 rounded-full border-2 border-indigo-400/30 animate-ping opacity-20 [animation-delay:500ms]"></div>
+                            </>
                         )}
 
                         {vad.userSpeaking && (
@@ -205,16 +216,30 @@ export default function Assistant() {
 
                     <div className="text-center space-y-4">
                         <h2 className="text-2xl md:text-3xl font-bold text-slate-900 dark:text-white">
-                            {vad.userSpeaking ? 'I am listening...' : vad.listening ? 'Awaiting your voice...' : 'Assistant is sleeping'}
+                            {vad.loading ? 'Initializing Assistant...' : vad.userSpeaking ? 'I am listening...' : vad.listening ? 'Awaiting your voice...' : 'Assistant is sleeping'}
                         </h2>
 
                         {/* Full-width on mobile keeps the action easy to tap; shrink to auto on larger viewports. */}
                         <button
                             onClick={toggleListening}
-                            className={`w-full sm:w-auto justify-center px-8 py-3 sm:py-4 rounded-full font-bold text-base md:text-lg leading-6 text-white shadow-lg transition-all active:scale-95 ${vad.listening ? 'bg-red-500 hover:bg-red-600 shadow-red-500/30' : 'bg-blue-600 hover:bg-blue-700 shadow-blue-600/30'
+                            disabled={vad.loading}
+                            className={`w-full sm:w-auto justify-center px-8 py-3 sm:py-4 rounded-full font-bold text-base md:text-lg leading-6 text-white shadow-lg transition-all active:scale-95 ${vad.loading
+                                ? 'bg-slate-400 cursor-not-allowed opacity-70'
+                                : vad.listening
+                                    ? 'bg-red-500 hover:bg-red-600 shadow-red-500/30'
+                                    : 'bg-blue-600 hover:bg-blue-700 shadow-blue-600/30'
                                 }`}
                         >
-                            {vad.listening ? 'Stop Assistant' : 'Wake Assistant'}
+                            {vad.loading ? (
+                                <span className="flex items-center gap-2">
+                                    <Loader2 className="w-5 h-5 animate-spin" />
+                                    Loading Model...
+                                </span>
+                            ) : vad.listening ? (
+                                'Stop Assistant'
+                            ) : (
+                                'Wake Assistant'
+                            )}
                         </button>
 
                         <div className="space-y-1 text-sm text-slate-500 pt-3">
@@ -222,9 +247,11 @@ export default function Assistant() {
                             <p className="font-mono text-slate-900 dark:text-white break-all">
                                 {sessionId ?? 'Tap "Wake Assistant" to start a session'}
                             </p>
-                            <p className="text-xs text-slate-500">Session status: {sessionStatus}</p>
+                            <p className="text-xs text-slate-500">
+                                Session status: {vad.loading ? 'Awaiting VAD initialization...' : sessionStatus}
+                            </p>
                             <p className={`text-xs ${uploadError ? 'text-rose-500' : 'text-slate-500'}`}>
-                                Upload status: {uploadStatus}
+                                Upload status: {vad.loading ? 'Model loading...' : uploadStatus}
                                 {uploadInFlight && ' · Sending...'}
                             </p>
                             {uploadError && <p className="text-xs text-rose-500">Error: {uploadError}</p>}
