@@ -107,16 +107,17 @@ FRONTEND_BUILD_PATH="$SCRIPT_DIR/frontend/$FRONTEND_BUILD_DIR"
 
 log "Starting deploy to $SERVER_USER_HOST:$SERVER_PATH"
 
-log "Building frontend workspace"
-npm run build:frontend
+# Build/test to ensure fresh artifacts
+log "Running build_test to refresh artifacts"
+npm run build_test
 
-log "Building backend workspace"
-cd backend
-npm run build
-cd "$SCRIPT_DIR"
-
+# Check for build artifacts
 if [[ ! -d "$FRONTEND_BUILD_PATH" ]]; then
-  die "Frontend build directory not found at $FRONTEND_BUILD_PATH"
+  die "Frontend build directory not found at $FRONTEND_BUILD_PATH. Run ./build_test.sh first."
+fi
+
+if [[ ! -d "$SCRIPT_DIR/backend/dist" ]]; then
+  die "Backend build directory not found at $SCRIPT_DIR/backend/dist. Run ./build_test.sh first."
 fi
 
 log "Preparing remote directories"

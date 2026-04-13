@@ -18,8 +18,10 @@ The new root-level scripts coordinate the `backend/` and `frontend/` workspaces 
 
 - `npm run dev` starts the backend and frontend dev servers in parallel (`npm run dev:backend` then `npm run dev:frontend`) so the dashboard is fully interactive once both services are ready.
 - `npm run install:all` chains `npm run install:backend` and `npm run install:frontend` to fetch dependencies for both workspaces, or run the latter scripts individually when only one side changes.
-- `npm run build:frontend` runs the production build inside the `frontend/` package, and `npm run test:backend` runs the backend test suite from `backend/`.
-- `npm run deploy` simply executes `./package_deploy.sh`, so the existing deployment helper remains the single source of truth for publishing.
+- `npm run build:all` builds both the backend and frontend workspaces.
+- `npm run test:all` runs the full test suite (linting and unit tests) for both workspaces.
+- `npm run build_test` (or `./build_test.sh`) combines testing and building into a single command, which is required before deployment.
+- `npm run deploy` executes `./package_deploy.sh` to sync the repository and pre-built artifacts to the server.
 
 Because each script `cd`s into `backend/` or `frontend/`, you can rely on this top-level manifest to delegate work without duplicating logic between the child manifests; refer to the individual `backend/` and `frontend/` readmes for additional details about each workspace.
 
@@ -34,7 +36,12 @@ Because each script `cd`s into `backend/` or `frontend/`, you can rely on this t
 
 ## Deploying to Aura
 
-`npm run deploy` simply runs `./package_deploy.sh`, which builds both the frontend and backend workspaces, syncs the repository to the target server over SSH, copies the exported frontend bundle (`frontend/$FRONTEND_BUILD_DIR`, defaulting to `frontend/out`) into `$SERVER_PATH/frontend/$FRONTEND_BUILD_DIR`, and finally restarts the remote `docker compose` stack. Because the app now exports under the `/aura` prefix, the static files that the backend serves live inside the `frontend/$FRONTEND_BUILD_DIR/aura` subdirectory, so keep that structure intact when you sync the build artifacts. The exported directory is produced by `npm run build:frontend` (a Next.js `next build` + `next export` run), and the backend's Express service mounts that same folder via `express.static()` with a SPA fallback, so the dashboard served on port 3006 locally matches what the container exposes.
+Deployment is a two-step process to ensure that only tested and verified code reaches the server:
+
+1.  **Build and Test**: Run `npm run build_test` (or `./build_test.sh`) to lint, test, and build both the frontend and backend workspaces locally.
+2.  **Deploy**: Run `npm run deploy` (which executes `./package_deploy.sh`) to sync the repository and the pre-built artifacts to the target server over SSH, copy the exported frontend bundle (`frontend/$FRONTEND_BUILD_DIR`, defaulting to `frontend/out`) into `$SERVER_PATH/frontend/$FRONTEND_BUILD_DIR`, and finally restart the remote `docker compose` stack.
+
+The `./package_deploy.sh` script verifies that the build artifacts (`frontend/out` and `backend/dist`) exist before proceeding. Because the app now exports under the `/aura` prefix, the static files that the backend serves live inside the `frontend/$FRONTEND_BUILD_DIR/aura` subdirectory, so keep that structure intact when you sync the build artifacts. The exported directory is produced by `npm run build:frontend` (a Next.js `next build` + `next export` run), and the backend's Express service mounts that same folder via `express.static()` with a SPA fallback, so the dashboard served on port 3006 locally matches what the container exposes.
 
 The script requires the following environment variables (set them in the same shell you use for deployment):
 
@@ -47,7 +54,7 @@ The script requires the following environment variables (set them in the same sh
 
 Since both the deploy helper and the backend runtime read `FRONTEND_BUILD_DIR`, export the same value before running `npm run deploy` and also when the backend starts so they agree on where the static files live (for example, `FRONTEND_BUILD_DIR=dist npm run deploy`). Because the helper copies from `$SCRIPT_DIR/frontend/$FRONTEND_BUILD_DIR` to `$SERVER_PATH/frontend/$FRONTEND_BUILD_DIR`, the container receives the exact static build that your backend statically serves.
 
-Because the script builds the frontend and backend locally before syncing, expect `npm run deploy` to take a little longer than `npm run start`, but the remote host always receives the latest artifacts plus the source files that `docker compose` needs to rebuild the image.
+By separating the build and test steps from the deployment logic, the remote host always receives verified artifacts while `docker compose` rebuilds the image from the synced source files.
 
 ## Codex / OpenAI configuration
 
