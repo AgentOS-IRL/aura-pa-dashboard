@@ -83,6 +83,7 @@ interface FetchTranscriptsOptions {
   limit?: number;
   page?: number;
   classificationId?: string;
+  classificationState?: TranscriptClassificationState | 'all';
   signal?: AbortSignal;
 }
 
@@ -100,6 +101,10 @@ export async function fetchTranscripts(options?: FetchTranscriptsOptions): Promi
 
   if (typeof options?.classificationId === "string" && options.classificationId.trim() !== "") {
     params.set("classificationId", options.classificationId.trim());
+  }
+
+  if (options?.classificationState && options.classificationState !== 'all') {
+    params.set("classificationState", options.classificationState);
   }
 
   const query = params.toString();

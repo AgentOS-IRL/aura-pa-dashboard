@@ -5,7 +5,7 @@ import { classifyTranscriptWithCodex } from './transcriptClassificationWorker';
 export type TranscriptClassificationState = 'pending' | 'classified' | 'unclassified';
 
 const DEFAULT_TRANSCRIPT_CLASSIFICATION_STATE: TranscriptClassificationState = 'pending';
-const VALID_TRANSCRIPT_CLASSIFICATION_STATES: TranscriptClassificationState[] = [
+export const VALID_TRANSCRIPT_CLASSIFICATION_STATES: TranscriptClassificationState[] = [
   'pending',
   'classified',
   'unclassified'
@@ -96,6 +96,10 @@ export function createTranscriptStorage(db: Database.Database) {
     `SELECT ${TRANSCRIPT_SELECT_COLUMNS} FROM transcripts ORDER BY received_at DESC, id DESC LIMIT ? OFFSET ?`
   );
   const countAllStmt = db.prepare('SELECT COUNT(*) AS total FROM transcripts');
+  const selectByClassificationStateStmt = db.prepare(
+    `SELECT ${TRANSCRIPT_SELECT_COLUMNS} FROM transcripts WHERE classification_state = ? ORDER BY received_at DESC, id DESC LIMIT ? OFFSET ?`
+  );
+  const countByClassificationStateStmt = db.prepare('SELECT COUNT(*) AS total FROM transcripts WHERE classification_state = ?');
   const deleteAllStmt = db.prepare('DELETE FROM transcripts');
   const selectByIdStmt = db.prepare('SELECT 1 FROM transcripts WHERE id = ?');
   const updateClassificationStateStmt = db.prepare(
@@ -300,6 +304,37 @@ export function createTranscriptStorage(db: Database.Database) {
     };
   }
 
+  function getTranscriptsByClassificationState(
+    state: TranscriptClassificationState,
+    options?: { page?: number; limit?: number }
+  ) {
+    const limit = normalizeLimit(options?.limit);
+    const page = normalizePage(options?.page);
+    const offset = (page - 1) * limit;
+
+    const rows = selectByClassificationStateStmt.all(state, limit, offset) as Array<{
+      id: number;
+      session_id: string;
+      payload: string;
+      metadata: string | null;
+      received_at: string;
+      classification_state: string | null;
+      classification_reason: string | null;
+    }>;
+    const countRow = countByClassificationStateStmt.get(state) as { total: number } | undefined;
+    const total = typeof countRow?.total === 'number' ? countRow.total : 0;
+
+    const transcripts = rows.map((row) => buildTranscriptRecord(row));
+
+    return {
+      transcripts,
+      page,
+      limit,
+      total,
+      hasMore: page * limit < total
+    };
+  }
+
   function getRecentTranscripts(sessionId: string, limit?: number): TranscriptRecord[] {
     return getTranscriptPage(sessionId, { page: DEFAULT_PAGE, limit }).transcripts;
   }
@@ -366,6 +401,7 @@ export function createTranscriptStorage(db: Database.Database) {
     getTranscriptPage,
     getLatestTranscripts,
     getTranscriptsByClassification,
+    getTranscriptsByClassificationState,
     deleteAllTranscripts,
     doesTranscriptExist,
     updateTranscriptClassificationState
@@ -380,6 +416,7 @@ export const {
   getTranscriptPage,
   getLatestTranscripts,
   getTranscriptsByClassification,
+  getTranscriptsByClassificationState,
   deleteAllTranscripts,
   doesTranscriptExist,
   updateTranscriptClassificationState

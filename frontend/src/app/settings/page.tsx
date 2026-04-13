@@ -160,6 +160,9 @@ export default function SettingsPage() {
   const [pendingClassification, setPendingClassification] = useState<Record<number, string>>({});
   const [assignmentState, setAssignmentState] = useState<Record<number, AssignmentEntry>>({});
   const [removalState, setRemovalState] = useState<Record<string, RemovalEntry>>({});
+  const [transcriptFilter, setTranscriptFilter] = useState<'unclassified' | 'all'>('unclassified');
+  const [unclassifiedTotal, setUnclassifiedTotal] = useState(0);
+  const showUnclassifiedOnly = transcriptFilter === 'unclassified';
 
   const loadUsage = useCallback(
     async (options?: { showLoader?: boolean }) => {
@@ -261,6 +264,21 @@ export default function SettingsPage() {
   useEffect(() => {
     void loadClassifications({ showLoader: true });
   }, [loadClassifications]);
+
+  const loadUnclassifiedBadgeCount = useCallback(async () => {
+    try {
+      const badgePayload = await fetchTranscripts({ classificationState: 'unclassified', limit: 1, page: 1 });
+      safeSetState(() => {
+        setUnclassifiedTotal(badgePayload.total);
+      });
+    } catch {
+      // Ignore badge failures; the badge will refresh on the next manual action.
+    }
+  }, [safeSetState]);
+
+  useEffect(() => {
+    void loadUnclassifiedBadgeCount();
+  }, [loadUnclassifiedBadgeCount]);
 
   const handleEditClassification = useCallback((record: ClassificationRecord) => {
     setClassificationForm({
@@ -397,6 +415,7 @@ export default function SettingsPage() {
         const data = await fetchTranscripts({
           limit: TRANSCRIPTS_PAGE_SIZE,
           page: transcriptsCurrentPage,
+          classificationState: showUnclassifiedOnly ? 'unclassified' : 'all',
           signal
         });
         safeSetState(() => {
@@ -406,6 +425,9 @@ export default function SettingsPage() {
             limit: data.limit,
             hasMore: data.hasMore
           });
+          if (showUnclassifiedOnly) {
+            setUnclassifiedTotal(data.total);
+          }
         });
       } catch (err) {
         if (err instanceof Error && err.name === "AbortError") {
@@ -428,7 +450,7 @@ export default function SettingsPage() {
         }
       }
     },
-    [safeSetState, transcriptsCurrentPage, TRANSCRIPTS_PAGE_SIZE]
+    [safeSetState, transcriptsCurrentPage, TRANSCRIPTS_PAGE_SIZE, transcriptFilter, showUnclassifiedOnly]
   );
 
   useEffect(() => {
@@ -439,7 +461,14 @@ export default function SettingsPage() {
 
   const handleTranscriptsRefresh = useCallback(() => {
     setTranscriptsRefreshIndex((prev) => prev + 1);
-  }, []);
+    void loadUnclassifiedBadgeCount();
+  }, [loadUnclassifiedBadgeCount]);
+
+  const handleTranscriptFilterToggle = useCallback(() => {
+    setTranscriptsCurrentPage(1);
+    setTranscriptFilter((prev) => (prev === 'unclassified' ? 'all' : 'unclassified'));
+    void loadUnclassifiedBadgeCount();
+  }, [loadUnclassifiedBadgeCount]);
 
   const updateAssignmentStatus = useCallback((transcriptId: number, updates: Partial<AssignmentEntry>) => {
     setAssignmentState((prev) => {
@@ -540,6 +569,7 @@ export default function SettingsPage() {
         setTranscriptsCurrentPage(1);
         setTranscriptsRefreshIndex((prev) => prev + 1);
       });
+      void loadUnclassifiedBadgeCount();
     } catch (err) {
       setTranscriptsDeleteError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -633,8 +663,18 @@ export default function SettingsPage() {
                     ? "border-transparent bg-slate-900 text-white shadow-lg dark:bg-slate-200 dark:text-slate-900"
                     : "border-slate-200/70 bg-white/90 text-slate-700 hover:border-slate-300 dark:border-slate-800/60 dark:bg-slate-900/70 dark:text-slate-200"
                 }`}
-              >
-                {option.label}
+                >
+                {option.value === "transcripts" ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <span>{option.label}</span>
+                    <span className="inline-flex items-center gap-1 rounded-full border border-rose-200/70 bg-rose-50 px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-rose-700 dark:border-rose-600/60 dark:bg-rose-500/10 dark:text-rose-200">
+                      <AlertCircle className="w-3 h-3" />
+                      <span>{unclassifiedTotal}</span>
+                    </span>
+                  </span>
+                ) : (
+                  option.label
+                )}
               </button>
             );
           })}
@@ -926,6 +966,18 @@ export default function SettingsPage() {
             <div className="flex flex-wrap items-center gap-3">
               <button
                 type="button"
+                onClick={handleTranscriptFilterToggle}
+                disabled={transcriptsLoading || transcriptsDeleting}
+                aria-pressed={showUnclassifiedOnly}
+                className="flex items-center gap-2 rounded-full border border-slate-200/70 bg-white/90 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-300 dark:border-slate-800/60 dark:bg-slate-900/70 dark:text-slate-200 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <AlertCircle
+                  className={`w-4 h-4 ${showUnclassifiedOnly ? 'text-rose-500' : 'text-slate-500'}`}
+                />
+                {showUnclassifiedOnly ? 'Show all transcripts' : 'Show unclassified only'}
+              </button>
+              <button
+                type="button"
                 onClick={handleTranscriptsRefresh}
                 disabled={transcriptsLoading || transcriptsDeleting}
                 className="flex items-center gap-2 rounded-full border border-slate-200/70 bg-white/90 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-300 dark:border-slate-800/60 dark:bg-slate-900/70 dark:text-slate-200 disabled:cursor-not-allowed disabled:opacity-60"
@@ -949,6 +1001,11 @@ export default function SettingsPage() {
                 )}
               </button>
             </div>
+            <p className="text-xs text-slate-500 dark:text-slate-400" aria-live="polite">
+              {showUnclassifiedOnly
+                ? 'Showing unclassified transcripts only.'
+                : 'Showing every transcript entry.'}
+            </p>
           </div>
 
           {(transcriptsError || transcriptsDeleteError || classificationError) && (
@@ -983,9 +1040,13 @@ export default function SettingsPage() {
             </div>
           ) : transcripts.length === 0 && !transcriptsError ? (
             <div className="transcript-alert">
-              <p className="text-base font-semibold">No transcripts yet</p>
+              <p className="text-base font-semibold">
+                {showUnclassifiedOnly ? "No unclassified transcripts" : "No transcripts yet"}
+              </p>
               <p className="text-sm text-slate-500 dark:text-slate-400">
-                Aura has not persisted any transcripts yet. Wake the assistant or refresh in a moment to see newly recorded snippets.
+                {showUnclassifiedOnly
+                  ? 'Every transcript in your history has already been classified. Toggle "Show all transcripts" to browse every saved entry.'
+                  : 'Aura has not persisted any transcripts yet. Wake the assistant or refresh in a moment to see newly recorded snippets.'}
               </p>
             </div>
           ) : (

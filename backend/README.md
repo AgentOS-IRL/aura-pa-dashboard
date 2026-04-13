@@ -144,6 +144,7 @@ When you need to show what Aura previously captured, call one of the read endpoi
 
 - `GET /aura/transcripts` – returns the same paginated payload as above but spans every stored session. Entries are always sorted by newest first (ordered by `receivedAt` desc with `id` as a tie-breaker) so the dashboard can show the most recent activity immediately.
 - The query string accepts the same `page` (default 1) and `limit` (default 25, capped at 100) parameters so the UI can step through older rows.
+- It also supports an optional `classificationState` query parameter (`pending`, `classified`, or `unclassified`). Adding this parameter returns only the rows whose `classification_state` matches the filter (e.g., `?classificationState=unclassified` surfaces the transcripts that the worker explicitly marked as unclassified), and the accompanying `total`/`hasMore` metadata reflects that filtered set.
 - Each entry still includes the originating `sessionId`, `payload`, `metadata`, and `receivedAt` fields so you can correlate a transcript row with an assistant run.
 - Each entry also carries `classificationState` / `classificationReason` so dashboards can surface the new "unclassified" flag and optional reason without following the `transcript_classifications` join table.
 - `total` reflects the count of all matching rows, and `hasMore` becomes `true` whenever additional pages exist across any session.
