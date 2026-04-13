@@ -1,7 +1,5 @@
 import type Database from 'better-sqlite3';
 import { getTranscriptDatabase } from '../config/database';
-import { classifyTranscriptWithCodex } from './transcriptClassificationWorker';
-
 export type TranscriptClassificationState = 'pending' | 'classified' | 'unclassified';
 
 const DEFAULT_TRANSCRIPT_CLASSIFICATION_STATE: TranscriptClassificationState = 'pending';
@@ -84,6 +82,15 @@ export function createTranscriptStorage(db: Database.Database) {
   const TRANSCRIPT_SELECT_COLUMNS_WITH_ALIAS = TRANSCRIPT_SELECT_COLUMNS.split(', ')
     .map((column) => `t.${column}`)
     .join(', ');
+  type TranscriptRow = {
+    id: number;
+    session_id: string;
+    payload: string;
+    metadata: string | null;
+    received_at: string;
+    classification_state: string | null;
+    classification_reason: string | null;
+  };
 
   const insertStmt = db.prepare(
     'INSERT INTO transcripts (session_id, payload, metadata, received_at, classification_state, classification_reason) VALUES (?, ?, ?, ?, ?, ?)'
@@ -101,7 +108,9 @@ export function createTranscriptStorage(db: Database.Database) {
   );
   const countByClassificationStateStmt = db.prepare('SELECT COUNT(*) AS total FROM transcripts WHERE classification_state = ?');
   const deleteAllStmt = db.prepare('DELETE FROM transcripts');
-  const selectByIdStmt = db.prepare('SELECT 1 FROM transcripts WHERE id = ?');
+  const selectTranscriptByIdStmt = db.prepare(
+    `SELECT ${TRANSCRIPT_SELECT_COLUMNS} FROM transcripts WHERE id = ?`
+  );
   const updateClassificationStateStmt = db.prepare(
     'UPDATE transcripts SET classification_state = ?, classification_reason = ? WHERE id = ?'
   );
@@ -119,8 +128,17 @@ export function createTranscriptStorage(db: Database.Database) {
   }
 
   function doesTranscriptExist(transcriptId: number): boolean {
-    const row = selectByIdStmt.get(transcriptId);
+    const row = selectTranscriptByIdStmt.get(transcriptId);
     return row !== undefined;
+  }
+
+  function getTranscriptById(transcriptId: number | string | undefined): TranscriptRecord | null {
+    const normalizedId = normalizeTranscriptId(transcriptId);
+    const row = selectTranscriptByIdStmt.get(normalizedId) as TranscriptRow | undefined;
+    if (!row) {
+      return null;
+    }
+    return buildTranscriptRecord(row);
   }
 
   function deleteTranscript(transcriptId: number | string): number {
@@ -185,15 +203,7 @@ export function createTranscriptStorage(db: Database.Database) {
     return trimmed === '' ? null : trimmed;
   }
 
-  function buildTranscriptRecord(row: {
-    id: number;
-    session_id: string;
-    payload: string;
-    metadata: string | null;
-    received_at: string;
-    classification_state: string | null;
-    classification_reason: string | null;
-  }): TranscriptRecord {
+  function buildTranscriptRecord(row: TranscriptRow): TranscriptRecord {
     return {
       id: row.id,
       sessionId: row.session_id,
@@ -234,10 +244,6 @@ export function createTranscriptStorage(db: Database.Database) {
       classificationReason: null
     };
 
-    void classifyTranscriptWithCodex(record).catch((error) => {
-      console.error('Background transcript classification failed', record.id, error);
-    });
-
     return record;
   }
 
@@ -260,15 +266,7 @@ export function createTranscriptStorage(db: Database.Database) {
     }
 
     const offset = (page - 1) * limit;
-    const rows = selectPageStmt.all(normalizedSessionId, limit, offset) as Array<{
-      id: number;
-      session_id: string;
-      payload: string;
-      metadata: string | null;
-      received_at: string;
-      classification_state: string | null;
-      classification_reason: string | null;
-    }>;
+    const rows = selectPageStmt.all(normalizedSessionId, limit, offset) as TranscriptRow[];
     const countRow = countStmt.get(normalizedSessionId) as { total: number } | undefined;
     const total = typeof countRow?.total === 'number' ? countRow.total : 0;
 
@@ -288,15 +286,7 @@ export function createTranscriptStorage(db: Database.Database) {
     const page = normalizePage(options?.page);
     const offset = (page - 1) * limit;
 
-    const rows = selectLatestStmt.all(limit, offset) as Array<{
-      id: number;
-      session_id: string;
-      payload: string;
-      metadata: string | null;
-      received_at: string;
-      classification_state: string | null;
-      classification_reason: string | null;
-    }>;
+    const rows = selectLatestStmt.all(limit, offset) as TranscriptRow[];
     const countRow = countAllStmt.get() as { total: number } | undefined;
     const total = typeof countRow?.total === 'number' ? countRow.total : 0;
 
@@ -319,15 +309,7 @@ export function createTranscriptStorage(db: Database.Database) {
     const page = normalizePage(options?.page);
     const offset = (page - 1) * limit;
 
-    const rows = selectByClassificationStateStmt.all(state, limit, offset) as Array<{
-      id: number;
-      session_id: string;
-      payload: string;
-      metadata: string | null;
-      received_at: string;
-      classification_state: string | null;
-      classification_reason: string | null;
-    }>;
+    const rows = selectByClassificationStateStmt.all(state, limit, offset) as TranscriptRow[];
     const countRow = countByClassificationStateStmt.get(state) as { total: number } | undefined;
     const total = typeof countRow?.total === 'number' ? countRow.total : 0;
 
@@ -379,15 +361,7 @@ export function createTranscriptStorage(db: Database.Database) {
       `
     );
 
-    const rows = selectByClassificationStmt.all(classificationId, limit, offset) as Array<{
-      id: number;
-      session_id: string;
-      payload: string;
-      metadata: string | null;
-      received_at: string;
-      classification_state: string | null;
-      classification_reason: string | null;
-    }>;
+    const rows = selectByClassificationStmt.all(classificationId, limit, offset) as TranscriptRow[];
     const countRow = countByClassificationStmt.get(classificationId) as { total: number } | undefined;
     const total = typeof countRow?.total === 'number' ? countRow.total : 0;
 
@@ -409,6 +383,7 @@ export function createTranscriptStorage(db: Database.Database) {
     getLatestTranscripts,
     getTranscriptsByClassification,
     getTranscriptsByClassificationState,
+    getTranscriptById,
     deleteAllTranscripts,
     deleteTranscript,
     doesTranscriptExist,
@@ -425,6 +400,7 @@ export const {
   getLatestTranscripts,
   getTranscriptsByClassification,
   getTranscriptsByClassificationState,
+  getTranscriptById,
   deleteAllTranscripts,
   deleteTranscript,
   doesTranscriptExist,

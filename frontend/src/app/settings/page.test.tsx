@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { CodexUsage } from "../lib/usage";
-import { fetchTranscripts } from "../lib/transcripts";
+import { fetchTranscripts, runTranscriptClassification } from "../lib/transcripts";
 import SettingsPage from "./page";
 
 const usageMock: CodexUsage = {
@@ -49,6 +49,7 @@ vi.mock("../lib/classifications", () => ({
 vi.mock("../lib/transcripts");
 
 const fetchTranscriptsMock = vi.mocked(fetchTranscripts);
+const runTranscriptClassificationMock = vi.mocked(runTranscriptClassification);
 
 vi.mock("../lib/transcriptClassifications", () => ({
   saveTranscriptClassification: vi.fn(),
@@ -212,5 +213,83 @@ describe("SettingsPage", () => {
 
     await screen.findByText(/Showing entries 1–25 of 25/);
     expect(nextButton.hasAttribute("disabled")).toBe(true);
+  });
+
+  it("renders the classification update button and refreshes transcripts on click", async () => {
+    const transcripts = [
+      {
+        id: 201,
+        sessionId: "s-1",
+        payload: "await classification",
+        metadata: null,
+        receivedAt: "2026-04-01T12:00:00Z",
+        classificationState: "pending" as const,
+        classificationReason: null,
+        classifications: []
+      }
+    ];
+
+    fetchTranscriptsMock.mockResolvedValue({
+      transcripts,
+      total: 1,
+      limit: 25,
+      hasMore: false
+    });
+
+    let resolveClassification: (() => void) | null = null;
+    const classificationPromise = new Promise<void>((resolve) => {
+      resolveClassification = resolve;
+    });
+    runTranscriptClassificationMock.mockReturnValue(classificationPromise);
+
+    render(<SettingsPage />);
+    fireEvent.click(screen.getByRole("tab", { name: /Transcript history/ }));
+    await screen.findByText("Pending classification");
+
+    const button = await screen.findByRole("button", { name: "Update classification" });
+    const initialFetchCount = fetchTranscriptsMock.mock.calls.length;
+
+    fireEvent.click(button);
+    expect(runTranscriptClassificationMock).toHaveBeenCalledWith(201);
+    await screen.findByText("Updating…");
+    expect(button.disabled).toBe(true);
+
+    resolveClassification?.();
+    await waitFor(() => expect(button.disabled).toBe(false));
+    await waitFor(() => expect(fetchTranscriptsMock.mock.calls.length).toBeGreaterThan(initialFetchCount));
+  });
+
+  it("displays the error message when classification fails and allows retry", async () => {
+    const transcripts = [
+      {
+        id: 202,
+        sessionId: "s-1",
+        payload: "await failure",
+        metadata: null,
+        receivedAt: "2026-04-01T12:00:00Z",
+        classificationState: "pending" as const,
+        classificationReason: null,
+        classifications: []
+      }
+    ];
+
+    fetchTranscriptsMock.mockResolvedValue({
+      transcripts,
+      total: 1,
+      limit: 25,
+      hasMore: false
+    });
+
+    runTranscriptClassificationMock.mockRejectedValue(new Error("worker error"));
+
+    render(<SettingsPage />);
+    fireEvent.click(screen.getByRole("tab", { name: /Transcript history/ }));
+    await screen.findByText("Pending classification");
+
+    const button = await screen.findByRole("button", { name: "Update classification" });
+    fireEvent.click(button);
+
+    await screen.findByText("worker error");
+    expect(button.disabled).toBe(false);
   });
 });

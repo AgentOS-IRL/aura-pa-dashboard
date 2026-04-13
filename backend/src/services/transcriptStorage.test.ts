@@ -1,11 +1,6 @@
 import Database from 'better-sqlite3';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-vi.mock('./transcriptClassificationWorker', () => ({
-  classifyTranscriptWithCodex: vi.fn().mockResolvedValue(undefined)
-}));
-
-import { classifyTranscriptWithCodex } from './transcriptClassificationWorker';
 import { createTranscriptStorage } from './transcriptStorage';
 import { createTranscriptClassificationStorage } from './transcriptClassificationStorage';
 import { createClassificationStorage } from './classificationStorage';
@@ -20,11 +15,6 @@ describe('createTranscriptStorage', () => {
   beforeEach(() => {
     db = new Database(':memory:');
   });
-
-  beforeEach(() => {
-    vi.mocked(classifyTranscriptWithCodex).mockReset().mockResolvedValue(undefined);
-  });
-
   it('creates the transcripts table and persists the values', () => {
     const storage = createTranscriptStorage(db);
 
@@ -43,12 +33,28 @@ describe('createTranscriptStorage', () => {
     expect(saved).toEqual(rows[0]);
   });
 
-  it('kicks off classification for each saved transcript', () => {
+  it('loads saved transcripts by id via getTranscriptById', () => {
     const storage = createTranscriptStorage(db);
 
-    const saved = storage.saveTranscript('session-job', 'payload');
+    const saved = storage.saveTranscript('session-load', 'payload');
 
-    expect(classifyTranscriptWithCodex).toHaveBeenCalledWith(saved);
+    const found = storage.getTranscriptById(saved.id);
+    expect(found).toEqual(saved);
+    const foundByString = storage.getTranscriptById(`${saved.id}`);
+    expect(foundByString).toEqual(saved);
+  });
+
+  it('returns null when no transcript exists for the requested id', () => {
+    const storage = createTranscriptStorage(db);
+
+    expect(storage.getTranscriptById(999)).toBeNull();
+  });
+
+  it('throws for invalid transcript ids', () => {
+    const storage = createTranscriptStorage(db);
+
+    expect(() => storage.getTranscriptById(0)).toThrow('transcriptId must be a positive integer');
+    expect(() => storage.getTranscriptById(undefined)).toThrow('transcriptId is required');
   });
 
   it('supports buffers for payloads and trims session ids', () => {
