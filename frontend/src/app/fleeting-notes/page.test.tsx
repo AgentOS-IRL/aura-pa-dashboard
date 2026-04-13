@@ -20,7 +20,16 @@ describe("FleetingNotesPage", () => {
 
   const mockTranscripts = {
     transcripts: [
-      { id: 1, sessionId: "s1", payload: "Transcript 1", metadata: null, receivedAt: new Date().toISOString(), classifications: [] },
+      {
+        id: 1,
+        sessionId: "s1",
+        payload: "Transcript 1",
+        metadata: null,
+        receivedAt: new Date().toISOString(),
+        classifications: [],
+        classificationState: "pending",
+        classificationReason: null
+      },
     ],
     page: 1,
     limit: 10,

@@ -71,6 +71,8 @@ describe("fetchTranscripts", () => {
       payload: "hello aura",
       metadata: { speaker: "user" },
       receivedAt: "2026-04-01T12:00:00Z",
+      classificationState: "classified",
+      classificationReason: "  note  ",
       classifications: [
         { id: "cat-1", name: "First", description: "desc" }
       ]
@@ -100,6 +102,8 @@ describe("fetchTranscripts", () => {
         payload: "hello aura",
         metadata: { speaker: "user" },
         receivedAt: "2026-04-01T12:00:00Z",
+        classificationState: "classified",
+        classificationReason: "note",
         classifications: [
           { id: "cat-1", name: "First", description: "desc" }
         ]

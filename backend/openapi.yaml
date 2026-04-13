@@ -389,6 +389,17 @@ components:
           type: string
           format: date-time
           description: When the transcript was recorded
+        classificationState:
+          type: string
+          enum:
+            - pending
+            - classified
+            - unclassified
+          description: Current state of the transcript classification workflow
+        classificationReason:
+          type: string
+          nullable: true
+          description: Optional reason provided when the transcript was marked as unclassified
         classifications:
           type: array
           items:
@@ -399,6 +410,7 @@ components:
         - sessionId
         - payload
         - receivedAt
+        - classificationState
     TranscriptPage:
       type: object
       properties:
@@ -431,10 +443,14 @@ components:
             metadata:
               speaker: user
             receivedAt: 2026-04-01T12:00:00Z
+            classificationState: pending
+            classificationReason: null
           - sessionId: session-2
             payload: Welcome back
             metadata: null
             receivedAt: 2026-04-01T12:01:00Z
+            classificationState: pending
+            classificationReason: null
         page: 1
         limit: 25
         total: 2
