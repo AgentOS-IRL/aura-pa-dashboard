@@ -25,9 +25,10 @@ function resolveExecutorId(req: Request): string {
   }
 
   if (Array.isArray(paramValue)) {
-    const first = paramValue.find((value) => typeof value === 'string' && value.trim());
-    if (first) {
-      return first.trim();
+    for (const value of paramValue) {
+      if (typeof value === 'string' && value.trim()) {
+        return value.trim();
+      }
     }
   }
 
