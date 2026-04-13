@@ -14,6 +14,16 @@ function getCodexClient(): CodexClient {
 
 export const NO_VALID_CLASSIFICATIONS_REASON = 'no valid classification IDs returned';
 
+const CLASSIFICATION_STATUSES = ['classified', 'unclassified'] as const;
+type ClassificationStatus = (typeof CLASSIFICATION_STATUSES)[number];
+
+function parseClassificationStatus(value: unknown): ClassificationStatus | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+  return (CLASSIFICATION_STATUSES.includes(value as ClassificationStatus) ? (value as ClassificationStatus) : null);
+}
+
 function buildClassificationPrompt(record: TranscriptRecord, classifications: { id: string; name: string; description: string | null }[]): string {
   const classificationLines = classifications
     .map((classification, index) => {
@@ -89,9 +99,10 @@ export async function classifyTranscriptWithCodex(record: TranscriptRecord, clie
       unclassifiedReason?: unknown;
     } | undefined;
 
-    const classificationStatus = response?.classificationStatus;
-    if (classificationStatus !== 'classified' && classificationStatus !== 'unclassified') {
-      console.error('Unexpected classificationStatus from Codex', record.id, classificationStatus);
+    const rawClassificationStatus = response?.classificationStatus;
+    const classificationStatus = parseClassificationStatus(rawClassificationStatus);
+    if (!classificationStatus) {
+      console.error('Unexpected classificationStatus from Codex', record.id, rawClassificationStatus);
       return;
     }
 
@@ -113,18 +124,14 @@ export async function classifyTranscriptWithCodex(record: TranscriptRecord, clie
     const uniqueIds = Array.from(new Set(normalizedIds));
 
     const validIds = new Set(classifications.map((classification) => classification.id));
-    let assignedCount = 0;
-    for (const classificationId of uniqueIds) {
-      if (!validIds.has(classificationId)) {
-        continue;
-      }
-      assignClassificationToTranscript(record.id, classificationId);
-      assignedCount += 1;
-    }
-
-    if (assignedCount === 0) {
+    const assignedIds = uniqueIds.filter((classificationId) => validIds.has(classificationId));
+    if (assignedIds.length === 0) {
       updateTranscriptClassificationState(record.id, 'unclassified', NO_VALID_CLASSIFICATIONS_REASON);
       return;
+    }
+
+    for (const classificationId of assignedIds) {
+      assignClassificationToTranscript(record.id, classificationId);
     }
 
     updateTranscriptClassificationState(record.id, 'classified', null);
