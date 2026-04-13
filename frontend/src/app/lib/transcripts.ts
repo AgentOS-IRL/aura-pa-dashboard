@@ -62,6 +62,7 @@ export interface TranscriptPageResponse {
 interface FetchTranscriptsOptions {
   limit?: number;
   page?: number;
+  classificationId?: string;
   signal?: AbortSignal;
 }
 
@@ -75,6 +76,10 @@ export async function fetchTranscripts(options?: FetchTranscriptsOptions): Promi
 
   if (typeof options?.page === "number" && Number.isFinite(options.page) && options.page > 0) {
     params.set("page", Math.floor(options.page).toString());
+  }
+
+  if (typeof options?.classificationId === "string" && options.classificationId.trim() !== "") {
+    params.set("classificationId", options.classificationId.trim());
   }
 
   const query = params.toString();

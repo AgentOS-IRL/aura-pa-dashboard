@@ -10,6 +10,13 @@ export interface ClassificationRecord {
   description: string | null;
 }
 
+export interface ClassificationStats {
+  id: string;
+  name: string;
+  description: string | null;
+  count: number;
+}
+
 export interface SaveClassificationInput {
   id: string;
   name: string;
@@ -34,6 +41,18 @@ export async function fetchClassifications(): Promise<ClassificationRecord[]> {
   }
 
   return (await response.json()) as ClassificationRecord[];
+}
+
+export async function fetchClassificationStats(): Promise<ClassificationStats[]> {
+  const url = `${BACKEND_BASE_URL}${CLASSIFICATIONS_PATH}/stats`;
+  const response = await fetch(url, { method: "GET" });
+
+  if (!response.ok) {
+    const message = await toErrorMessage(response);
+    throw new Error(`Failed to fetch classification stats (${message})`);
+  }
+
+  return (await response.json()) as ClassificationStats[];
 }
 
 export async function saveClassification(input: SaveClassificationInput): Promise<ClassificationRecord> {

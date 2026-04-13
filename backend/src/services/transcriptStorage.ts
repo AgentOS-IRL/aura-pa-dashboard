@@ -210,11 +210,67 @@ export function createTranscriptStorage(db: Database.Database) {
     return typeof result.changes === 'number' ? result.changes : 0;
   }
 
+  function getTranscriptsByClassification(
+    classificationId: string,
+    options?: { page?: number; limit?: number }
+  ) {
+    const limit = normalizeLimit(options?.limit);
+    const page = normalizePage(options?.page);
+    const offset = (page - 1) * limit;
+
+    const selectByClassificationStmt = db.prepare(
+      `
+        SELECT t.id, t.session_id, t.payload, t.metadata, t.received_at
+        FROM transcripts t
+        JOIN transcript_classifications tc ON t.id = tc.transcript_id
+        WHERE tc.classification_id = ?
+        ORDER BY t.received_at DESC, t.id DESC
+        LIMIT ? OFFSET ?
+      `
+    );
+
+    const countByClassificationStmt = db.prepare(
+      `
+        SELECT COUNT(*) AS total
+        FROM transcripts t
+        JOIN transcript_classifications tc ON t.id = tc.transcript_id
+        WHERE tc.classification_id = ?
+      `
+    );
+
+    const rows = selectByClassificationStmt.all(classificationId, limit, offset) as Array<{
+      id: number;
+      session_id: string;
+      payload: string;
+      metadata: string | null;
+      received_at: string;
+    }>;
+    const countRow = countByClassificationStmt.get(classificationId) as { total: number } | undefined;
+    const total = typeof countRow?.total === 'number' ? countRow.total : 0;
+
+    const transcripts = rows.map((row) => ({
+      id: row.id,
+      sessionId: row.session_id,
+      payload: row.payload,
+      metadata: parseMetadata(row.metadata),
+      receivedAt: row.received_at
+    }));
+
+    return {
+      transcripts,
+      page,
+      limit,
+      total,
+      hasMore: page * limit < total
+    };
+  }
+
   return {
     saveTranscript,
     getRecentTranscripts,
     getTranscriptPage,
     getLatestTranscripts,
+    getTranscriptsByClassification,
     deleteAllTranscripts,
     doesTranscriptExist
   };
@@ -227,6 +283,7 @@ export const {
   getRecentTranscripts,
   getTranscriptPage,
   getLatestTranscripts,
+  getTranscriptsByClassification,
   deleteAllTranscripts,
   doesTranscriptExist
 } = defaultStorage;

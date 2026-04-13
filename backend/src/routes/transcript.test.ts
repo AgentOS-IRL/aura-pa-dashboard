@@ -6,6 +6,7 @@ vi.mock('../services/transcriptStorage', () => ({
   saveTranscript: vi.fn(),
   getTranscriptPage: vi.fn(),
   getLatestTranscripts: vi.fn(),
+  getTranscriptsByClassification: vi.fn(),
   deleteAllTranscripts: vi.fn()
 }));
 vi.mock('../services/transcriptClassificationStorage', () => ({
@@ -15,6 +16,7 @@ vi.mock('../services/transcriptClassificationStorage', () => ({
 import {
   getTranscriptPage,
   getLatestTranscripts,
+  getTranscriptsByClassification,
   saveTranscript,
   deleteAllTranscripts
 } from '../services/transcriptStorage';
@@ -27,12 +29,14 @@ const app = createApp();
 const saveTranscriptMock = vi.mocked(saveTranscript);
 const getTranscriptPageMock = vi.mocked(getTranscriptPage);
 const getLatestTranscriptsMock = vi.mocked(getLatestTranscripts);
+const getTranscriptsByClassificationMock = vi.mocked(getTranscriptsByClassification);
 const deleteAllTranscriptsMock = vi.mocked(deleteAllTranscripts);
 const classificationMock = vi.mocked(getClassificationsForTranscripts);
 
 beforeEach(() => {
   classificationMock.mockReset();
   classificationMock.mockReturnValue(new Map());
+  getTranscriptsByClassificationMock.mockReset();
 });
 
 describe('transcript route', () => {
@@ -323,6 +327,28 @@ describe('transcripts listing route', () => {
     await request(app)
       .get(withAuraBasePath('/transcripts'))
       .expect(500);
+  });
+
+  it('filters transcripts by classificationId when provided', async () => {
+    const rows = [
+      { id: 10, sessionId: 's1', payload: 'filtered', metadata: null, receivedAt: '2026-04-01T12:00:00Z' }
+    ];
+    getTranscriptsByClassificationMock.mockReturnValue({
+      transcripts: rows,
+      page: 1,
+      limit: 25,
+      total: 1,
+      hasMore: false
+    });
+
+    const response = await request(app)
+      .get(withAuraBasePath('/transcripts'))
+      .query({ classificationId: 'cat-special' })
+      .expect(200);
+
+    expect(response.body.transcripts[0].payload).toBe('filtered');
+    expect(getTranscriptsByClassificationMock).toHaveBeenCalledWith('cat-special', { limit: 25, page: 1 });
+    expect(getLatestTranscriptsMock).not.toHaveBeenCalled();
   });
 
   it('returns 204 when deleting all transcripts succeeds', async () => {

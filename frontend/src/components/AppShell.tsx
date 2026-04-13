@@ -6,6 +6,7 @@ import { stripAuraBasePath } from "../app/lib/auraPath";
 
 const navigationItems = [
   { label: "Home", href: "/" },
+  { label: "Fleeting Notes", href: "/fleeting-notes" },
   { label: "Settings", href: "/settings" },
 ];
 

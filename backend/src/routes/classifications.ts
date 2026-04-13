@@ -4,6 +4,7 @@ import {
   listClassifications,
   saveClassification
 } from '../services/classificationStorage';
+import { getClassificationStats } from '../services/transcriptClassificationStorage';
 
 const router = Router();
 
@@ -50,6 +51,16 @@ router.get('/', (_req: Request, res: Response) => {
   } catch (error) {
     console.error('Unable to list classifications', error);
     return res.status(500).json({ error: 'Unable to list classifications' });
+  }
+});
+
+router.get('/stats', (_req: Request, res: Response) => {
+  try {
+    const stats = getClassificationStats();
+    return res.status(200).json(stats);
+  } catch (error) {
+    console.error('Unable to get classification stats', error);
+    return res.status(500).json({ error: 'Unable to get classification stats' });
   }
 });
 
