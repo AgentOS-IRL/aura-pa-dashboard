@@ -130,5 +130,6 @@ export async function classifyTranscriptWithCodex(record: TranscriptRecord, clie
     updateTranscriptClassificationState(record.id, 'classified', null);
   } catch (error) {
     console.error('Unable to classify transcript with Codex', record.id, error);
+    throw error;
   }
 }
