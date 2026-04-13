@@ -2,7 +2,7 @@ name: Agent Trigger on Reaction
 
 on:
   issue:
-    types: [reaction_added]
+    types: [created]
 
 jobs:
   trigger-agent:
