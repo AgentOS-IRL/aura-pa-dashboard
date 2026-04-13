@@ -42,14 +42,16 @@ function slugifyName(value: string): string {
     .replace(SLUG_TRIM, '');
 }
 
+export const CLASSIFICATIONS_TABLE_SQL = `
+  CREATE TABLE IF NOT EXISTS classifications (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    description TEXT
+  );
+`;
+
 export function createClassificationStorage(db: Database.Database) {
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS classifications (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      description TEXT
-    );
-  `);
+  db.exec(CLASSIFICATIONS_TABLE_SQL);
 
   const upsertStmt = db.prepare(
     'INSERT INTO classifications (id, name, description) VALUES (?, ?, ?) ON CONFLICT(id) DO UPDATE SET name = excluded.name, description = excluded.description'

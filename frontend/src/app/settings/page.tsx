@@ -185,9 +185,8 @@ export default function SettingsPage() {
   const [classificationRequestState, setClassificationRequestState] = useState<Record<number, ClassificationRequestEntry>>({});
   const [assignmentState, setAssignmentState] = useState<Record<number, AssignmentEntry>>({});
   const [removalState, setRemovalState] = useState<Record<string, RemovalEntry>>({});
-  const [transcriptFilter, setTranscriptFilter] = useState<'unclassified' | 'all'>('unclassified');
+  const [showUnclassifiedOnly, setShowUnclassifiedOnly] = useState(true);
   const [unclassifiedTotal, setUnclassifiedTotal] = useState(0);
-  const showUnclassifiedOnly = transcriptFilter === 'unclassified';
 
   const loadUsage = useCallback(
     async (options?: { showLoader?: boolean }) => {
@@ -292,7 +291,7 @@ export default function SettingsPage() {
 
   const loadUnclassifiedBadgeCount = useCallback(async () => {
     try {
-      const badgePayload = await fetchTranscripts({ classificationState: 'unclassified', limit: 1, page: 1 });
+      const badgePayload = await fetchTranscripts({ unclassifiedOnly: true, limit: 1, page: 1 });
       safeSetState(() => {
         setUnclassifiedTotal(badgePayload.total);
       });
@@ -440,7 +439,7 @@ export default function SettingsPage() {
         const data = await fetchTranscripts({
           limit: TRANSCRIPTS_PAGE_SIZE,
           page: transcriptsCurrentPage,
-          classificationState: showUnclassifiedOnly ? 'unclassified' : 'all',
+          ...(showUnclassifiedOnly ? { unclassifiedOnly: true } : {}),
           signal
         });
         safeSetState(() => {
@@ -485,7 +484,7 @@ export default function SettingsPage() {
         }
       }
     },
-    [safeSetState, transcriptsCurrentPage, TRANSCRIPTS_PAGE_SIZE, transcriptFilter, showUnclassifiedOnly]
+    [safeSetState, transcriptsCurrentPage, TRANSCRIPTS_PAGE_SIZE, showUnclassifiedOnly]
   );
 
   useEffect(() => {
@@ -501,7 +500,7 @@ export default function SettingsPage() {
 
   const handleTranscriptFilterToggle = useCallback(() => {
     setTranscriptsCurrentPage(1);
-    setTranscriptFilter((prev) => (prev === 'unclassified' ? 'all' : 'unclassified'));
+    setShowUnclassifiedOnly((prev) => !prev);
     void loadUnclassifiedBadgeCount();
   }, [loadUnclassifiedBadgeCount]);
 
@@ -540,22 +539,28 @@ export default function SettingsPage() {
     try {
       const assignments = await saveTranscriptClassification(transcriptId, classificationId);
       safeSetState(() => {
-        setTranscripts((records) =>
-          records.map((record) =>
-            record.id === transcriptId
-              ? {
-                ...record,
-                classifications: assignments.map((assignment) => ({
-                  id: assignment.classificationId,
-                  name: assignment.name,
-                  description: assignment.description
-                }))
-              }
-              : record
-          )
-        );
         setPendingClassification((prev) => ({ ...prev, [transcriptId]: "" }));
       });
+      if (!showUnclassifiedOnly) {
+        safeSetState(() => {
+          setTranscripts((records) =>
+            records.map((record) =>
+              record.id === transcriptId
+                ? {
+                  ...record,
+                  classifications: assignments.map((assignment) => ({
+                    id: assignment.classificationId,
+                    name: assignment.name,
+                    description: assignment.description
+                  }))
+                }
+                : record
+            )
+          );
+        });
+      } else {
+        void loadTranscripts();
+      }
     } catch (err) {
       updateAssignmentStatus(transcriptId, {
         error: err instanceof Error ? err.message : String(err)
@@ -563,7 +568,7 @@ export default function SettingsPage() {
     } finally {
       updateAssignmentStatus(transcriptId, { loading: false });
     }
-  }, [pendingClassification, updateAssignmentStatus, safeSetState]);
+  }, [pendingClassification, updateAssignmentStatus, safeSetState, showUnclassifiedOnly, loadTranscripts]);
 
   const handleRemoveClassification = useCallback(async (transcriptId: number, classificationId: string) => {
     const key = getRemovalKey(transcriptId, classificationId);
@@ -571,24 +576,28 @@ export default function SettingsPage() {
 
     try {
       await deleteTranscriptClassification(transcriptId, classificationId);
-      safeSetState(() => {
-        setTranscripts((records) =>
-          records.map((record) =>
-            record.id === transcriptId
-              ? {
-                ...record,
-                classifications: record.classifications.filter((entry) => entry.id !== classificationId)
-              }
-              : record
-          )
-        );
-      });
+      if (!showUnclassifiedOnly) {
+        safeSetState(() => {
+          setTranscripts((records) =>
+            records.map((record) =>
+              record.id === transcriptId
+                ? {
+                  ...record,
+                  classifications: record.classifications.filter((entry) => entry.id !== classificationId)
+                }
+                : record
+            )
+          );
+        });
+      } else {
+        void loadTranscripts();
+      }
     } catch (err) {
       updateRemovalStatus(key, { error: err instanceof Error ? err.message : String(err) });
     } finally {
       updateRemovalStatus(key, { loading: false });
     }
-  }, [getRemovalKey, updateRemovalStatus, safeSetState]);
+  }, [getRemovalKey, updateRemovalStatus, safeSetState, showUnclassifiedOnly, loadTranscripts]);
 
   const handleTranscriptClassificationRequest = useCallback(
     async (record: TranscriptRecord) => {

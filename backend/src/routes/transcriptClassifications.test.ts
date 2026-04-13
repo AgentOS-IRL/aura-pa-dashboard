@@ -3,12 +3,29 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import request from 'supertest';
 
 vi.mock('../services/classificationStorage', () => ({
-  getClassificationById: vi.fn()
+  getClassificationById: vi.fn(),
+  CLASSIFICATIONS_TABLE_SQL: `
+    CREATE TABLE IF NOT EXISTS classifications (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      description TEXT
+    );
+  `
 }));
 vi.mock('../services/transcriptClassificationStorage', () => ({
   assignClassificationToTranscript: vi.fn(),
   getClassificationsForTranscripts: vi.fn(),
-  removeClassificationFromTranscript: vi.fn()
+  removeClassificationFromTranscript: vi.fn(),
+  TRANSCRIPT_CLASSIFICATIONS_TABLE_SQL: `
+    CREATE TABLE IF NOT EXISTS transcript_classifications (
+      transcript_id INTEGER NOT NULL,
+      classification_id TEXT NOT NULL,
+      assigned_at TEXT NOT NULL,
+      PRIMARY KEY (transcript_id, classification_id),
+      FOREIGN KEY (transcript_id) REFERENCES transcripts(id) ON DELETE CASCADE,
+      FOREIGN KEY (classification_id) REFERENCES classifications(id) ON DELETE CASCADE
+    );
+  `
 }));
 vi.mock('../services/transcriptStorage', () => ({
   doesTranscriptExist: vi.fn()

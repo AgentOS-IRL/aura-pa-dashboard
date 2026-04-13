@@ -88,6 +88,30 @@ describe("fetchTranscripts", () => {
     });
   });
 
+  it("includes the unclassifiedOnly flag when requested", async () => {
+    const fetchMock = vi.fn(() =>
+      Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({
+          transcripts: [],
+          page: 1,
+          limit: 25,
+          total: 0,
+          hasMore: false
+        })
+      })
+    );
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    await fetchTranscripts({ limit: 5, unclassifiedOnly: true });
+
+    expect(fetchMock).toHaveBeenCalledWith("http://localhost:4000/aura/transcripts?limit=5&unclassifiedOnly=true", {
+      method: "GET",
+      signal: undefined
+    });
+  });
+
   it("omits classificationState when set to 'all'", async () => {
     const fetchMock = vi.fn(() =>
       Promise.resolve({

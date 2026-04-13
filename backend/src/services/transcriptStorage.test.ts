@@ -282,6 +282,50 @@ describe('getTranscriptsByClassificationState', () => {
   });
 });
 
+describe('getTranscriptsWithoutClassifications', () => {
+  beforeEach(() => {
+    db = new Database(':memory:');
+  });
+
+  it('returns only transcripts that lack any classification assignments', () => {
+    const storage = createTranscriptStorage(db);
+    const classificationStorage = createClassificationStorage(db);
+    const mappingStorage = createTranscriptClassificationStorage(db);
+
+    classificationStorage.saveClassification({ id: 'cat-1', name: 'First' });
+
+    storage.saveTranscript('session', 'no labels');
+    const labeled = storage.saveTranscript('session', 'labeled');
+    mappingStorage.assignClassificationToTranscript(labeled.id, 'cat-1');
+
+    const page = storage.getTranscriptsWithoutClassifications({ limit: 10, page: 1 });
+
+    expect(page.total).toBe(1);
+    expect(page.hasMore).toBe(false);
+    expect(page.transcripts).toHaveLength(1);
+    expect(page.transcripts[0].payload).toBe('no labels');
+  });
+
+  it('paginates through unlabeled transcripts and reports hasMore', () => {
+    const storage = createTranscriptStorage(db);
+
+    for (let i = 1; i <= 3; i++) {
+      storage.saveTranscript('session', `chunk-${i}`);
+    }
+
+    const page1 = storage.getTranscriptsWithoutClassifications({ limit: 2, page: 1 });
+    expect(page1.transcripts).toHaveLength(2);
+    expect(page1.total).toBe(3);
+    expect(page1.hasMore).toBe(true);
+    expect(page1.transcripts.map((t) => t.payload)).toEqual(['chunk-3', 'chunk-2']);
+
+    const page2 = storage.getTranscriptsWithoutClassifications({ limit: 2, page: 2 });
+    expect(page2.transcripts).toHaveLength(1);
+    expect(page2.hasMore).toBe(false);
+    expect(page2.transcripts[0].payload).toBe('chunk-1');
+  });
+});
+
 describe('deleteAllTranscripts', () => {
   beforeEach(() => {
     db = new Database(':memory:');

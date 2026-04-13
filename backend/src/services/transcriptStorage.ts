@@ -1,5 +1,7 @@
 import type Database from 'better-sqlite3';
 import { getTranscriptDatabase } from '../config/database';
+import { CLASSIFICATIONS_TABLE_SQL } from './classificationStorage';
+import { TRANSCRIPT_CLASSIFICATIONS_TABLE_SQL } from './transcriptClassificationStorage';
 export type TranscriptClassificationState = 'pending' | 'classified' | 'unclassified';
 
 const DEFAULT_TRANSCRIPT_CLASSIFICATION_STATE: TranscriptClassificationState = 'pending';
@@ -53,10 +55,12 @@ export function createTranscriptStorage(db: Database.Database) {
       payload TEXT NOT NULL,
       metadata TEXT,
       received_at TEXT NOT NULL,
-      classification_state TEXT NOT NULL DEFAULT 'pending',
-      classification_reason TEXT
-    );
+    classification_state TEXT NOT NULL DEFAULT 'pending',
+    classification_reason TEXT
+  );
   `);
+  db.exec(CLASSIFICATIONS_TABLE_SQL);
+  db.exec(TRANSCRIPT_CLASSIFICATIONS_TABLE_SQL);
 
   function hasTranscriptColumn(columnName: string): boolean {
     const rows = db.prepare("PRAGMA table_info('transcripts')").all() as Array<{ name: string }>;
@@ -301,6 +305,48 @@ export function createTranscriptStorage(db: Database.Database) {
     };
   }
 
+  const selectWithoutClassificationsStmt = db.prepare(
+    `
+      SELECT ${TRANSCRIPT_SELECT_COLUMNS_WITH_ALIAS}
+      FROM transcripts t
+      WHERE NOT EXISTS (
+        SELECT 1 FROM transcript_classifications tc WHERE tc.transcript_id = t.id
+      )
+      ORDER BY t.received_at DESC, t.id DESC
+      LIMIT ? OFFSET ?
+    `
+  );
+
+  const countWithoutClassificationsStmt = db.prepare(
+    `
+      SELECT COUNT(*) AS total
+      FROM transcripts t
+      WHERE NOT EXISTS (
+        SELECT 1 FROM transcript_classifications tc WHERE tc.transcript_id = t.id
+      )
+    `
+  );
+
+  function getTranscriptsWithoutClassifications(options?: { page?: number; limit?: number }) {
+    const limit = normalizeLimit(options?.limit);
+    const page = normalizePage(options?.page);
+    const offset = (page - 1) * limit;
+
+    const rows = selectWithoutClassificationsStmt.all(limit, offset) as TranscriptRow[];
+    const countRow = countWithoutClassificationsStmt.get() as { total: number } | undefined;
+    const total = typeof countRow?.total === 'number' ? countRow.total : 0;
+
+    const transcripts = rows.map((row) => buildTranscriptRecord(row));
+
+    return {
+      transcripts,
+      page,
+      limit,
+      total,
+      hasMore: page * limit < total
+    };
+  }
+
   function getTranscriptsByClassificationState(
     state: TranscriptClassificationState,
     options?: { page?: number; limit?: number }
@@ -381,6 +427,7 @@ export function createTranscriptStorage(db: Database.Database) {
     getRecentTranscripts,
     getTranscriptPage,
     getLatestTranscripts,
+    getTranscriptsWithoutClassifications,
     getTranscriptsByClassification,
     getTranscriptsByClassificationState,
     getTranscriptById,
@@ -398,6 +445,7 @@ export const {
   getRecentTranscripts,
   getTranscriptPage,
   getLatestTranscripts,
+  getTranscriptsWithoutClassifications,
   getTranscriptsByClassification,
   getTranscriptsByClassificationState,
   getTranscriptById,
