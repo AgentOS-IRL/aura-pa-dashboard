@@ -117,4 +117,7 @@ body {
   .responsive-card-padding {
     @apply px-4 sm:px-6 lg:px-8;
   }
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
 }
