@@ -593,12 +593,13 @@ export default function SettingsPage() {
       await deleteTranscript(id);
       safeSetState(() => {
         setTranscripts((prev) => prev.filter((t) => t.id !== id));
-        setTranscriptsPaginationMeta((prev) => {
-          const newTotal = Math.max(0, prev.total - 1);
+        setTranscriptsPaginationMeta((current) => {
+          const updatedTotal = Math.max(0, current.total - 1);
           return {
-            ...prev,
-            total: newTotal,
-            hasMore: transcriptsCurrentPage * prev.limit < newTotal
+            ...current,
+            total: updatedTotal,
+            // Recompute hasMore using the updated total count to correctly disable pagination controls.
+            hasMore: transcriptsCurrentPage * current.limit < updatedTotal
           };
         });
       });

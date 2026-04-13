@@ -89,15 +89,12 @@ router.delete('/', (_req, res) => {
 
 router.delete('/:id', (req, res) => {
   const { id } = req.params;
-  if (!/^\d+$/.test(id)) {
+  if (!/^[1-9]\d*$/.test(id)) {
     return res.status(400).json({ error: 'Invalid transcript ID' });
   }
 
   try {
     const transcriptId = parseInt(id, 10);
-    if (transcriptId <= 0) {
-      return res.status(400).json({ error: 'Invalid transcript ID' });
-    }
     deleteTranscript(transcriptId);
     return res.status(204).send();
   } catch (error) {

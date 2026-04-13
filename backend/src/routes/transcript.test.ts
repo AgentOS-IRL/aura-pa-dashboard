@@ -451,6 +451,10 @@ describe('individual transcript deletion', () => {
       .delete(withAuraBasePath('/transcripts/42abc'))
       .expect(400);
 
+    await request(app)
+      .delete(withAuraBasePath('/transcripts/01'))
+      .expect(400);
+
     expect(deleteTranscriptMock).not.toHaveBeenCalled();
   });
 
