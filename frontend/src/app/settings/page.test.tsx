@@ -122,4 +122,45 @@ describe("SettingsPage", () => {
     expect(fetchTranscriptsMock.mock.calls.some((call) => call[0]?.classificationState === "all")).toBe(true);
     screen.getByRole("button", { name: "Show unclassified only" });
   });
+
+  it("renders a delete button for each transcript and calls deleteTranscript", async () => {
+    const transcripts = [
+      {
+        id: 101,
+        sessionId: "s-1",
+        payload: "transcript 1",
+        metadata: null,
+        receivedAt: "2026-04-01T12:00:00Z",
+        classificationState: "unclassified" as const,
+        classificationReason: null,
+        classifications: []
+      }
+    ];
+
+    fetchTranscriptsMock.mockResolvedValue({
+      transcripts,
+      total: 1,
+      limit: 25,
+      hasMore: false
+    });
+
+    const { deleteTranscript } = await import("../lib/transcripts");
+    const deleteTranscriptMock = vi.mocked(deleteTranscript);
+    deleteTranscriptMock.mockResolvedValue(undefined);
+
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+
+    render(<SettingsPage />);
+    fireEvent.click(screen.getByRole("tab", { name: /Transcript history/ }));
+
+    await screen.findByText("transcript 1");
+    const deleteButton = screen.getByTitle("Delete transcript");
+
+    fireEvent.click(deleteButton);
+
+    expect(window.confirm).toHaveBeenCalledWith("Delete this transcript? This action cannot be undone.");
+    expect(deleteTranscriptMock).toHaveBeenCalledWith(101);
+
+    await screen.findByText("No unclassified transcripts");
+  });
 });

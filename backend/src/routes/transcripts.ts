@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import {
   deleteAllTranscripts,
+  deleteTranscript,
   getLatestTranscripts,
   getTranscriptsByClassification,
   getTranscriptsByClassificationState,
@@ -83,6 +84,21 @@ router.delete('/', (_req, res) => {
   } catch (error) {
     console.error('Unable to delete transcripts', error);
     return res.status(500).json({ error: 'Unable to delete transcripts' });
+  }
+});
+
+router.delete('/:id', (req, res) => {
+  const { id } = req.params;
+  try {
+    const transcriptId = parseInt(id, 10);
+    if (isNaN(transcriptId)) {
+      return res.status(400).json({ error: 'Invalid transcript ID' });
+    }
+    deleteTranscript(transcriptId);
+    return res.status(204).send();
+  } catch (error) {
+    console.error('Unable to delete transcript', error);
+    return res.status(500).json({ error: 'Unable to delete transcript' });
   }
 });
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { RefreshCw, Loader2, AlertCircle } from "lucide-react";
+import { RefreshCw, Loader2, AlertCircle, Trash2 } from "lucide-react";
 import {
   FormEvent,
   useCallback,
@@ -18,7 +18,12 @@ import {
 } from "../lib/classifications";
 import { fetchUsage, type CodexUsage, type RateLimitWindow } from "../lib/usage";
 import { deleteTranscriptClassification, saveTranscriptClassification } from "../lib/transcriptClassifications";
-import { deleteAllTranscripts, fetchTranscripts, type TranscriptRecord } from "../lib/transcripts";
+import {
+  deleteAllTranscripts,
+  deleteTranscript,
+  fetchTranscripts,
+  type TranscriptRecord
+} from "../lib/transcripts";
 
 const POLL_INTERVAL_MS = 30_000;
 
@@ -158,6 +163,7 @@ export default function SettingsPage() {
     hasMore: false
   });
   const [pendingClassification, setPendingClassification] = useState<Record<number, string>>({});
+  const [transcriptDeletionState, setTranscriptDeletionState] = useState<Record<number, { loading: boolean; error: string | null }>>({});
   const [assignmentState, setAssignmentState] = useState<Record<number, AssignmentEntry>>({});
   const [removalState, setRemovalState] = useState<Record<string, RemovalEntry>>({});
   const [transcriptFilter, setTranscriptFilter] = useState<'unclassified' | 'all'>('unclassified');
@@ -575,7 +581,39 @@ export default function SettingsPage() {
     } finally {
       setTranscriptsDeleting(false);
     }
-  }, [transcriptsDeleting, safeSetState]);
+  }, [transcriptsDeleting, safeSetState, loadUnclassifiedBadgeCount]);
+
+  const handleDeleteTranscript = useCallback(async (id: number) => {
+    const confirmed = window.confirm("Delete this transcript? This action cannot be undone.");
+    if (!confirmed) return;
+
+    setTranscriptDeletionState((prev) => ({ ...prev, [id]: { loading: true, error: null } }));
+
+    try {
+      await deleteTranscript(id);
+      safeSetState(() => {
+        setTranscripts((prev) => prev.filter((t) => t.id !== id));
+        setTranscriptsPaginationMeta((prev) => ({
+          ...prev,
+          total: Math.max(0, prev.total - 1)
+        }));
+      });
+      void loadUnclassifiedBadgeCount();
+    } catch (err) {
+      setTranscriptDeletionState((prev) => ({
+        ...prev,
+        [id]: { loading: false, error: err instanceof Error ? err.message : String(err) }
+      }));
+    } finally {
+      setTranscriptDeletionState((prev) => {
+        const newState = { ...prev };
+        if (newState[id] && !newState[id].error) {
+          delete newState[id];
+        }
+        return newState;
+      });
+    }
+  }, [safeSetState, loadUnclassifiedBadgeCount]);
 
   const handleTranscriptsPreviousPage = useCallback(() => {
     setTranscriptsCurrentPage((page) => Math.max(1, page - 1));
@@ -1064,9 +1102,31 @@ export default function SettingsPage() {
                     <li key={`${record.sessionId}-${record.receivedAt}-${record.payload}`}>
                       <article className="rounded-2xl border border-slate-200/70 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-950/20 p-5 space-y-4">
                         <header className="flex items-center justify-between gap-3">
-                          <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-                            {formatReceivedAt(record.receivedAt)}
-                          </p>
+                          <div className="flex items-center gap-3">
+                            <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                              {formatReceivedAt(record.receivedAt)}
+                            </p>
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteTranscript(record.id)}
+                                disabled={transcriptDeletionState[record.id]?.loading}
+                                className="p-1 rounded-full text-slate-400 hover:text-rose-600 transition-colors disabled:opacity-50"
+                                title="Delete transcript"
+                              >
+                                {transcriptDeletionState[record.id]?.loading ? (
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                  <Trash2 className="w-4 h-4" />
+                                )}
+                              </button>
+                              {transcriptDeletionState[record.id]?.error && (
+                                <span className="text-rose-600 shrink-0" title={transcriptDeletionState[record.id].error}>
+                                  <AlertCircle className="w-3 h-3" />
+                                </span>
+                              )}
+                            </div>
+                          </div>
                           <span className="text-xs font-mono font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                             {record.sessionId}
                           </span>
