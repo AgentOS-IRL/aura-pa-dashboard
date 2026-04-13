@@ -74,6 +74,7 @@ The audio ingestion route now streams each `multipart/form-data` upload through 
 - `POST /aura/sessions/{sessionId}/audio` – accepts `multipart/form-data` uploads and expects a single `audio` field containing the raw blob.
   - The route keeps the blob in memory, sends it to `DeepgramTranscribeClient.transcribeStream`, and saves the transcript response rather than writing audio to Redis.
   - Requests missing the session ID or the file receive `400`, successes return `201`, and transcription failures return `500`.
+  - When the optional `context` form field is set to `classification-generator`, the backend also asks the LLM to propose or update a single classification (name + description) that matches the transcript. That generator work runs asynchronously, reuses existing classifications when the name already exists, and never blocks the `201` response even if Codex fails—new recordings still follow the original “general” flow otherwise.
 - Every request to this route responds with the configured CORS headers so the Next.js client on `FRONTEND_URL` (or `*` in dev) can POST audio without being blocked by the browser.
 
 ### Sample curl

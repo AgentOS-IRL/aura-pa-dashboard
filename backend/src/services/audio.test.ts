@@ -6,6 +6,10 @@ vi.mock('./transcriptStorage', () => ({
   saveTranscript: (...args: unknown[]) => saveTranscriptMock(...args)
 }));
 
+vi.mock('./classificationGenerator', () => ({
+  generateClassificationFromTranscript: vi.fn()
+}));
+
 import {
   DeepgramTranscribeClient,
   DeepgramTranscribeOptions,
@@ -13,10 +17,29 @@ import {
   DEFAULT_DEEPGRAM_METADATA
 } from './deepgramTranscribeClient';
 import { transcribeAndSaveAudio } from './audio';
+import { generateClassificationFromTranscript } from './classificationGenerator';
+import type { TranscriptRecord } from './transcriptStorage';
+
+const generateClassificationMock = vi.mocked(generateClassificationFromTranscript);
+
+function createMockTranscriptRecord(sessionId = 'session-1'): TranscriptRecord {
+  return {
+    id: 1,
+    sessionId,
+    payload: 'transcribed text',
+    metadata: null,
+    receivedAt: '2026-04-01T00:00:00.000Z',
+    classificationState: 'pending',
+    classificationReason: null
+  };
+}
 
 describe('transcribeAndSaveAudio', () => {
   beforeEach(() => {
     saveTranscriptMock.mockReset();
+    saveTranscriptMock.mockReturnValue(createMockTranscriptRecord('session-1'));
+    generateClassificationMock.mockReset();
+    generateClassificationMock.mockResolvedValue(undefined);
   });
 
   type TranscribeMock = MockedFunction<(
@@ -85,6 +108,7 @@ describe('transcribeAndSaveAudio', () => {
     expect(result.text).toBe('   ');
     expect(mockClient.transcribeStream).toHaveBeenCalledTimes(1);
     expect(saveTranscriptMock).not.toHaveBeenCalled();
+    expect(generateClassificationMock).not.toHaveBeenCalled();
   });
 
   it('falls back to stringifying the full response when text is missing', async () => {
@@ -150,5 +174,55 @@ describe('transcribeAndSaveAudio', () => {
     await expect(
       transcribeAndSaveAudio('session-5', Buffer.from(''), undefined, undefined, mockClient)
     ).rejects.toThrow('audio chunk must be a non-empty Buffer');
+  });
+
+  it('runs classification generator only when context is classification-generator', async () => {
+    const mockClient = createMockClient();
+
+    await transcribeAndSaveAudio(
+      'session-1',
+      Buffer.from('audio'),
+      'classification-generator',
+      undefined,
+      mockClient
+    );
+
+    expect(generateClassificationMock).toHaveBeenCalledWith(
+      expect.objectContaining({ sessionId: 'session-1' }),
+      'classification-generator'
+    );
+  });
+
+  it('skips classification generator when context is general', async () => {
+    const mockClient = createMockClient();
+
+    await transcribeAndSaveAudio('session-1', Buffer.from('audio'), 'general', undefined, mockClient);
+
+    expect(generateClassificationMock).not.toHaveBeenCalled();
+  });
+
+  it('logs classification generator failures without rejecting the upload', async () => {
+    const mockClient = createMockClient();
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    generateClassificationMock.mockRejectedValueOnce(new Error('boom'));
+
+    await transcribeAndSaveAudio(
+      'session-1',
+      Buffer.from('audio'),
+      'classification-generator',
+      undefined,
+      mockClient
+    );
+
+    await Promise.resolve();
+    await new Promise((resolve) => setImmediate(resolve));
+
+    expect(generateClassificationMock).toHaveBeenCalled();
+    expect(consoleSpy).toHaveBeenCalledWith(
+      'Classification generator failed during upload for session',
+      'session-1',
+      expect.any(Error)
+    );
+    consoleSpy.mockRestore();
   });
 });

@@ -103,6 +103,22 @@ export function createClassificationStorage(db: Database.Database) {
     return rows;
   }
 
+  function findClassificationByNormalizedName(name: string): ClassificationRecord | null {
+    const normalized = normalizeClassificationName(name);
+    if (!normalized) {
+      return null;
+    }
+
+    const match = listClassifications().find(
+      (entry) => normalizeClassificationName(entry.name) === normalized
+    );
+    return match ?? null;
+  }
+
+  function normalizeClassificationName(value: string | undefined | null): string {
+    return value?.trim().toLowerCase() ?? '';
+  }
+
   function deleteAllClassifications(): number {
     const result = deleteAllStmt.run();
     return typeof result.changes === 'number' ? result.changes : 0;
@@ -118,6 +134,7 @@ export function createClassificationStorage(db: Database.Database) {
     saveClassification,
     getClassificationById,
     listClassifications,
+    findClassificationByNormalizedName,
     deleteAllClassifications,
     deleteClassificationById
   };
@@ -129,6 +146,7 @@ export const {
   saveClassification,
   getClassificationById,
   listClassifications,
+  findClassificationByNormalizedName,
   deleteAllClassifications,
   deleteClassificationById
 } = defaultStorage;
