@@ -6,6 +6,7 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { useSessionContext } from '../context/session';
 import { createSessionId, uploadAudioChunk } from '../lib/audioUpload';
 import { AURA_BASE_PATH } from '../lib/auraPath';
+import ContextModeSelector, { type ContextOption } from './ContextModeSelector';
 
 interface AudioSegment {
     id: string;
@@ -14,6 +15,19 @@ interface AudioSegment {
 }
 
 const RETRY_DELAY_MS = 2000;
+
+const CONTEXT_OPTIONS: ContextOption[] = [
+    {
+        id: 'general',
+        label: 'General',
+        description: 'Default open conversation mode for all-purpose prompts.',
+    },
+    {
+        id: 'classification-generator',
+        label: 'Classification Generator',
+        description: 'Focuses on targeted classification tasks.',
+    },
+];
 
 export default function Assistant() {
     const [segments, setSegments] = useState<AudioSegment[]>([]);
@@ -26,6 +40,9 @@ export default function Assistant() {
     const uploadQueueRef = useRef<ArrayBuffer[]>([]);
     const processingRef = useRef(false);
     const { sessionId, setSessionId } = useSessionContext();
+    const [selectedContext, setSelectedContext] = useState<ContextOption['id']>(CONTEXT_OPTIONS[0].id);
+    // UI-only context selector; General stays pre-selected unless the user selects Classification Generator.
+    const activeContext = CONTEXT_OPTIONS.find((option) => option.id === selectedContext) ?? CONTEXT_OPTIONS[0];
 
     useEffect(() => {
         sessionIdRef.current = sessionId;
@@ -173,6 +190,12 @@ export default function Assistant() {
                         )}
                     </div>
 
+                    <ContextModeSelector
+                        options={CONTEXT_OPTIONS}
+                        selectedId={selectedContext}
+                        onSelect={setSelectedContext}
+                    />
+
                     <div className="text-center space-y-4">
                         <h2 className="text-2xl md:text-3xl font-bold text-slate-900 dark:text-white">
                             {vad.userSpeaking ? 'I am listening...' : vad.listening ? 'Awaiting your voice...' : 'Assistant is sleeping'}
@@ -198,6 +221,11 @@ export default function Assistant() {
                                 {uploadInFlight && ' · Sending...'}
                             </p>
                             {uploadError && <p className="text-xs text-rose-500">Error: {uploadError}</p>}
+                            <p className="text-xs uppercase tracking-wide text-slate-400">Conversation context</p>
+                            <p className="text-sm font-semibold text-slate-900 dark:text-white">{activeContext.label}</p>
+                            {activeContext.description && (
+                                <p className="text-xs text-slate-500">{activeContext.description}</p>
+                            )}
                         </div>
                     </div>
                 </div>
