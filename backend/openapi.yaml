@@ -56,18 +56,6 @@ paths:
           required: true
           schema:
             type: string
-        - name: executorId
-          in: query
-          required: false
-          description: Identifier AgentOS publishes on `agentos/status` (required if the `X-Aura-Executor-Id` header is absent)
-          schema:
-            type: string
-        - name: X-Aura-Executor-Id
-          in: header
-          required: false
-          description: Executor identifier that matches the `executorId` query parameter (either value is required)
-          schema:
-            type: string
       requestBody:
         required: true
         content:
@@ -86,8 +74,6 @@ paths:
           description: Chunk accepted and stored in Redis
         '400':
           description: Missing sessionId or audio payload
-        '409':
-          description: Executor is missing or reports an unhealthy status so audio was not persisted
         '500':
           description: Backend failed to persist the audio chunk
   /sessions/{sessionId}/transcript:
