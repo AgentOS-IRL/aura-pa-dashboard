@@ -97,6 +97,7 @@ Transcripts are now ingested through a dedicated HTTP endpoint instead of the re
 
 - `TRANSCRIPT_DB_PATH` controls where the SQLite file lives (default: `backend/data/transcripts.db`). The helper under `backend/src/config/database.ts` creates the parent directory automatically, so only ensure the directory is writable. `backend/data/.gitkeep` keeps the directory tracked even though `*.db*` files are ignored.
 - Save operations still use the `transcripts` table with `session_id`, `payload`, optional JSON `metadata`, and the ISO `received_at` timestamp so you can audit when each chunk arrived.
+- The table now also exposes `classification_state` (one of `pending`, `classified`, or `unclassified`) with a companion `classification_reason` column so every transcript row records the worker's latest verdict even when no labels attach to the `transcript_classifications` join table.
 
 Inspect the SQLite file with standard tools (e.g., `sqlite3 backend/data/transcripts.db`) or point `TRANSCRIPT_DB_PATH` elsewhere in production before retrieving historical transcripts.
 
@@ -115,8 +116,9 @@ Inspect the SQLite file with standard tools (e.g., `sqlite3 backend/data/transcr
 
 ## Automated transcript classification
 
-- After every transcript row is saved, the background worker at `backend/src/services/transcriptClassificationWorker.ts` enumerates the entries in the `classifications` table, builds a prompt that lists each identifier/name/description, and calls the `CodexClient.executeStructured` helper with a `{ classificationIds: string[] }` schema so Codex returns the matching IDs.
-- The worker deduplicates, trims, and filters the returned classification IDs before calling `assignClassificationToTranscript`, so the SQLite join table always reflects the latest labels without blocking the original ingestion flow.
+- After every transcript row is saved, the background worker at `backend/src/services/transcriptClassificationWorker.ts` enumerates the entries in the `classifications` table, builds a prompt that lists each identifier/name/description, and calls the `CodexClient.executeStructured` helper with a schema that now expects `classificationStatus` plus either `classificationIds` or `unclassifiedReason` so Codex can explicitly signal when nothing matches.
+- When Codex returns `classificationStatus: "classified"`, the worker deduplicates, trims, and filters the returned classification IDs before clearing any previous assignments, calling `assignClassificationToTranscript`, and updating `classification_state` on the transcript row to `classified` (clearing any prior `classification_reason`).
+- When Codex says `classificationStatus: "unclassified"`, the worker clears that transcript's labels, leaves the `transcript_classifications` join table untouched for this row, and writes `classification_state = 'unclassified'` plus the optional `classification_reason` so consumers can tell the difference between "not yet evaluated" and "intentionally unclassified" rows.
 - Classification only runs when the payload contains text and when at least one classification exists; any failures (missing auth, network errors, schema parse issues, etc.) are logged (`Unable to classify transcript with Codex` / `Background transcript classification failed`) but never stop the transcript from being saved.
 - This automation relies on the Codex credentials stored at `~/.codex/auth.json` (or whatever path you set via `CODEX_AUTH_PATH`), so provision that file before running the service so the worker can authenticate. Adjust the Codex model or prompt by editing `backend/src/services/codexClient.ts` or the worker itself.
 
@@ -134,6 +136,8 @@ When you need to show what Aura previously captured, call one of the read endpoi
   - `payload` (string) – the text that was captured for that chunk.
   - `metadata` (object|null) – any context stored at ingest time (e.g., speaker, source). If no metadata was saved, this field is `null`.
   - `receivedAt` (string) – ISO timestamp describing when the row was stored.
+  - `classificationState` (string) – `pending`, `classified`, or `unclassified`, describing how the worker evaluated the transcript.
+  - `classificationReason` (string|null) – optional explanation provided when Codex marked the row as `unclassified`.
 - The route returns `200` with the records on success, `400` for missing session IDs or malformed query params, and `500` if the storage layer throws.
 
 ### Global transcript history
@@ -141,6 +145,7 @@ When you need to show what Aura previously captured, call one of the read endpoi
 - `GET /aura/transcripts` – returns the same paginated payload as above but spans every stored session. Entries are always sorted by newest first (ordered by `receivedAt` desc with `id` as a tie-breaker) so the dashboard can show the most recent activity immediately.
 - The query string accepts the same `page` (default 1) and `limit` (default 25, capped at 100) parameters so the UI can step through older rows.
 - Each entry still includes the originating `sessionId`, `payload`, `metadata`, and `receivedAt` fields so you can correlate a transcript row with an assistant run.
+- Each entry also carries `classificationState` / `classificationReason` so dashboards can surface the new "unclassified" flag and optional reason without following the `transcript_classifications` join table.
 - `total` reflects the count of all matching rows, and `hasMore` becomes `true` whenever additional pages exist across any session.
 - The route returns `200` with results, `400` when pagination parameters are invalid, and `500` when the storage helper throws.
 
@@ -172,7 +177,9 @@ The response looks like:
       "metadata": {
         "source": "web"
       },
-      "receivedAt": "2026-04-01T12:00:00Z"
+      "receivedAt": "2026-04-01T12:00:00Z",
+      "classificationState": "pending",
+      "classificationReason": null
     }
   ],
   "page": 1,

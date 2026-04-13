@@ -1,6 +1,7 @@
 import { CodexClient } from './codexClient';
+import { updateTranscriptClassificationState } from './transcriptStorage';
 import type { TranscriptRecord } from './transcriptStorage';
-import { assignClassificationToTranscript } from './transcriptClassificationStorage';
+import { assignClassificationToTranscript, clearClassificationsForTranscript } from './transcriptClassificationStorage';
 import { listClassifications } from './classificationStorage';
 
 let cachedCodexClient: CodexClient | null = null;
@@ -21,7 +22,10 @@ function buildClassificationPrompt(record: TranscriptRecord, classifications: { 
 
   return (
     'Classify the transcript below by selecting the most appropriate classifications from the list.\n' +
-    'Only respond with the JSON specified by the schema. Do not include any prose before or after the JSON.\n\n' +
+    'Return only the JSON that matches the schema. Do not include any prose before or after the JSON.\n' +
+    'Every response should include "classificationStatus" with either "classified" or "unclassified".\n' +
+    'When the best match is one or more catalog entries, set "classificationStatus" to "classified" and include "classificationIds".\n' +
+    'When nothing fits, set "classificationStatus" to "unclassified" and you may optionally provide "unclassifiedReason" to explain why.\n\n' +
     `Classifications:\n${classificationLines}\n\n` +
     `Transcript:\n${record.payload.trim()}`
   );
@@ -41,13 +45,31 @@ export async function classifyTranscriptWithCodex(record: TranscriptRecord, clie
   const schema = {
     type: 'object',
     properties: {
+      classificationStatus: {
+        type: 'string',
+        enum: ['classified', 'unclassified']
+      },
       classificationIds: {
         type: 'array',
         items: { type: 'string' }
+      },
+      unclassifiedReason: {
+        type: 'string'
       }
     },
-    required: ['classificationIds'],
-    additionalProperties: false
+    required: ['classificationStatus'],
+    additionalProperties: false,
+    allOf: [
+      {
+        if: { properties: { classificationStatus: { const: 'classified' } } },
+        then: {
+          required: ['classificationIds'],
+          properties: {
+            unclassifiedReason: false
+          }
+        }
+      }
+    ]
   };
 
   try {
@@ -59,7 +81,24 @@ export async function classifyTranscriptWithCodex(record: TranscriptRecord, clie
       undefined,
       false,
       true
-    )) as { classificationIds?: unknown[] } | undefined;
+    )) as {
+      classificationStatus?: unknown;
+      classificationIds?: unknown[];
+      unclassifiedReason?: unknown;
+    } | undefined;
+
+    const classificationStatus = response?.classificationStatus === 'unclassified' ? 'unclassified' : 'classified';
+
+    clearClassificationsForTranscript(record.id);
+
+    if (classificationStatus === 'unclassified') {
+      const reason =
+        typeof response?.unclassifiedReason === 'string'
+          ? response.unclassifiedReason.trim() || null
+          : null;
+      updateTranscriptClassificationState(record.id, 'unclassified', reason);
+      return;
+    }
 
     const returnedIds = Array.isArray(response?.classificationIds) ? response.classificationIds : [];
     const normalizedIds = returnedIds
@@ -74,6 +113,8 @@ export async function classifyTranscriptWithCodex(record: TranscriptRecord, clie
       }
       assignClassificationToTranscript(record.id, classificationId);
     }
+
+    updateTranscriptClassificationState(record.id, 'classified', null);
   } catch (error) {
     console.error('Unable to classify transcript with Codex', record.id, error);
   }

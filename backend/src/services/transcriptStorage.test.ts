@@ -63,6 +63,27 @@ describe('createTranscriptStorage', () => {
     expect(rows[0].metadata).toBeNull();
   });
 
+  it('tracks classification state and honors the update helper', () => {
+    const storage = createTranscriptStorage(db);
+
+    const saved = storage.saveTranscript('session-state', 'payload');
+
+    expect(saved.classificationState).toBe('pending');
+    expect(saved.classificationReason).toBeNull();
+
+    storage.updateTranscriptClassificationState(saved.id, 'unclassified', '  no match  ');
+
+    const unclassified = storage.getRecentTranscripts('session-state')[0];
+    expect(unclassified.classificationState).toBe('unclassified');
+    expect(unclassified.classificationReason).toBe('no match');
+
+    storage.updateTranscriptClassificationState(saved.id, 'classified', null);
+
+    const classified = storage.getRecentTranscripts('session-state')[0];
+    expect(classified.classificationState).toBe('classified');
+    expect(classified.classificationReason).toBeNull();
+  });
+
   it('returns paginated transcripts with totals and hasMore metadata', () => {
     const storage = createTranscriptStorage(db);
     const sessionId = 'session-paging';

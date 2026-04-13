@@ -42,12 +42,32 @@ const normalizeClassifications = (value: unknown): ClassificationRecord[] => {
     .filter((entry): entry is ClassificationRecord => entry !== null);
 };
 
+const classificationStateValues = ['pending', 'classified', 'unclassified'] as const;
+export type TranscriptClassificationState = (typeof classificationStateValues)[number];
+
+const normalizeClassificationState = (value: unknown): TranscriptClassificationState => {
+  if (typeof value === 'string' && classificationStateValues.includes(value as TranscriptClassificationState)) {
+    return value as TranscriptClassificationState;
+  }
+  return 'pending';
+};
+
+const normalizeClassificationReason = (value: unknown): string | null => {
+  if (typeof value !== 'string') {
+    return null;
+  }
+  const trimmed = value.trim();
+  return trimmed === '' ? null : trimmed;
+};
+
 export interface TranscriptRecord {
   id: number;
   sessionId: string;
   payload: string;
   metadata: Record<string, unknown> | null;
   receivedAt: string;
+  classificationState: TranscriptClassificationState;
+  classificationReason: string | null;
   classifications: ClassificationRecord[];
 }
 
@@ -116,6 +136,8 @@ export async function fetchTranscripts(options?: FetchTranscriptsOptions): Promi
       payload: payloadValue,
       metadata: normalizeMetadata(record.metadata),
       receivedAt,
+      classificationState: normalizeClassificationState(record.classificationState),
+      classificationReason: normalizeClassificationReason(record.classificationReason),
       classifications: normalizeClassifications(record.classifications)
     };
   });
