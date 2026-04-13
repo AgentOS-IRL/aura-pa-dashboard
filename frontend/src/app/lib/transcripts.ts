@@ -188,3 +188,13 @@ export async function deleteAllTranscripts(): Promise<void> {
     throw new Error(`Failed to delete transcripts (${response.status}): ${message}`);
   }
 }
+
+export async function runTranscriptClassification(transcriptId: number): Promise<void> {
+  const url = `${BACKEND_BASE_URL}${BACKEND_PATH_PREFIX}/transcripts/${transcriptId}/classify`;
+  const response = await fetch(url, { method: 'POST' });
+
+  if (!response.ok) {
+    const message = await response.text().catch(() => response.statusText);
+    throw new Error(`Failed to run classification for transcript ${transcriptId} (${response.status}): ${message}`);
+  }
+}

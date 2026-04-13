@@ -5,11 +5,13 @@ import {
   getLatestTranscripts,
   getTranscriptsByClassification,
   getTranscriptsByClassificationState,
+  getTranscriptById,
   TranscriptClassificationState,
   VALID_TRANSCRIPT_CLASSIFICATION_STATES
 } from '../services/transcriptStorage';
 import { normalizeLimitParam, normalizePageParam } from './pagination';
 import { attachTranscriptClassifications } from './transcriptPageHelpers';
+import { classifyTranscriptWithCodex } from '../services/transcriptClassificationWorker';
 
 const router = Router();
 
@@ -103,6 +105,31 @@ router.delete('/:id', (req, res) => {
   } catch (error) {
     console.error('Unable to delete transcript', error);
     return res.status(500).json({ error: 'Unable to delete transcript' });
+  }
+});
+
+router.post('/:id/classify', async (req, res) => {
+  const { id } = req.params;
+  if (!/^\d+$/.test(id)) {
+    return res.status(400).json({ error: 'Invalid transcript ID' });
+  }
+
+  const transcriptId = parseInt(id, 10);
+  if (transcriptId <= 0) {
+    return res.status(400).json({ error: 'Invalid transcript ID' });
+  }
+
+  try {
+    const record = getTranscriptById(transcriptId);
+    if (!record) {
+      return res.status(404).json({ error: 'Transcript not found' });
+    }
+
+    await classifyTranscriptWithCodex(record);
+    return res.status(204).send();
+  } catch (error) {
+    console.error('Unable to classify transcript', transcriptId, error);
+    return res.status(500).json({ error: 'Unable to classify transcript' });
   }
 });
 

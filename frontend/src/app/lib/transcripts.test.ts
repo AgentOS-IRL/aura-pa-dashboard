@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { deleteAllTranscripts, fetchTranscripts } from "./transcripts";
+import { deleteAllTranscripts, fetchTranscripts, runTranscriptClassification } from "./transcripts";
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -204,5 +204,40 @@ describe("deleteAllTranscripts", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     await expect(deleteAllTranscripts()).rejects.toThrow("Failed to delete transcripts (500)");
+  });
+});
+
+describe("runTranscriptClassification", () => {
+  it("posts to the backend and resolves on success", async () => {
+    const fetchMock = vi.fn(() =>
+      Promise.resolve({
+        ok: true,
+        status: 204
+      }),
+    );
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(runTranscriptClassification(12)).resolves.toBeUndefined();
+    expect(fetchMock).toHaveBeenCalledWith("http://localhost:4000/aura/transcripts/12/classify", {
+      method: "POST"
+    });
+  });
+
+  it("throws when the classification endpoint fails", async () => {
+    const fetchMock = vi.fn(() =>
+      Promise.resolve({
+        ok: false,
+        status: 500,
+        statusText: "Bad classification",
+        text: () => Promise.resolve("worker error")
+      }),
+    );
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(runTranscriptClassification(7)).rejects.toThrow(
+      "Failed to run classification for transcript 7 (500): worker error"
+    );
   });
 });

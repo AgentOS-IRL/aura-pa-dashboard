@@ -22,6 +22,8 @@ import {
   deleteAllTranscripts,
   deleteTranscript,
   fetchTranscripts,
+  runTranscriptClassification,
+  type TranscriptClassificationState,
   type TranscriptRecord
 } from "../lib/transcripts";
 
@@ -78,6 +80,21 @@ const SLUG_PREVIEW_INVALID_CHARS = /[^a-z0-9-]/g;
 const SLUG_PREVIEW_SEQUENCE = /-+/g;
 const SLUG_PREVIEW_TRIM = /^-+|-+$/g;
 
+const classificationStateMeta: Record<TranscriptClassificationState, { label: string; classes: string }> = {
+  pending: {
+    label: "Pending classification",
+    classes: "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-600 dark:bg-amber-500/10 dark:text-amber-200"
+  },
+  classified: {
+    label: "Classified",
+    classes: "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/50 dark:bg-emerald-500/10 dark:text-emerald-200"
+  },
+  unclassified: {
+    label: "Unclassified",
+    classes: "border-rose-200 bg-rose-50 text-rose-600 dark:border-rose-600/50 dark:bg-rose-500/10 dark:text-rose-200"
+  }
+};
+
 const getSlugPreview = (value: string): string =>
   value
     .toLowerCase()
@@ -101,6 +118,7 @@ const DEFAULT_CLASSIFICATION_FORM: ClassificationFormState = {
 
 type AssignmentEntry = { loading: boolean; error: string | null };
 type RemovalEntry = { loading: boolean; error: string | null };
+type ClassificationRequestEntry = { loading: boolean; error: string | null };
 
 type SettingsView = "usage" | "classifications" | "transcripts";
 
@@ -164,6 +182,7 @@ export default function SettingsPage() {
   });
   const [pendingClassification, setPendingClassification] = useState<Record<number, string>>({});
   const [transcriptDeletionState, setTranscriptDeletionState] = useState<Record<number, { loading: boolean; error: string | null }>>({});
+  const [classificationRequestState, setClassificationRequestState] = useState<Record<number, ClassificationRequestEntry>>({});
   const [assignmentState, setAssignmentState] = useState<Record<number, AssignmentEntry>>({});
   const [removalState, setRemovalState] = useState<Record<string, RemovalEntry>>({});
   const [transcriptFilter, setTranscriptFilter] = useState<'unclassified' | 'all'>('unclassified');
@@ -426,6 +445,15 @@ export default function SettingsPage() {
         });
         safeSetState(() => {
           setTranscripts(data.transcripts);
+          setClassificationRequestState((prev) => {
+            const next: Record<number, ClassificationRequestEntry> = {};
+            data.transcripts.forEach((entry) => {
+              if (prev[entry.id]) {
+                next[entry.id] = prev[entry.id];
+              }
+            });
+            return next;
+          });
           setTranscriptsPaginationMeta({
             total: data.total,
             limit: data.limit,
@@ -446,6 +474,7 @@ export default function SettingsPage() {
             limit: TRANSCRIPTS_PAGE_SIZE,
             hasMore: false
           });
+          setClassificationRequestState({});
           setTranscriptsError(err instanceof Error ? err.message : String(err));
         });
       } finally {
@@ -487,6 +516,13 @@ export default function SettingsPage() {
     setRemovalState((prev) => {
       const current = prev[key] ?? { loading: false, error: null };
       return { ...prev, [key]: { ...current, ...updates } };
+    });
+  }, []);
+
+  const updateClassificationRequestState = useCallback((transcriptId: number, updates: Partial<ClassificationRequestEntry>) => {
+    setClassificationRequestState((prev) => {
+      const current = prev[transcriptId] ?? { loading: false, error: null };
+      return { ...prev, [transcriptId]: { ...current, ...updates } };
     });
   }, []);
 
@@ -553,6 +589,36 @@ export default function SettingsPage() {
       updateRemovalStatus(key, { loading: false });
     }
   }, [getRemovalKey, updateRemovalStatus, safeSetState]);
+
+  const handleTranscriptClassificationRequest = useCallback(
+    async (record: TranscriptRecord) => {
+      if (record.classificationState === 'classified') {
+        return;
+      }
+      const requestEntry = classificationRequestState[record.id];
+      if (requestEntry?.loading) {
+        return;
+      }
+
+      safeSetState(() => {
+        updateClassificationRequestState(record.id, { loading: true, error: null });
+      });
+
+      try {
+        await runTranscriptClassification(record.id);
+        await loadTranscripts();
+        safeSetState(() => {
+          updateClassificationRequestState(record.id, { loading: false, error: null });
+        });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        safeSetState(() => {
+          updateClassificationRequestState(record.id, { loading: false, error: message });
+        });
+      }
+    },
+    [classificationRequestState, loadTranscripts, safeSetState, updateClassificationRequestState]
+  );
 
   const handleTranscriptsDeleteAll = useCallback(async () => {
     if (transcriptsDeleting) {
@@ -1101,6 +1167,11 @@ export default function SettingsPage() {
                   const assignmentEntry = assignmentState[record.id] ?? { loading: false, error: null };
                   const isAssignDisabled =
                     !selectionValue || assignmentEntry.loading || availableClassifications.length === 0;
+                  const classificationRequestEntry =
+                    classificationRequestState[record.id] ?? { loading: false, error: null };
+                  const classificationStateInfo = classificationStateMeta[record.classificationState];
+                  const isClassificationRequestDisabled =
+                    record.classificationState === "classified" || classificationRequestEntry.loading;
                   return (
                     <li key={`${record.sessionId}-${record.receivedAt}-${record.payload}`}>
                       <article className="rounded-2xl border border-slate-200/70 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-950/20 p-5 space-y-4">
@@ -1144,15 +1215,47 @@ export default function SettingsPage() {
                             ))}
                           </div>
                         )}
-                        <div className="pt-2 space-y-3">
-                          <p className="text-xs font-semibold uppercase tracking-[0.4em] text-slate-500 dark:text-slate-400">
-                            Classifications
-                          </p>
-                          <div className="flex flex-wrap gap-2">
-                            {record.classifications.length > 0 ? (
-                              record.classifications.map((classification) => {
-                                const removalKey = getRemovalKey(record.id, classification.id);
-                                const removalEntry = removalState[removalKey];
+                      <div className="pt-2 space-y-3">
+                        <div className="flex flex-col gap-2">
+                          <div className="flex flex-wrap items-center justify-between gap-3">
+                            <p className="text-xs font-semibold uppercase tracking-[0.4em] text-slate-500 dark:text-slate-400">
+                              Classifications
+                            </p>
+                            <div className="flex items-center gap-2">
+                              <span
+                                className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-[0.28em] ${classificationStateInfo.classes}`}
+                              >
+                                {classificationStateInfo.label}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => handleTranscriptClassificationRequest(record)}
+                                disabled={isClassificationRequestDisabled}
+                                title={record.classificationState === 'classified' ? 'Transcript already classified' : 'Update classification'}
+                                className="flex items-center gap-2 rounded-full border border-slate-200/70 bg-white/90 px-3 py-1 text-xs font-semibold text-slate-700 transition hover:border-slate-300 disabled:cursor-not-allowed disabled:opacity-60"
+                              >
+                                {classificationRequestEntry.loading ? (
+                                  <>
+                                    <Loader2 className="w-3 h-3 animate-spin" />
+                                    Updating…
+                                  </>
+                                ) : (
+                                  "Update classification"
+                                )}
+                              </button>
+                            </div>
+                          </div>
+                          {classificationRequestEntry.error && (
+                            <p className="text-xs text-rose-600" role="status" aria-live="polite">
+                              {classificationRequestEntry.error}
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {record.classifications.length > 0 ? (
+                            record.classifications.map((classification) => {
+                              const removalKey = getRemovalKey(record.id, classification.id);
+                              const removalEntry = removalState[removalKey];
                                 return (
                                   <span key={removalKey} className="inline-flex items-center gap-2 rounded-md bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 dark:bg-blue-900/20 dark:text-blue-300 border border-blue-100 dark:border-blue-800/50">
                                     <span>{classification.name || classification.id}</span>

@@ -8,9 +8,13 @@ vi.mock('../services/transcriptStorage', () => ({
   getLatestTranscripts: vi.fn(),
   getTranscriptsByClassification: vi.fn(),
   getTranscriptsByClassificationState: vi.fn(),
+  getTranscriptById: vi.fn(),
   deleteAllTranscripts: vi.fn(),
   deleteTranscript: vi.fn(),
   VALID_TRANSCRIPT_CLASSIFICATION_STATES: ['pending', 'classified', 'unclassified'] as const
+}));
+vi.mock('../services/transcriptClassificationWorker', () => ({
+  classifyTranscriptWithCodex: vi.fn()
 }));
 vi.mock('../services/transcriptClassificationStorage', () => ({
   getClassificationsForTranscripts: vi.fn()
@@ -21,6 +25,7 @@ import {
   getLatestTranscripts,
   getTranscriptsByClassification,
   getTranscriptsByClassificationState,
+  getTranscriptById,
   saveTranscript,
   deleteAllTranscripts,
   deleteTranscript
@@ -29,6 +34,7 @@ import { getClassificationsForTranscripts } from '../services/transcriptClassifi
 import { createApp } from '../index';
 import { withAuraBasePath } from '../config/auraPath';
 import { MAX_TRANSCRIPT_LIMIT } from './transcript';
+import { classifyTranscriptWithCodex } from '../services/transcriptClassificationWorker';
 
 const app = createApp();
 const saveTranscriptMock = vi.mocked(saveTranscript);
@@ -36,15 +42,19 @@ const getTranscriptPageMock = vi.mocked(getTranscriptPage);
 const getLatestTranscriptsMock = vi.mocked(getLatestTranscripts);
 const getTranscriptsByClassificationMock = vi.mocked(getTranscriptsByClassification);
 const getTranscriptsByClassificationStateMock = vi.mocked(getTranscriptsByClassificationState);
+const getTranscriptByIdMock = vi.mocked(getTranscriptById);
 const deleteAllTranscriptsMock = vi.mocked(deleteAllTranscripts);
 const deleteTranscriptMock = vi.mocked(deleteTranscript);
 const classificationMock = vi.mocked(getClassificationsForTranscripts);
+const classifyTranscriptWithCodexMock = vi.mocked(classifyTranscriptWithCodex);
 
 beforeEach(() => {
   classificationMock.mockReset();
   classificationMock.mockReturnValue(new Map());
   getTranscriptsByClassificationMock.mockReset();
   getTranscriptsByClassificationStateMock.mockReset();
+  getTranscriptByIdMock.mockReset();
+  classifyTranscriptWithCodexMock.mockReset().mockResolvedValue(undefined);
 });
 
 describe('transcript route', () => {
@@ -428,6 +438,84 @@ describe('transcripts listing route', () => {
     await request(app)
       .delete(withAuraBasePath('/transcripts'))
       .expect(500);
+  });
+});
+
+describe('transcript classification route', () => {
+  beforeEach(() => {
+    getTranscriptByIdMock.mockReset();
+    classifyTranscriptWithCodexMock.mockReset().mockResolvedValue(undefined);
+  });
+
+  it('returns 204 when classification succeeds', async () => {
+    const record = {
+      id: 77,
+      sessionId: 'session-classify',
+      payload: 'classify me',
+      metadata: null,
+      receivedAt: '2026-04-01T12:00:00Z',
+      classificationState: 'pending' as const,
+      classificationReason: null,
+      classifications: []
+    };
+    getTranscriptByIdMock.mockReturnValue(record);
+
+    await request(app)
+      .post(withAuraBasePath('/transcripts/77/classify'))
+      .expect(204);
+
+    expect(getTranscriptByIdMock).toHaveBeenCalledWith(77);
+    expect(classifyTranscriptWithCodexMock).toHaveBeenCalledWith(record);
+  });
+
+  it('returns 400 for non-numeric IDs', async () => {
+    await request(app)
+      .post(withAuraBasePath('/transcripts/abc/classify'))
+      .expect(400);
+
+    expect(getTranscriptByIdMock).not.toHaveBeenCalled();
+    expect(classifyTranscriptWithCodexMock).not.toHaveBeenCalled();
+  });
+
+  it('returns 400 for non-positive IDs', async () => {
+    await request(app)
+      .post(withAuraBasePath('/transcripts/0/classify'))
+      .expect(400);
+
+    expect(getTranscriptByIdMock).not.toHaveBeenCalled();
+    expect(classifyTranscriptWithCodexMock).not.toHaveBeenCalled();
+  });
+
+  it('returns 404 when the transcript is missing', async () => {
+    getTranscriptByIdMock.mockReturnValue(null);
+
+    await request(app)
+      .post(withAuraBasePath('/transcripts/88/classify'))
+      .expect(404);
+
+    expect(classifyTranscriptWithCodexMock).not.toHaveBeenCalled();
+    expect(getTranscriptByIdMock).toHaveBeenCalledWith(88);
+  });
+
+  it('returns 500 when classification fails', async () => {
+    const record = {
+      id: 99,
+      sessionId: 'session-error',
+      payload: 'payload',
+      metadata: null,
+      receivedAt: '2026-04-01T12:00:00Z',
+      classificationState: 'pending' as const,
+      classificationReason: null,
+      classifications: []
+    };
+    getTranscriptByIdMock.mockReturnValue(record);
+    classifyTranscriptWithCodexMock.mockRejectedValue(new Error('boom'));
+
+    await request(app)
+      .post(withAuraBasePath('/transcripts/99/classify'))
+      .expect(500);
+
+    expect(classifyTranscriptWithCodexMock).toHaveBeenCalledWith(record);
   });
 });
 

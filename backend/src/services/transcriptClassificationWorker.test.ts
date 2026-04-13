@@ -178,7 +178,7 @@ describe('classifyTranscriptWithCodex', () => {
     expect(updateClassificationStateMock).toHaveBeenCalledWith(sampleRecord.id, 'unclassified', 'nothing matches');
   });
 
-  it('logs and ignores Codex errors', async () => {
+  it('propagates Codex errors', async () => {
     listClassificationsMock.mockReturnValue([
       { id: 'cat-1', name: 'Cat One', description: null }
     ]);
@@ -186,8 +186,7 @@ describe('classifyTranscriptWithCodex', () => {
       executeStructured: vi.fn().mockRejectedValue(new Error('boom'))
     } as unknown as CodexClient;
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-
-    await classifyTranscriptWithCodex(sampleRecord, client);
+    await expect(classifyTranscriptWithCodex(sampleRecord, client)).rejects.toThrow('boom');
 
     expect(consoleSpy).toHaveBeenCalledWith(
       'Unable to classify transcript with Codex',
