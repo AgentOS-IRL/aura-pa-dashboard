@@ -25,7 +25,20 @@ describe('audio route', () => {
       })
       .expect(201);
 
-    expect(transcribeAndSaveAudioSpy).toHaveBeenCalledWith('session-42', expect.any(Buffer));
+    expect(transcribeAndSaveAudioSpy).toHaveBeenCalledWith('session-42', expect.any(Buffer), undefined);
+  });
+
+  it('trims and forwards the context field to the service', async () => {
+    await request(app)
+      .post(withAuraBasePath('/sessions/session-42/audio'))
+      .field('context', '  classification-generator  ')
+      .attach('audio', Buffer.from('hello'), {
+        filename: 'chunk.webm',
+        contentType: 'audio/webm'
+      })
+      .expect(201);
+
+    expect(transcribeAndSaveAudioSpy).toHaveBeenCalledWith('session-42', expect.any(Buffer), 'classification-generator');
   });
 
   it('rejects missing files', async () => {

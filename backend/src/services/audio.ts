@@ -16,6 +16,11 @@ function normalizeSessionId(value: string): string {
   return trimmed;
 }
 
+function normalizeContextId(value?: string): string | undefined {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : undefined;
+}
+
 function ensureBuffer(chunk: Buffer): Buffer {
   if (!chunk || chunk.length === 0 || !Buffer.isBuffer(chunk)) {
     throw new Error('audio chunk must be a non-empty Buffer');
@@ -35,25 +40,33 @@ function getTextPayload(transcription: DeepgramTranscriptionResult | string): st
   return JSON.stringify(transcription);
 }
 
-function buildBaseMetadata(options?: DeepgramTranscribeOptions) {
-  return {
+function buildBaseMetadata(options?: DeepgramTranscribeOptions, contextId?: string) {
+  const metadata = {
     source: 'transcribe',
     model: options?.model ?? DEFAULT_DEEPGRAM_METADATA.model,
     language: options?.language ?? DEFAULT_DEEPGRAM_METADATA.language,
     smart_format: options?.smart_format ?? DEFAULT_DEEPGRAM_METADATA.smart_format,
     utterances: options?.utterances ?? DEFAULT_DEEPGRAM_METADATA.utterances
   } as Record<string, unknown>;
+
+  if (contextId) {
+    metadata.conversation_context = contextId;
+  }
+
+  return metadata;
 }
 
 export async function transcribeAndSaveAudio(
   sessionId: string,
   chunk: Buffer,
+  contextId?: string,
   options?: DeepgramTranscribeOptions,
   client: DeepgramTranscribeClient = defaultTranscribeClient
 ): Promise<DeepgramTranscriptionResult> {
   const normalizedSessionId = normalizeSessionId(sessionId);
   const safeChunk = ensureBuffer(chunk);
-  const metadata = buildBaseMetadata(options);
+  const normalizedContextId = normalizeContextId(contextId);
+  const metadata = buildBaseMetadata(options, normalizedContextId);
 
   try {
     const transcription = await client.transcribeStream(

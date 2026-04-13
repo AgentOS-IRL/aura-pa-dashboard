@@ -14,6 +14,11 @@ interface AudioSegment {
     timestamp: Date;
 }
 
+interface QueuedAudioChunk {
+    chunk: ArrayBuffer;
+    contextId: ContextOption['id'];
+}
+
 const RETRY_DELAY_MS = 2000;
 
 const CONTEXT_OPTIONS: ContextOption[] = [
@@ -37,7 +42,7 @@ export default function Assistant() {
     const [uploadInFlight, setUploadInFlight] = useState(false);
     const sessionIdRef = useRef<string | null>(null);
     const uploadInFlightRef = useRef(false);
-    const uploadQueueRef = useRef<ArrayBuffer[]>([]);
+    const uploadQueueRef = useRef<QueuedAudioChunk[]>([]);
     const processingRef = useRef(false);
     const { sessionId, setSessionId } = useSessionContext();
     const [selectedContext, setSelectedContext] = useState<ContextOption['id']>(CONTEXT_OPTIONS[0].id);
@@ -63,7 +68,9 @@ export default function Assistant() {
         let shouldRetry = false;
 
         while (uploadQueueRef.current.length > 0 && !shouldRetry) {
-            const chunk = uploadQueueRef.current.shift()!;
+            const queuedChunk = uploadQueueRef.current.shift()!;
+            const chunk = queuedChunk.chunk;
+            const contextId = queuedChunk.contextId;
             const sessionId = sessionIdRef.current;
 
             if (!sessionId) {
@@ -77,13 +84,13 @@ export default function Assistant() {
             setUploadError(null);
 
             try {
-                await uploadAudioChunk(sessionId, chunk);
+                await uploadAudioChunk(sessionId, chunk, contextId);
                 setUploadStatus('Upload complete');
             } catch (error) {
                 console.error('Failed to upload audio chunk', error);
                 setUploadStatus('Upload failed, retrying...');
                 setUploadError(error instanceof Error ? error.message : String(error));
-                uploadQueueRef.current.unshift(chunk);
+                uploadQueueRef.current.unshift(queuedChunk);
                 shouldRetry = true;
             }
         }
@@ -124,10 +131,10 @@ export default function Assistant() {
             return;
         }
 
-        uploadQueueRef.current.push(wavBuffer);
+        uploadQueueRef.current.push({ chunk: wavBuffer, contextId: selectedContext });
         setUploadStatus('Queued chunk for upload...');
         void processUploadQueue();
-    }, [processUploadQueue]);
+    }, [processUploadQueue, selectedContext]);
 
     const vad = useMicVAD({
         model: 'v5',

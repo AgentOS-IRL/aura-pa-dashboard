@@ -48,6 +48,25 @@ describe('uploadAudioChunk', () => {
 
         await expect(uploadAudioChunk('session-test', new ArrayBuffer(1))).rejects.toThrow('Upload failed (500)');
     });
+
+    it('appends the selected context when provided', async () => {
+        const fetchMock = vi.fn(() =>
+            Promise.resolve({
+                ok: true,
+                status: 200,
+                text: () => Promise.resolve(''),
+            }),
+        );
+
+        vi.stubGlobal('fetch', fetchMock);
+
+        const buffer = new Uint8Array([4, 5, 6]).buffer;
+        await uploadAudioChunk('session-test', buffer, '  general  ');
+
+        const options = fetchMock.mock.calls[0][1];
+        const formData = options?.body as FormData;
+        expect(formData.get('context')).toBe('general');
+    });
 });
 
 describe('createSessionId', () => {

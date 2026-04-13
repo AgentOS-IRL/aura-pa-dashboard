@@ -36,7 +36,7 @@ describe('transcribeAndSaveAudio', () => {
   it('runs the transcribe client and persists the returned text', async () => {
     const mockClient = createMockClient();
 
-    const result = await transcribeAndSaveAudio('session-1', Buffer.from('audio'), undefined, mockClient);
+    const result = await transcribeAndSaveAudio('session-1', Buffer.from('audio'), undefined, undefined, mockClient);
 
     expect(result.text).toBe('transcribed text');
     expect(saveTranscriptMock).toHaveBeenCalledWith(
@@ -51,6 +51,24 @@ describe('transcribeAndSaveAudio', () => {
       })
     );
     expect(mockClient.transcribeStream).toHaveBeenCalledTimes(1);
+
+    const metadata = saveTranscriptMock.mock.calls[0][2] as Record<string, unknown>;
+    expect(metadata.conversation_context).toBeUndefined();
+  });
+
+  it('stores conversation_context metadata when provided', async () => {
+    const mockClient = createMockClient();
+
+    await transcribeAndSaveAudio(
+      'session-1',
+      Buffer.from('audio'),
+      '  classification-generator ',
+      undefined,
+      mockClient
+    );
+
+    const metadata = saveTranscriptMock.mock.calls[0][2] as Record<string, unknown>;
+    expect(metadata.conversation_context).toBe('classification-generator');
   });
 
   it('skips saving when Deepgram returns empty or whitespace text', async () => {
@@ -62,7 +80,7 @@ describe('transcribeAndSaveAudio', () => {
       raw: {}
     });
 
-    const result = await transcribeAndSaveAudio('session-2', Buffer.from('audio'), undefined, mockClient);
+    const result = await transcribeAndSaveAudio('session-2', Buffer.from('audio'), undefined, undefined, mockClient);
 
     expect(result.text).toBe('   ');
     expect(mockClient.transcribeStream).toHaveBeenCalledTimes(1);
@@ -74,7 +92,7 @@ describe('transcribeAndSaveAudio', () => {
     const payload = { words: ['a', 'b'] } as unknown as DeepgramTranscriptionResult;
     mockClient.transcribeStream.mockResolvedValueOnce(payload);
 
-    await transcribeAndSaveAudio('session-1', Buffer.from('audio'), undefined, mockClient);
+    await transcribeAndSaveAudio('session-1', Buffer.from('audio'), undefined, undefined, mockClient);
 
     expect(saveTranscriptMock).toHaveBeenCalledWith(
       'session-1',
@@ -89,7 +107,7 @@ describe('transcribeAndSaveAudio', () => {
     const mockClient = createMockClient();
     const options: DeepgramTranscribeOptions = { model: 'custom-model', language: 'es' };
 
-    await transcribeAndSaveAudio('session-1', Buffer.from('audio'), options, mockClient);
+    await transcribeAndSaveAudio('session-1', Buffer.from('audio'), undefined, options, mockClient);
 
     expect(saveTranscriptMock).toHaveBeenCalledWith(
       'session-1',
@@ -107,7 +125,7 @@ describe('transcribeAndSaveAudio', () => {
     mockClient.transcribeStream.mockRejectedValueOnce(failure);
 
     await expect(
-      transcribeAndSaveAudio('session-9', Buffer.from('audio'), undefined, mockClient)
+      transcribeAndSaveAudio('session-9', Buffer.from('audio'), undefined, undefined, mockClient)
     ).rejects.toThrow('boom');
 
     expect(saveTranscriptMock).toHaveBeenCalledWith(
@@ -126,11 +144,11 @@ describe('transcribeAndSaveAudio', () => {
     mockClient.transcribeStream.mockResolvedValue({ text: 'ok', transcript: 'ok', utterances: [], raw: {} });
 
     await expect(
-      transcribeAndSaveAudio('   ', Buffer.from('audio'), undefined, mockClient)
+      transcribeAndSaveAudio('   ', Buffer.from('audio'), undefined, undefined, mockClient)
     ).rejects.toThrow('sessionId is required');
 
     await expect(
-      transcribeAndSaveAudio('session-5', Buffer.from(''), undefined, mockClient)
+      transcribeAndSaveAudio('session-5', Buffer.from(''), undefined, undefined, mockClient)
     ).rejects.toThrow('audio chunk must be a non-empty Buffer');
   });
 });
