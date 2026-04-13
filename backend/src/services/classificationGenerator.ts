@@ -96,10 +96,10 @@ export async function generateClassificationFromTranscript(
     };
 
     const rawId = typeof response?.id === 'string' ? response.id.trim() : '';
-    if (rawId) {
-      payloadToSave.id = rawId;
-    } else if (existing) {
+    if (existing) {
       payloadToSave.id = existing.id;
+    } else if (rawId) {
+      payloadToSave.id = rawId;
     }
 
     payloadToSave.description = hasDescription
