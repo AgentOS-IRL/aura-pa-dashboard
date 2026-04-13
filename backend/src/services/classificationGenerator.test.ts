@@ -3,16 +3,18 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('./classificationStorage', () => ({
   saveClassification: vi.fn(),
-  findClassificationByNormalizedName: vi.fn()
+  findClassificationByNormalizedName: vi.fn(),
+  listClassifications: vi.fn()
 }));
 
 import type { CodexClient } from './codexClient';
 import { generateClassificationFromTranscript } from './classificationGenerator';
-import { findClassificationByNormalizedName, saveClassification } from './classificationStorage';
+import { findClassificationByNormalizedName, saveClassification, listClassifications } from './classificationStorage';
 import type { TranscriptRecord } from './transcriptStorage';
 
 const saveClassificationMock = vi.mocked(saveClassification);
 const findClassificationMock = vi.mocked(findClassificationByNormalizedName);
+const listClassificationsMock = vi.mocked(listClassifications);
 
 const sampleRecord: TranscriptRecord = {
   id: 111,
@@ -34,6 +36,7 @@ describe('generateClassificationFromTranscript', () => {
   beforeEach(() => {
     saveClassificationMock.mockReset();
     findClassificationMock.mockReset();
+    listClassificationsMock.mockReset().mockReturnValue([]);
   });
 
   it('asks Codex for a classification and persists the result', async () => {

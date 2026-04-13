@@ -3,6 +3,7 @@ import { type TranscriptRecord } from './transcriptStorage';
 import {
   saveClassification,
   findClassificationByNormalizedName,
+  listClassifications,
   type SaveClassificationInput
 } from './classificationStorage';
 import { AUDIO_CONTEXTS } from '../constants/audioContext';
@@ -32,15 +33,28 @@ function getCodexClient(): CodexClient {
   return cachedClient;
 }
 
-function buildPrompt(payload: string): string {
+function buildPrompt(payload: string, classifications: { id: string; name: string; description: string | null }[]): string {
+  const classificationLines = classifications
+    .map((classification, index) => {
+      const description = classification.description ? `\n    description: ${classification.description}` : '';
+      return `${index + 1}. id: ${classification.id}\n    name: ${classification.name}${description}`;
+    })
+    .join('\n\n');
+
+  const existingClassificationsText = classifications.length > 0
+    ? `Existing Classifications:\n${classificationLines}`
+    : '';
+
   return [
-    'Use the transcript below to suggest exactly one named classification that captures the user request. Be conservative and only create or update a classification when the transcript clearly asks for it, and keep the scope limited to the request.',
+    'Use the transcript below to either update or create exactly 1 classification based on the transcript. Be conservative and only create or update a classification when the transcript clearly asks for it, and keep the scope limited to the request.',
+    'Make sure to pass any classification which already exists if it matches the request perfectly.',
     'Respond only with the JSON that matches the schema and do not add any prose.',
     'If the transcript simply records what the user said but does not roughly match any catalog entry, do not invent classifications.',
     'Only update or generate a classification when it directly answers the user’s request and stay within what was asked.',
     'When providing a classification, include the name and a supporting description that explains how it answers the request.',
-    '\nTranscript:\n' + payload.trim()
-  ].join('\n\n');
+    existingClassificationsText,
+    'Transcript:\n' + payload.trim()
+  ].filter(line => line).join('\n\n');
 }
 
 /**
@@ -62,8 +76,9 @@ export async function generateClassificationFromTranscript(
   }
 
   try {
+    const classifications = listClassifications();
     const response = (await (client ?? getCodexClient()).executeStructured(
-      buildPrompt(trimmedPayload),
+      buildPrompt(trimmedPayload, classifications),
       CLASSIFICATION_SCHEMA,
       'ClassificationGenerator',
       'json_schema',
