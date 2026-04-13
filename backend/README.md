@@ -11,6 +11,10 @@ npm install
 
 To exercise the Codex-powered workflows that this service relies on (e.g., `agentHealth` diagnostics and `CodexClient` usage tracking via `backend/src/services/codexClient.ts`), create a Codex environment for this repo via https://chatgpt.com/codex/cloud/settings/environments. Once the environment exists, `npm run lint` and `npm run test` can reference the same configuration as AgentOS and the helper services.
 
+### Langfuse tracing
+
+Langfuse traces are emitted every time `CodexClient.executeSync` or `executeStructured` runs when `LANGFUSE_SECRET_KEY` is present in the environment (set the optional `LANGFUSE_PUBLIC_KEY` and `LANGFUSE_BASE_URL` as needed; the default host is `https://cloud.langfuse.com`). These keys are documented in `.env.example` so new deployments know how to opt in—leave them undefined to keep tracing disabled. After providing the keys, run `npm run test:backend` (and `npm run lint` if you want to double-check formatting) to exercise the Langfuse instrumentation along with the rest of the backend suite.
+
 ## Deepgram transcription client
 
 The backend now ships a dedicated Deepgram helper (`backend/src/services/deepgramTranscribeClient.ts`) that forces every upload through `nova-3` with `language: "en"`, `smart_format: true`, and `utterances: true`. The client also filters utterances with confidence below `0.8`, joins the remaining text, and returns both the final transcript plus the individual utterance metadata so callers can store a clean string alongside the raw Deepgram response.

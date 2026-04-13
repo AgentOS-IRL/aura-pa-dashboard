@@ -1,6 +1,9 @@
 import fs from 'fs';
 import { randomUUID } from 'crypto';
+import { Langfuse } from 'langfuse';
+import type { LangfuseGenerationClient } from 'langfuse';
 import { getCodexAuthPath } from '../config/openai';
+import { getLangfuseConfig, isLangfuseEnabled } from '../config/langfuse';
 
 export const CODEX_RESPONSES_URL = "https://chatgpt.com/backend-api/codex/responses";
 export const CODEX_USAGE_URL = "https://chatgpt.com/backend-api/wham/usage";
@@ -10,6 +13,21 @@ export const DEFAULT_TIMEOUT = 60000;
 export const OPENAI_BETA_HEADER = "responses=experimental";
 export const ORIGINATOR_HEADER = "codex_cli_rs";
 export const USER_AGENT_HEADER = "typescript-codex-client/1.0";
+const LANGFUSE_TRACE_NAME = "codex";
+const LANGFUSE_INTEGRATION = "aura-pa-backend-codex";
+
+type LangfuseRole = "user" | "assistant" | "system";
+
+type LangfuseMessage = {
+    role: LangfuseRole;
+    content: string;
+};
+
+interface LangfuseInstrumentationContext {
+    callName: string;
+    messages: LangfuseMessage[];
+    metadata: Record<string, unknown>;
+}
 
 export interface RateLimitWindow {
     used_percent: number;
@@ -66,6 +84,7 @@ export class CodexClient {
     private authPath: string;
     private accessToken: string;
     private accountId: string;
+    private langfuseClient?: Langfuse;
 
     constructor(options?: CodexClientOptions) {
         this.modelId = options?.modelId || DEFAULT_MODEL_ID;
@@ -78,6 +97,7 @@ export class CodexClient {
         const { accessToken, accountId } = this.loadAuth();
         this.accessToken = accessToken;
         this.accountId = accountId;
+        this.langfuseClient = this.initializeLangfuseClient();
     }
 
     private decodeJwtPayload(token: string): Record<string, unknown> {
@@ -156,6 +176,25 @@ export class CodexClient {
         ];
     }
 
+    private initializeLangfuseClient(): Langfuse | undefined {
+        if (!isLangfuseEnabled()) {
+            return undefined;
+        }
+
+        try {
+            const config = getLangfuseConfig();
+            return new Langfuse({
+                secretKey: config.secretKey,
+                publicKey: config.publicKey,
+                baseUrl: config.baseUrl,
+                sdkIntegration: LANGFUSE_INTEGRATION,
+            });
+        } catch (err) {
+            console.error('Failed to initialize Langfuse client', err);
+            return undefined;
+        }
+    }
+
     private buildBody(prompt: string, instructions?: string, textFormat?: Record<string, unknown>) {
         const textConfig: Record<string, unknown> = { verbosity: "medium" };
         if (textFormat) {
@@ -170,6 +209,81 @@ export class CodexClient {
             input: this.buildInput(prompt),
             text: textConfig,
         };
+    }
+
+    private buildLangfuseMessages(prompt: string, schemaName?: string, method?: string): LangfuseMessage[] {
+        const messages: LangfuseMessage[] = [
+            {
+                role: "user",
+                content: prompt,
+            }
+        ];
+
+        const contextParts: string[] = [];
+        if (schemaName) contextParts.push(`schema: ${schemaName}`);
+        if (method) contextParts.push(`method: ${method}`);
+
+        if (contextParts.length > 0) {
+            messages.push({
+                role: "system",
+                content: `Structured response expected (${contextParts.join(", ")}).`,
+            });
+        }
+
+        return messages;
+    }
+
+    private buildLangfuseMetadata(callName: string, schemaName?: string, method?: string): Record<string, unknown> {
+        const metadata: Record<string, unknown> = {
+            callName,
+            model: this.modelId,
+        };
+
+        if (schemaName) {
+            metadata.schema = schemaName;
+        }
+
+        if (method) {
+            metadata.method = method;
+        }
+
+        return metadata;
+    }
+
+    private buildLangfuseContext(
+        callName: string,
+        messages: LangfuseMessage[],
+        metadata: Record<string, unknown>
+    ): LangfuseInstrumentationContext | undefined {
+        if (!this.langfuseClient) return undefined;
+        return {
+            callName,
+            messages,
+            metadata,
+        };
+    }
+
+    private startLangfuseGeneration(context?: LangfuseInstrumentationContext): LangfuseGenerationClient | undefined {
+        if (!context || !this.langfuseClient) return undefined;
+
+        try {
+            const trace = this.langfuseClient.trace({
+                name: LANGFUSE_TRACE_NAME,
+                userId: this.accountId,
+                metadata: context.metadata,
+            });
+
+            return trace.generation({
+                name: context.callName,
+                model: this.modelId,
+                input: {
+                    messages: context.messages,
+                },
+            });
+        } catch (err) {
+            console.error('Langfuse instrumentation failed', err);
+            return undefined;
+        }
     }
 
     private extractTextFromEvent(event: Record<string, unknown>): string {
@@ -206,12 +320,19 @@ export class CodexClient {
         return collected.join("");
     }
 
-    private async postAndCollectText(prompt: string, baseUrl?: string, instructions?: string, textFormat?: Record<string, unknown>): Promise<string> {
+    private async postAndCollectText(
+        prompt: string,
+        baseUrl?: string,
+        instructions?: string,
+        textFormat?: Record<string, unknown>,
+        langfuseContext?: LangfuseInstrumentationContext
+    ): Promise<string> {
         const url = baseUrl || this.baseUrl;
         const body = this.buildBody(prompt, instructions, textFormat);
         
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), this.timeout);
+        const langfuseGeneration = this.startLangfuseGeneration(langfuseContext);
 
         try {
             const response = await fetch(url, {
@@ -260,14 +381,25 @@ export class CodexClient {
                 }
             }
             
+            langfuseGeneration?.end({ output: collectedText });
             return collectedText;
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : String(err);
+            langfuseGeneration?.end({
+                error: { message },
+            });
+            throw err;
         } finally {
             clearTimeout(timeoutId);
         }
     }
 
     public async executeSync(prompt: string, baseUrl?: string): Promise<string> {
-        return this.postAndCollectText(prompt, baseUrl);
+        const callName = "executeSync";
+        const messages = this.buildLangfuseMessages(prompt);
+        const metadata = this.buildLangfuseMetadata(callName);
+        const context = this.buildLangfuseContext(callName, messages, metadata);
+        return this.postAndCollectText(prompt, baseUrl, undefined, undefined, context);
     }
 
     public async executeStructured<T = unknown>(
@@ -301,7 +433,11 @@ export class CodexClient {
             structuredPrompt = `${prompt}\n\nReturn only the requested JSON object. Do not include prose before or after it.`;
         }
 
-        const rawText = await this.postAndCollectText(structuredPrompt, baseUrl, undefined, textFormat);
+        const callName = schemaName ? `executeStructured/${schemaName}` : "executeStructured";
+        const messages = this.buildLangfuseMessages(structuredPrompt, schemaName, method);
+        const metadata = this.buildLangfuseMetadata(callName, schemaName, method);
+        const context = this.buildLangfuseContext(callName, messages, metadata);
+        const rawText = await this.postAndCollectText(structuredPrompt, baseUrl, undefined, textFormat, context);
         
         let parsed: unknown;
         try {
