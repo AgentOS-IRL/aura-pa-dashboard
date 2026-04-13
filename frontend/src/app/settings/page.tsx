@@ -95,6 +95,9 @@ const classificationStateMeta: Record<TranscriptClassificationState, { label: st
   }
 };
 
+const canRequestTranscriptClassification = (record: TranscriptRecord) =>
+  record.classifications.length === 0 && record.classificationState !== "classified";
+
 const getSlugPreview = (value: string): string =>
   value
     .toLowerCase()
@@ -601,7 +604,7 @@ export default function SettingsPage() {
 
   const handleTranscriptClassificationRequest = useCallback(
     async (record: TranscriptRecord) => {
-      if (record.classificationState === 'classified') {
+      if (!canRequestTranscriptClassification(record)) {
         return;
       }
       const requestEntry = classificationRequestState[record.id];
@@ -1179,8 +1182,8 @@ export default function SettingsPage() {
                   const classificationRequestEntry =
                     classificationRequestState[record.id] ?? { loading: false, error: null };
                   const classificationStateInfo = classificationStateMeta[record.classificationState];
-                  const isClassificationRequestDisabled =
-                    record.classificationState === "classified" || classificationRequestEntry.loading;
+                  const canRequestClassification = canRequestTranscriptClassification(record);
+                  const isClassificationRequestDisabled = classificationRequestEntry.loading;
                   return (
                     <li key={`${record.sessionId}-${record.receivedAt}-${record.payload}`}>
                       <article className="rounded-2xl border border-slate-200/70 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-950/20 p-5 space-y-4">
@@ -1236,25 +1239,27 @@ export default function SettingsPage() {
                               >
                                 {classificationStateInfo.label}
                               </span>
-                              <button
-                                type="button"
-                                onClick={() => handleTranscriptClassificationRequest(record)}
-                                disabled={isClassificationRequestDisabled}
-                                title={record.classificationState === 'classified' ? 'Transcript already classified' : 'Update classification'}
-                                className="flex items-center gap-2 rounded-full border border-slate-200/70 bg-white/90 px-3 py-1 text-xs font-semibold text-slate-700 transition hover:border-slate-300 disabled:cursor-not-allowed disabled:opacity-60"
-                              >
-                                {classificationRequestEntry.loading ? (
-                                  <>
-                                    <Loader2 className="w-3 h-3 animate-spin" />
-                                    Updating…
-                                  </>
-                                ) : (
-                                  "Update classification"
-                                )}
-                              </button>
+                              {canRequestClassification && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleTranscriptClassificationRequest(record)}
+                                  disabled={isClassificationRequestDisabled}
+                                  title="Auto-assign classification when no labels are assigned"
+                                  className="flex items-center gap-2 rounded-full border border-slate-200/70 bg-white/90 px-3 py-1 text-xs font-semibold text-slate-700 transition hover:border-slate-300 disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                  {classificationRequestEntry.loading ? (
+                                    <>
+                                      <Loader2 className="w-3 h-3 animate-spin" />
+                                      Updating…
+                                    </>
+                                  ) : (
+                                    "Update classification"
+                                  )}
+                                </button>
+                              )}
                             </div>
                           </div>
-                          {classificationRequestEntry.error && (
+                          {canRequestClassification && classificationRequestEntry.error && (
                             <p className="text-xs text-rose-600" role="status" aria-live="polite">
                               {classificationRequestEntry.error}
                             </p>
