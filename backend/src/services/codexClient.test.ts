@@ -4,6 +4,13 @@ import { CodexClient, DEFAULT_MODEL_ID } from './codexClient';
 import { resetLangfuseConfigCache } from '../config/langfuse';
 
 const AUTH_PATH = path.resolve(__dirname, '../../test-fixtures/codex-auth.json');
+const LANGFUSE_ENV_VARS = ['LANGFUSE_SECRET_KEY', 'LANGFUSE_PUBLIC_KEY', 'LANGFUSE_BASE_URL'] as const;
+
+function clearLangfuseEnv() {
+  for (const key of LANGFUSE_ENV_VARS) {
+    delete process.env[key];
+  }
+}
 
 interface LangfuseMockState {
   generationEnd: ReturnType<typeof vi.fn>;
@@ -29,6 +36,7 @@ vi.mock('langfuse', () => {
   return {
     __esModule: true,
     default: langfuseMock,
+    Langfuse: langfuseMock,
   };
 });
 
@@ -78,6 +86,7 @@ describe('CodexClient Langfuse instrumentation', () => {
   let langfuseState: LangfuseMockState;
 
   beforeEach(() => {
+    clearLangfuseEnv();
     resetLangfuseConfigCache();
     langfuseState = getLangfuseMockState();
     langfuseState.traceGeneration.mockClear();
@@ -87,9 +96,7 @@ describe('CodexClient Langfuse instrumentation', () => {
   });
 
   afterEach(() => {
-    delete process.env.LANGFUSE_SECRET_KEY;
-    delete process.env.LANGFUSE_PUBLIC_KEY;
-    delete process.env.LANGFUSE_BASE_URL;
+    clearLangfuseEnv();
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
     (globalThis as unknown as { fetch: typeof fetch }).fetch = originalFetch;
   });
@@ -185,9 +192,7 @@ describe('CodexClient Langfuse instrumentation', () => {
   });
 
   it('skips Langfuse when the secret is missing', async () => {
-    delete process.env.LANGFUSE_SECRET_KEY;
-    delete process.env.LANGFUSE_PUBLIC_KEY;
-    delete process.env.LANGFUSE_BASE_URL;
+    clearLangfuseEnv();
     resetLangfuseConfigCache();
 
     setupFetch([
