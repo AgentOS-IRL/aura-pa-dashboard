@@ -115,7 +115,7 @@ describe('transcript GET route', () => {
 
   it('returns transcripts with pagination metadata when the service succeeds', async () => {
     const rows = [
-      { id: 1, sessionId: 'session-1', payload: 'hello', metadata: null, receivedAt: '2026-04-01T12:00:00Z' }
+      { id: 1, sessionId: 'session-1', payload: 'hello', metadata: null, receivedAt: '2026-04-01T12:00:00Z', classificationState: 'pending' as const, classificationReason: null }
     ];
     getTranscriptPageMock.mockReturnValue({
       transcripts: rows,
@@ -238,7 +238,7 @@ describe('transcripts listing route', () => {
 
   it('returns transcripts with pagination metadata when the service succeeds', async () => {
     const rows = [
-      { id: 2, sessionId: 'session-1', payload: 'hello', metadata: null, receivedAt: '2026-04-01T12:00:00Z' }
+      { id: 2, sessionId: 'session-1', payload: 'hello', metadata: null, receivedAt: '2026-04-01T12:00:00Z', classificationState: 'pending' as const, classificationReason: null }
     ];
     getLatestTranscriptsMock.mockReturnValue({
       transcripts: rows,
@@ -336,7 +336,7 @@ describe('transcripts listing route', () => {
 
   it('filters transcripts by classificationId when provided', async () => {
     const rows = [
-      { id: 10, sessionId: 's1', payload: 'filtered', metadata: null, receivedAt: '2026-04-01T12:00:00Z' }
+      { id: 10, sessionId: 's1', payload: 'filtered', metadata: null, receivedAt: '2026-04-01T12:00:00Z', classificationState: 'pending' as const, classificationReason: null }
     ];
     getTranscriptsByClassificationMock.mockReturnValue({
       transcripts: rows,
@@ -358,7 +358,7 @@ describe('transcripts listing route', () => {
 
   it('filters transcripts by classificationState when provided', async () => {
     const rows = [
-      { id: 12, sessionId: 's-state', payload: 'unclassified-only', metadata: null, receivedAt: '2026-04-01T12:00:00Z' }
+      { id: 12, sessionId: 's-state', payload: 'unclassified-only', metadata: null, receivedAt: '2026-04-01T12:00:00Z', classificationState: 'unclassified' as const, classificationReason: null }
     ];
     getTranscriptsByClassificationStateMock.mockReturnValue({
       transcripts: rows,

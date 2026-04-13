@@ -126,6 +126,8 @@ export async function fetchTranscripts(options?: FetchTranscriptsOptions): Promi
         payload: "",
         metadata: null,
         receivedAt: "",
+        classificationState: "pending",
+        classificationReason: null,
         classifications: []
       };
     }

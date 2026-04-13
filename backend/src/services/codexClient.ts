@@ -93,7 +93,7 @@ export class CodexClient {
         this.instructions = options?.instructions || DEFAULT_INSTRUCTIONS;
         this.timeout = options?.timeout ?? DEFAULT_TIMEOUT;
         this.authPath = options?.authPath || getCodexAuthPath();
-        
+
         const { accessToken, accountId } = this.loadAuth();
         this.accessToken = accessToken;
         this.accountId = accountId;
@@ -104,7 +104,7 @@ export class CodexClient {
         try {
             const payloadB64 = token.split('.')[1];
             if (!payloadB64) throw new Error('Codex access token is not a valid JWT.');
-            
+
             const padded = payloadB64.padEnd(payloadB64.length + (4 - (payloadB64.length % 4)) % 4, '=');
             const payloadJson = Buffer.from(padded, 'base64url').toString('utf-8');
             return JSON.parse(payloadJson) as Record<string, unknown>;
@@ -121,7 +121,7 @@ export class CodexClient {
         }
         if (payload.account_id) return String(payload.account_id);
         if (payload.sub) return String(payload.sub);
-        
+
         throw new Error("Unable to determine chatgpt-account-id from Codex token payload.");
     }
 
@@ -138,7 +138,7 @@ export class CodexClient {
 
         const payload = this.decodeJwtPayload(accessToken);
         const accountId = this.extractAccountId(payload);
-        
+
         return { accessToken, accountId };
     }
 
@@ -329,7 +329,7 @@ export class CodexClient {
     ): Promise<string> {
         const url = baseUrl || this.baseUrl;
         const body = this.buildBody(prompt, instructions, textFormat);
-        
+
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), this.timeout);
         const langfuseGeneration = this.startLangfuseGeneration(langfuseContext);
@@ -350,7 +350,7 @@ export class CodexClient {
             if (!response.body) {
                 throw new Error(`Codex API response has no body.`);
             }
-            
+
             const reader = response.body.getReader();
             const decoder = new TextDecoder();
             let collectedText = "";
@@ -364,12 +364,12 @@ export class CodexClient {
                     buffer += decoder.decode(value, { stream: true });
                     const lines = buffer.split("\n");
                     buffer = lines.pop() || "";
-                    
+
                     for (const line of lines) {
                         if (!line || !line.startsWith("data:")) continue;
                         const data = line.slice(5).trim();
                         if (!data || data === "[DONE]") continue;
-                        
+
                         try {
                             const event = JSON.parse(data) as Record<string, unknown>;
                             const text = this.extractTextFromEvent(event);
@@ -380,14 +380,14 @@ export class CodexClient {
                     }
                 }
             }
-            
+
             langfuseGeneration?.end({ output: collectedText });
             return collectedText;
         } catch (err: unknown) {
             const message = err instanceof Error ? err.message : String(err);
-            langfuseGeneration?.end({
-                error: { message },
-            });
+            // langfuseGeneration?.end({
+            //     error: { message },
+            // });
             throw err;
         } finally {
             clearTimeout(timeoutId);
@@ -419,7 +419,7 @@ export class CodexClient {
             if (strict) {
                 jsonSchema.additionalProperties = false;
             }
-            
+
             textFormat = {
                 type: "json_schema",
                 name: schemaName,
@@ -438,7 +438,7 @@ export class CodexClient {
         const metadata = this.buildLangfuseMetadata(callName, schemaName, method);
         const context = this.buildLangfuseContext(callName, messages, metadata);
         const rawText = await this.postAndCollectText(structuredPrompt, baseUrl, undefined, textFormat, context);
-        
+
         let parsed: unknown;
         try {
             parsed = JSON.parse(rawText);
