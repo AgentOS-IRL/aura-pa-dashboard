@@ -13,7 +13,8 @@ import {
   fetchClassifications,
   saveClassification,
   deleteClassification,
-  type ClassificationRecord
+  type ClassificationRecord,
+  type SaveClassificationInput
 } from "../lib/classifications";
 import { fetchUsage, type CodexUsage, type RateLimitWindow } from "../lib/usage";
 import { deleteTranscriptClassification, saveTranscriptClassification } from "../lib/transcriptClassifications";
@@ -67,6 +68,19 @@ const renderWindow = (title: string, window?: RateLimitWindow) => {
     </div>
   );
 };
+
+const SLUG_PREVIEW_INVALID_CHARS = /[^a-z0-9-]/g;
+const SLUG_PREVIEW_SEQUENCE = /-+/g;
+const SLUG_PREVIEW_TRIM = /^-+|-+$/g;
+
+const getSlugPreview = (value: string): string =>
+  value
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, '-')
+    .replace(SLUG_PREVIEW_INVALID_CHARS, '-')
+    .replace(SLUG_PREVIEW_SEQUENCE, '-')
+    .replace(SLUG_PREVIEW_TRIM, '');
 
 interface ClassificationFormState {
   id: string;
@@ -127,6 +141,7 @@ export default function SettingsPage() {
     ...DEFAULT_CLASSIFICATION_FORM
   }));
   const [isEditingClassification, setIsEditingClassification] = useState(false);
+  const slugPreview = useMemo(() => getSlugPreview(classificationForm.name), [classificationForm.name]);
 
   // Transcript state
   const TRANSCRIPTS_PAGE_SIZE = 25;
@@ -268,12 +283,11 @@ export default function SettingsPage() {
   const handleClassificationSave = useCallback(
     async (event: FormEvent<HTMLFormElement>) => {
       event.preventDefault();
-      const trimmedId = classificationForm.id.trim();
       const trimmedName = classificationForm.name.trim();
 
-      if (!trimmedId || !trimmedName) {
+      if (!trimmedName) {
         safeSetState(() => {
-          setClassificationError("ID and name are required");
+          setClassificationError("Name is required");
           setClassificationSuccessMessage(null);
         });
         return;
@@ -286,11 +300,16 @@ export default function SettingsPage() {
       });
 
       try {
-        await saveClassification({
-          id: trimmedId,
-          name: trimmedName,
-          description: classificationForm.description.trim() || undefined
-        });
+        const payload: SaveClassificationInput = { name: trimmedName };
+        const trimmedDescription = classificationForm.description.trim();
+        if (trimmedDescription) {
+          payload.description = trimmedDescription;
+        }
+        if (isEditingClassification) {
+          payload.id = classificationForm.id.trim();
+        }
+
+        const savedRecord = await saveClassification(payload);
 
         safeSetState(() => {
           setClassificationForm({ ...DEFAULT_CLASSIFICATION_FORM });
@@ -301,7 +320,7 @@ export default function SettingsPage() {
 
         if (refreshed) {
           safeSetState(() => {
-            setClassificationSuccessMessage("Classification saved");
+            setClassificationSuccessMessage(`Classification saved (${savedRecord.id})`);
           });
         }
       } catch (error) {
@@ -315,7 +334,7 @@ export default function SettingsPage() {
         });
       }
     },
-    [classificationForm, loadClassifications, safeSetState]
+    [classificationForm, isEditingClassification, loadClassifications, safeSetState]
   );
 
   const handleDeleteClassification = useCallback(
@@ -827,31 +846,30 @@ export default function SettingsPage() {
           )}
 
           <form className="space-y-4" onSubmit={handleClassificationSave}>
-            <div className="grid gap-4 md:grid-cols-2">
-              <label className="space-y-1 text-sm font-semibold text-slate-500 dark:text-slate-400">
-                <span>Identifier</span>
-                <input
-                  type="text"
-                  value={classificationForm.id}
-                  onChange={(event) =>
-                    setClassificationForm((prev) => ({ ...prev, id: event.target.value }))
-                  }
-                  disabled={isEditingClassification}
-                  className="w-full rounded-2xl border border-slate-200/70 bg-white/80 px-4 py-2 text-sm text-slate-700 outline-none transition focus:border-slate-400 dark:border-slate-800/60 dark:bg-slate-900/70 dark:text-slate-200"
-                />
-              </label>
-              <label className="space-y-1 text-sm font-semibold text-slate-500 dark:text-slate-400">
-                <span>Name</span>
-                <input
-                  type="text"
-                  value={classificationForm.name}
-                  onChange={(event) =>
-                    setClassificationForm((prev) => ({ ...prev, name: event.target.value }))
-                  }
-                  className="w-full rounded-2xl border border-slate-200/70 bg-white/80 px-4 py-2 text-sm text-slate-700 outline-none transition focus:border-slate-400 dark:border-slate-800/60 dark:bg-slate-900/70 dark:text-slate-200"
-                />
-              </label>
+            <div className="space-y-1 text-xs text-slate-500 dark:text-slate-400">
+              <p>IDs are generated automatically from the name.</p>
+              <p className="font-mono text-slate-700 dark:text-slate-200">
+                Preview: {slugPreview || "—"}
+              </p>
+              {isEditingClassification && classificationForm.id && (
+                <p>
+                  Editing preserves identifier{' '}
+                  <span className="font-mono text-slate-900 dark:text-white">{classificationForm.id}</span>
+                  .
+                </p>
+              )}
             </div>
+            <label className="space-y-1 text-sm font-semibold text-slate-500 dark:text-slate-400">
+              <span>Name</span>
+              <input
+                type="text"
+                value={classificationForm.name}
+                onChange={(event) =>
+                  setClassificationForm((prev) => ({ ...prev, name: event.target.value }))
+                }
+                className="w-full rounded-2xl border border-slate-200/70 bg-white/80 px-4 py-2 text-sm text-slate-700 outline-none transition focus:border-slate-400 dark:border-slate-800/60 dark:bg-slate-900/70 dark:text-slate-200"
+              />
+            </label>
             <label className="space-y-1 text-sm font-semibold text-slate-500 dark:text-slate-400">
               <span>Description</span>
               <textarea
@@ -1131,4 +1149,3 @@ export default function SettingsPage() {
     </div>
   );
 }
-

@@ -31,6 +31,27 @@ describe('createClassificationStorage', () => {
     });
   });
 
+  it('generates an identifier from the name when none is supplied', () => {
+    const storage = createClassificationStorage(db);
+
+    const saved = storage.saveClassification({ name: 'High Priority', description: 'Urgent flows' });
+
+    expect(saved.id).toBe('high-priority');
+    expect(saved.name).toBe('High Priority');
+    expect(saved.description).toBe('Urgent flows');
+    expect(storage.getClassificationById('high-priority')).toEqual(saved);
+  });
+
+  it('appends a suffix when the slug already exists', () => {
+    const storage = createClassificationStorage(db);
+
+    storage.saveClassification({ name: 'High Priority' });
+    const second = storage.saveClassification({ name: 'High Priority' });
+
+    expect(second.id).toBe('high-priority-2');
+    expect(storage.getClassificationById('high-priority-2')).toEqual(second);
+  });
+
   it('trims ids/names when saving and leaves description nullable', () => {
     const storage = createClassificationStorage(db);
 
