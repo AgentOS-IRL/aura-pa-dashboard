@@ -446,9 +446,21 @@ describe('individual transcript deletion', () => {
     expect(deleteTranscriptMock).toHaveBeenCalledWith(42);
   });
 
-  it('returns 400 when the transcript ID is not a number', async () => {
+  it('returns 400 when the transcript ID is not a strictly numeric string', async () => {
     await request(app)
-      .delete(withAuraBasePath('/transcripts/not-a-number'))
+      .delete(withAuraBasePath('/transcripts/42abc'))
+      .expect(400);
+
+    expect(deleteTranscriptMock).not.toHaveBeenCalled();
+  });
+
+  it('returns 400 when the transcript ID is 0 or negative', async () => {
+    await request(app)
+      .delete(withAuraBasePath('/transcripts/0'))
+      .expect(400);
+
+    await request(app)
+      .delete(withAuraBasePath('/transcripts/-1'))
       .expect(400);
 
     expect(deleteTranscriptMock).not.toHaveBeenCalled();

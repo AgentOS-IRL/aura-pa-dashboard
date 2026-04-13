@@ -163,4 +163,54 @@ describe("SettingsPage", () => {
 
     await screen.findByText("No unclassified transcripts");
   });
+
+  it("updates pagination summary and recomputes hasMore when a transcript is deleted", async () => {
+    fetchTranscriptsMock.mockResolvedValue({
+      transcripts: [
+        {
+          id: 101,
+          sessionId: "s-1",
+          payload: "to delete",
+          metadata: null,
+          receivedAt: "2026-04-01T12:00:00Z",
+          classificationState: "unclassified" as const,
+          classificationReason: null,
+          classifications: []
+        },
+        {
+          id: 102,
+          sessionId: "s-1",
+          payload: "stays",
+          metadata: null,
+          receivedAt: "2026-04-01T12:00:00Z",
+          classificationState: "unclassified" as const,
+          classificationReason: null,
+          classifications: []
+        }
+      ],
+      total: 26,
+      limit: 25,
+      hasMore: true
+    });
+
+    const { deleteTranscript } = await import("../lib/transcripts");
+    const deleteTranscriptMock = vi.mocked(deleteTranscript);
+    deleteTranscriptMock.mockResolvedValue(undefined);
+
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+
+    render(<SettingsPage />);
+    fireEvent.click(screen.getByRole("tab", { name: /Transcript history/ }));
+
+    await screen.findByText("to delete");
+    expect(screen.getByText(/Showing entries 1–25 of 26/)).toBeDefined();
+    const nextButton = screen.getByRole("button", { name: "Next" });
+    expect(nextButton.hasAttribute("disabled")).toBe(false);
+
+    const deleteButtons = screen.getAllByTitle("Delete transcript");
+    fireEvent.click(deleteButtons[0]);
+
+    await screen.findByText(/Showing entries 1–25 of 25/);
+    expect(nextButton.hasAttribute("disabled")).toBe(true);
+  });
 });

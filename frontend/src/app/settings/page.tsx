@@ -593,10 +593,14 @@ export default function SettingsPage() {
       await deleteTranscript(id);
       safeSetState(() => {
         setTranscripts((prev) => prev.filter((t) => t.id !== id));
-        setTranscriptsPaginationMeta((prev) => ({
-          ...prev,
-          total: Math.max(0, prev.total - 1)
-        }));
+        setTranscriptsPaginationMeta((prev) => {
+          const newTotal = Math.max(0, prev.total - 1);
+          return {
+            ...prev,
+            total: newTotal,
+            hasMore: transcriptsCurrentPage * prev.limit < newTotal
+          };
+        });
       });
       void loadUnclassifiedBadgeCount();
     } catch (err) {
@@ -613,7 +617,7 @@ export default function SettingsPage() {
         return newState;
       });
     }
-  }, [safeSetState, loadUnclassifiedBadgeCount]);
+  }, [safeSetState, loadUnclassifiedBadgeCount, transcriptsCurrentPage]);
 
   const handleTranscriptsPreviousPage = useCallback(() => {
     setTranscriptsCurrentPage((page) => Math.max(1, page - 1));
