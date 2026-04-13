@@ -4,7 +4,6 @@ import { createSessionId, uploadAudioChunk } from './audioUpload';
 afterEach(() => {
     vi.restoreAllMocks();
     vi.resetAllMocks();
-    delete process.env.NEXT_PUBLIC_EXECUTOR_ID;
 });
 
 describe('uploadAudioChunk', () => {
@@ -18,12 +17,11 @@ describe('uploadAudioChunk', () => {
         );
 
         vi.stubGlobal('fetch', fetchMock);
-        process.env.NEXT_PUBLIC_EXECUTOR_ID = 'executor-test';
 
         const buffer = new Uint8Array([1, 2, 3]).buffer;
         await uploadAudioChunk('session-test', buffer);
 
-        expect(fetchMock).toHaveBeenCalledOnce();
+        expect(fetchMock).toHaveBeenCalledTimes(1);
         const [calledUrl, options] = fetchMock.mock.calls[0];
         expect(calledUrl).toBe('http://localhost:4000/aura/sessions/session-test/audio');
         expect(options).toBeDefined();
@@ -33,26 +31,7 @@ describe('uploadAudioChunk', () => {
         expect(formData).toBeInstanceOf(FormData);
         const audioField = formData.get('audio');
         expect(audioField).toBeInstanceOf(Blob);
-        expect(options?.headers).toEqual({ 'x-aura-executor-id': 'executor-test' });
-    });
-
-    it('prefers an explicit executor id over the environment value', async () => {
-        const fetchMock = vi.fn(() =>
-            Promise.resolve({
-                ok: true,
-                status: 200,
-                text: () => Promise.resolve(''),
-            }),
-        );
-
-        vi.stubGlobal('fetch', fetchMock);
-        process.env.NEXT_PUBLIC_EXECUTOR_ID = 'executor-env';
-
-        const buffer = new Uint8Array([4, 5, 6]).buffer;
-        await uploadAudioChunk('session-test', buffer, 'executor-override');
-
-        const options = fetchMock.mock.calls[0][1];
-        expect(options?.headers).toEqual({ 'x-aura-executor-id': 'executor-override' });
+        expect(options?.headers).toBeUndefined();
     });
 
     it('throws when the backend responds with a failure', async () => {
@@ -66,7 +45,6 @@ describe('uploadAudioChunk', () => {
         );
 
         vi.stubGlobal('fetch', fetchMock);
-        process.env.NEXT_PUBLIC_EXECUTOR_ID = 'executor-test';
 
         await expect(uploadAudioChunk('session-test', new ArrayBuffer(1))).rejects.toThrow('Upload failed (500)');
     });

@@ -41,7 +41,7 @@ The UI posts chunks to `NEXT_PUBLIC_BACKEND_URL` (default `http://localhost:4000
 NEXT_PUBLIC_BACKEND_URL=https://aura-pa-backend.internal
 ```
 
-The audio upload endpoint now requires an executor identifier so the backend can verify the operator is healthy before accepting chunks. Set `NEXT_PUBLIC_EXECUTOR_ID` (typically the `taskId`/`label`/`agentName` AgentOS surfaces on `agentos/status`) and the assistant automatically sends that value in the `X-Aura-Executor-Id` header with every upload. The backend also accepts the same value via a `?executorId=` query parameter for other clients. Audio requests are rejected with `409 Conflict` whenever the executor is unknown or returns a health string outside of the allowed list (`health`, `healthy`, `green`, `up`, `ok`), so make sure `/aura/health` reports a fresh healthy snapshot before streaming audio.
+The audio upload endpoint now only requires a valid session ID and the recorded audio chunk. POST `multipart/form-data` to `/aura/sessions/{sessionId}/audio` with a single `audio` field, and the backend streams it to `DeepgramTranscribeClient` before storing the resulting transcript. Success responses are `201`, missing parameters produce `400`, and downstream transcription failures map to `500`.
 
 The frontend also respects `NEXT_PUBLIC_AURA_BASE_PATH`, which should match the backend `AURA_BASE_PATH` value (default `/aura`). Adjust this pair together whenever you deploy behind a different prefix.
 
