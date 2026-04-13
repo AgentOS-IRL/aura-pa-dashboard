@@ -73,7 +73,7 @@ describe('classifications route', () => {
       .expect(500);
   });
 
-  it('saves classification from body and returns 200', async () => {
+  it('saves classification when an id is provided and trimmed', async () => {
     const savedRecord = { id: 'cat-1', name: 'First', description: 'desc' };
     saveMock.mockReturnValue(savedRecord);
 
@@ -86,24 +86,31 @@ describe('classifications route', () => {
     expect(saveMock).toHaveBeenCalledWith({ id: 'cat-1', name: 'First', description: 'desc' });
   });
 
-  it('rejects missing required fields', async () => {
-    await request(app)
-      .post(withAuraBasePath('/classifications'))
-      .send({ name: 'Name only' })
-      .expect(400);
+  it('creates classification records without supplying an id', async () => {
+    const savedRecord = { id: 'high-priority', name: 'High Priority', description: null };
+    saveMock.mockReturnValue(savedRecord);
 
     await request(app)
       .post(withAuraBasePath('/classifications'))
-      .send({ id: 'cat-1' })
+      .send({ name: '  High Priority  ' })
+      .expect(200);
+
+    expect(saveMock).toHaveBeenCalledWith({ name: 'High Priority', description: null });
+  });
+
+  it('rejects missing name', async () => {
+    await request(app)
+      .post(withAuraBasePath('/classifications'))
+      .send({})
       .expect(400);
 
     expect(saveMock).not.toHaveBeenCalled();
   });
 
-  it('rejects non-string or non-buffer id/name values', async () => {
+  it('rejects non-string name values', async () => {
     await request(app)
       .post(withAuraBasePath('/classifications'))
-      .send({ id: { nested: 'value' }, name: true })
+      .send({ name: true })
       .expect(400);
 
     expect(saveMock).not.toHaveBeenCalled();

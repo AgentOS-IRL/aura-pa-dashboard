@@ -18,7 +18,7 @@ export interface ClassificationStats {
 }
 
 export interface SaveClassificationInput {
-  id: string;
+  id?: string;
   name: string;
   description?: string | null;
 }
@@ -57,10 +57,17 @@ export async function fetchClassificationStats(): Promise<ClassificationStats[]>
 
 export async function saveClassification(input: SaveClassificationInput): Promise<ClassificationRecord> {
   const url = `${BACKEND_BASE_URL}${CLASSIFICATIONS_PATH}`;
+  const payload: Record<string, unknown> = { name: input.name };
+  if (input.description !== undefined) {
+    payload.description = input.description;
+  }
+  if (input.id !== undefined) {
+    payload.id = input.id;
+  }
   const response = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(input)
+    body: JSON.stringify(payload)
   });
 
   if (!response.ok) {

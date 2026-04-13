@@ -1,4 +1,5 @@
 import type Database from 'better-sqlite3';
+import { randomUUID } from 'node:crypto';
 import { getTranscriptDatabase } from '../config/database';
 
 export interface ClassificationRecord {
@@ -8,7 +9,7 @@ export interface ClassificationRecord {
 }
 
 export interface SaveClassificationInput {
-  id: string;
+  id?: string;
   name: string;
   description?: string | null;
 }
@@ -19,6 +20,26 @@ function normalizeRequiredField(value: string | undefined, label: string): strin
     throw new Error(`${label} is required to persist classifications`);
   }
   return normalized;
+}
+
+function normalizeOptionalField(value: string | undefined | null): string | null {
+  const normalized = value?.trim() ?? '';
+  return normalized || null;
+}
+
+const SLUG_INVALID_CHARS = /[^a-z0-9-]/g;
+const SLUG_HYPHEN_SEQUENCE = /-+/g;
+const SLUG_TRIM = /^-+|-+$/g;
+const MAX_SLUG_DUPLICATE_ATTEMPTS = 100;
+
+function slugifyName(value: string): string {
+  return value
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, '-')
+    .replace(SLUG_INVALID_CHARS, '-')
+    .replace(SLUG_HYPHEN_SEQUENCE, '-')
+    .replace(SLUG_TRIM, '');
 }
 
 export function createClassificationStorage(db: Database.Database) {
@@ -40,14 +61,35 @@ export function createClassificationStorage(db: Database.Database) {
   const deleteAllStmt = db.prepare('DELETE FROM classifications');
   const deleteByIdStmt = db.prepare('DELETE FROM classifications WHERE id = ?');
 
+  function ensureUniqueIdFromName(name: string): string {
+    const baseSlug = slugifyName(name);
+    if (!baseSlug) {
+      return randomUUID();
+    }
+
+    let candidate = baseSlug;
+    let suffix = 2;
+    while (getClassificationById(candidate)) {
+      if (suffix > MAX_SLUG_DUPLICATE_ATTEMPTS) {
+        return randomUUID();
+      }
+      candidate = `${baseSlug}-${suffix}`;
+      suffix += 1;
+    }
+
+    return candidate;
+  }
+
   function saveClassification(input: SaveClassificationInput): ClassificationRecord {
-    const id = normalizeRequiredField(input.id, 'id');
+    const trimmedId = normalizeOptionalField(input.id ?? null);
     const name = normalizeRequiredField(input.name, 'name');
     const description = input.description ?? null;
 
-    upsertStmt.run(id, name, description);
+    const idToPersist = trimmedId ?? ensureUniqueIdFromName(name);
 
-    return { id, name, description };
+    upsertStmt.run(idToPersist, name, description);
+
+    return { id: idToPersist, name, description };
   }
 
   function getClassificationById(id: string): ClassificationRecord | null {

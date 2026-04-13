@@ -323,18 +323,17 @@ paths:
               properties:
                 id:
                   type: string
+                  description: Optional identifier (server will slugify the name when omitted)
                 name:
                   type: string
                 description:
                   type: string
                   nullable: true
               required:
-                - id
                 - name
             examples:
               classification:
                 value:
-                  id: cat-1
                   name: High Priority
                   description: Critical workflows
       responses:
@@ -345,7 +344,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ClassificationRecord'
         '400':
-          description: Missing id or name in payload
+          description: Missing or invalid name in payload
         '500':
           description: Backend failed to persist the classification
   /classifications/{id}:

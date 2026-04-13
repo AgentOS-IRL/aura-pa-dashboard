@@ -58,12 +58,31 @@ describe("saveClassification", () => {
 
     const result = await saveClassification(payload);
 
-    expect(fetchMock).toHaveBeenCalledWith("http://localhost:4000/aura/classifications", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    });
+    const [url, config] = fetchMock.mock.calls[0];
+    expect(url).toBe("http://localhost:4000/aura/classifications");
+    expect(config.method).toBe("POST");
+    expect(config.headers).toEqual({ "Content-Type": "application/json" });
+    expect(JSON.parse(config.body as string)).toEqual(payload);
     expect(result).toEqual(payload);
+  });
+
+  it("omits id when not supplied", async () => {
+    const fetchMock = vi.fn(() =>
+      Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ id: "generated", name: "Name", description:null })
+      })
+    );
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    await saveClassification({ name: "Name", description: "desc" });
+
+    const [url, config] = fetchMock.mock.calls[0];
+    const body = JSON.parse(config.body as string);
+
+    expect(url).toBe("http://localhost:4000/aura/classifications");
+    expect(body).toEqual({ name: "Name", description: "desc" });
   });
 
   it("throws when saving fails", async () => {

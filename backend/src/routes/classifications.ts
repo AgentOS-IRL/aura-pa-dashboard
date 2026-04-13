@@ -2,7 +2,8 @@ import { Router, Request, Response } from 'express';
 import {
   deleteClassificationById,
   listClassifications,
-  saveClassification
+  saveClassification,
+  type SaveClassificationInput
 } from '../services/classificationStorage';
 import { getClassificationStats } from '../services/transcriptClassificationStorage';
 
@@ -27,7 +28,7 @@ const ensureRequiredField = (value: unknown): string | null => {
   return normalized;
 };
 
-const normalizeDescription = (value: unknown): string | null => {
+const normalizeOptionalString = (value: unknown): string | null => {
   if (value === undefined || value === null) {
     return null;
   }
@@ -37,11 +38,7 @@ const normalizeDescription = (value: unknown): string | null => {
   }
 
   const normalized = normalizeStringInput(value).trim();
-  if (!normalized) {
-    return null;
-  }
-
-  return normalized;
+  return normalized || null;
 };
 
 router.get('/', (_req: Request, res: Response) => {
@@ -66,20 +63,24 @@ router.get('/stats', (_req: Request, res: Response) => {
 
 router.post('/', (req: Request, res: Response) => {
   const body = req.body ?? {};
-  const id = ensureRequiredField(body.id);
   const name = ensureRequiredField(body.name);
 
-  if (id === null || name === null) {
-    const missing = [];
-    if (id === null) missing.push('id');
-    if (name === null) missing.push('name');
-    const verb = missing.length > 1 ? 'are' : 'is';
-    return res.status(400).json({ error: `${missing.join(' and ')} ${verb} required` });
+  if (name === null) {
+    return res.status(400).json({ error: 'name is required' });
   }
 
   try {
-    const description = normalizeDescription(body.description);
-    const saved = saveClassification({ id, name, description });
+    const description = normalizeOptionalString(body.description);
+    const id = normalizeOptionalString(body.id);
+    const payload: SaveClassificationInput = {
+      name,
+      description
+    };
+    if (id !== null) {
+      payload.id = id;
+    }
+
+    const saved = saveClassification(payload);
     return res.status(200).json(saved);
   } catch (error) {
     console.error('Unable to save classification', error);
