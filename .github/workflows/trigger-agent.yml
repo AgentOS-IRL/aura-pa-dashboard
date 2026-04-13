@@ -1,0 +1,48 @@
+name: Agent Trigger on Reaction
+
+on:
+  issue:
+    types: [created]
+
+jobs:
+  trigger-agent:
+    runs-on: self-hosted
+    if: |
+      github.event.reaction.content == '+1' && 
+      github.event.issue != null &&
+      startsWith(github.event.issue.title, '[Task ')
+    steps:
+      - name: Install dependencies
+        run: |
+          if command -v apt-get >/dev/null; then
+            sudo apt-get update -y && sudo apt-get install -y redis-tools jq
+          elif command -v apk >/dev/null; then
+            sudo apk add --no-cache redis jq
+          else
+            echo "Unable to install redis-cli/jq; please install them on this runner"
+            exit 1
+          fi
+      - name: Publish and Push to Redis
+        shell: bash
+        env:
+          REPO_SLUG: ${{ github.repository }}
+          PR_TITLE: ${{ github.event.issue.title }}
+          PR_NUMBER: ${{ github.event.issue.number }}
+          REDIS_HOST: 192.168.8.129
+          REDIS_PORT: 6379
+          REDIS_CHANNEL: agentos/blazing-collie/trigger
+          TRIGGER_KEY: agentos/pr/merge
+        run: |
+          PAYLOAD=$(jq -n -c \
+            --arg title "$PR_TITLE" \
+            --arg repo "$REPO_SLUG" \
+            --arg pr "$PR_NUMBER" \
+            '{
+              title: $title,
+              repo: $repo, 
+              pr: (if $pr == "" then null else ($pr | tonumber) end)
+            }')
+
+          echo "Triggering agent for PR: $PR_NUMBER"
+          redis-cli -h "$REDIS_HOST" -p "$REDIS_PORT" PUBLISH "$REDIS_CHANNEL" "$TRIGGER_KEY"
+          redis-cli -h "$REDIS_HOST" -p "$REDIS_PORT" RPUSH "$TRIGGER_KEY" "$PAYLOAD"
