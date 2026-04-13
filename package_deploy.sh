@@ -111,6 +111,9 @@ log "Starting deploy to $SERVER_USER_HOST:$SERVER_PATH"
 log "Running build_test to refresh artifacts"
 npm run build_test
 
+log "Rebuilding frontend bundle to guarantee up-to-date artifacts"
+npm run build:frontend
+
 # Check for build artifacts
 if [[ ! -d "$FRONTEND_BUILD_PATH" ]]; then
   die "Frontend build directory not found at $FRONTEND_BUILD_PATH. Run ./build_test.sh first."
