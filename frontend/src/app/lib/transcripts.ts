@@ -169,6 +169,16 @@ export async function fetchTranscripts(options?: FetchTranscriptsOptions): Promi
   return { transcripts, page, limit, total, hasMore };
 }
 
+export async function deleteTranscript(id: number): Promise<void> {
+  const url = `${BACKEND_BASE_URL}${BACKEND_PATH_PREFIX}/transcripts/${id}`;
+  const response = await fetch(url, { method: 'DELETE' });
+
+  if (!response.ok) {
+    const message = await response.text().catch(() => response.statusText);
+    throw new Error(`Failed to delete transcript ${id} (${response.status}): ${message}`);
+  }
+}
+
 export async function deleteAllTranscripts(): Promise<void> {
   const url = `${BACKEND_BASE_URL}${BACKEND_PATH_PREFIX}/transcripts`;
   const response = await fetch(url, { method: 'DELETE' });

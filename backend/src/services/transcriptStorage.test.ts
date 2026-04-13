@@ -303,3 +303,41 @@ describe('deleteAllTranscripts', () => {
     expect(storage.getLatestTranscripts().total).toBe(0);
   });
 });
+
+describe('deleteTranscript', () => {
+  beforeEach(() => {
+    db = new Database(':memory:');
+  });
+
+  it('deletes a single transcript and its associated classifications', () => {
+    const storage = createTranscriptStorage(db);
+    const classificationStorage = createClassificationStorage(db);
+    const mappingStorage = createTranscriptClassificationStorage(db);
+
+    classificationStorage.saveClassification({ id: 'cat-1', name: 'First' });
+    const t1 = storage.saveTranscript('s1', 't1');
+    const t2 = storage.saveTranscript('s1', 't2');
+
+    mappingStorage.assignClassificationToTranscript(t1.id, 'cat-1');
+    mappingStorage.assignClassificationToTranscript(t2.id, 'cat-1');
+
+    expect(mappingStorage.getClassificationsForTranscript(t1.id)).toHaveLength(1);
+    expect(mappingStorage.getClassificationsForTranscript(t2.id)).toHaveLength(1);
+
+    const deleted = storage.deleteTranscript(t1.id);
+
+    expect(deleted).toBe(1);
+    expect(storage.getLatestTranscripts().total).toBe(1);
+    expect(storage.getLatestTranscripts().transcripts[0].id).toBe(t2.id);
+
+    // Verify cascade deletion
+    expect(mappingStorage.getClassificationsForTranscript(t1.id)).toHaveLength(0);
+    expect(mappingStorage.getClassificationsForTranscript(t2.id)).toHaveLength(1);
+  });
+
+  it('returns 0 when the transcript does not exist', () => {
+    const storage = createTranscriptStorage(db);
+    const deleted = storage.deleteTranscript(999);
+    expect(deleted).toBe(0);
+  });
+});

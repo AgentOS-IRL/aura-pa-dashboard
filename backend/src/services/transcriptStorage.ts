@@ -105,6 +105,7 @@ export function createTranscriptStorage(db: Database.Database) {
   const updateClassificationStateStmt = db.prepare(
     'UPDATE transcripts SET classification_state = ?, classification_reason = ? WHERE id = ?'
   );
+  const deleteByIdStmt = db.prepare('DELETE FROM transcripts WHERE id = ?');
 
   const DEFAULT_LIMIT = 25;
   const MAX_LIMIT = 100;
@@ -120,6 +121,12 @@ export function createTranscriptStorage(db: Database.Database) {
   function doesTranscriptExist(transcriptId: number): boolean {
     const row = selectByIdStmt.get(transcriptId);
     return row !== undefined;
+  }
+
+  function deleteTranscript(transcriptId: number | string): number {
+    const normalizedId = normalizeTranscriptId(transcriptId);
+    const result = deleteByIdStmt.run(normalizedId);
+    return typeof result.changes === 'number' ? result.changes : 0;
   }
 
   function updateTranscriptClassificationState(
@@ -403,6 +410,7 @@ export function createTranscriptStorage(db: Database.Database) {
     getTranscriptsByClassification,
     getTranscriptsByClassificationState,
     deleteAllTranscripts,
+    deleteTranscript,
     doesTranscriptExist,
     updateTranscriptClassificationState
   };
@@ -418,6 +426,7 @@ export const {
   getTranscriptsByClassification,
   getTranscriptsByClassificationState,
   deleteAllTranscripts,
+  deleteTranscript,
   doesTranscriptExist,
   updateTranscriptClassificationState
 } = defaultStorage;

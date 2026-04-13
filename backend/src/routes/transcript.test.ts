@@ -9,6 +9,7 @@ vi.mock('../services/transcriptStorage', () => ({
   getTranscriptsByClassification: vi.fn(),
   getTranscriptsByClassificationState: vi.fn(),
   deleteAllTranscripts: vi.fn(),
+  deleteTranscript: vi.fn(),
   VALID_TRANSCRIPT_CLASSIFICATION_STATES: ['pending', 'classified', 'unclassified'] as const
 }));
 vi.mock('../services/transcriptClassificationStorage', () => ({
@@ -21,7 +22,8 @@ import {
   getTranscriptsByClassification,
   getTranscriptsByClassificationState,
   saveTranscript,
-  deleteAllTranscripts
+  deleteAllTranscripts,
+  deleteTranscript
 } from '../services/transcriptStorage';
 import { getClassificationsForTranscripts } from '../services/transcriptClassificationStorage';
 import { createApp } from '../index';
@@ -35,6 +37,7 @@ const getLatestTranscriptsMock = vi.mocked(getLatestTranscripts);
 const getTranscriptsByClassificationMock = vi.mocked(getTranscriptsByClassification);
 const getTranscriptsByClassificationStateMock = vi.mocked(getTranscriptsByClassificationState);
 const deleteAllTranscriptsMock = vi.mocked(deleteAllTranscripts);
+const deleteTranscriptMock = vi.mocked(deleteTranscript);
 const classificationMock = vi.mocked(getClassificationsForTranscripts);
 
 beforeEach(() => {
@@ -424,6 +427,52 @@ describe('transcripts listing route', () => {
 
     await request(app)
       .delete(withAuraBasePath('/transcripts'))
+      .expect(500);
+  });
+});
+
+describe('individual transcript deletion', () => {
+  beforeEach(() => {
+    deleteTranscriptMock.mockReset();
+  });
+
+  it('returns 204 when the transcript is deleted successfully', async () => {
+    deleteTranscriptMock.mockReturnValue(1);
+
+    await request(app)
+      .delete(withAuraBasePath('/transcripts/42'))
+      .expect(204);
+
+    expect(deleteTranscriptMock).toHaveBeenCalledWith(42);
+  });
+
+  it('returns 400 when the transcript ID is not a strictly numeric string', async () => {
+    await request(app)
+      .delete(withAuraBasePath('/transcripts/42abc'))
+      .expect(400);
+
+    expect(deleteTranscriptMock).not.toHaveBeenCalled();
+  });
+
+  it('returns 400 when the transcript ID is 0 or negative', async () => {
+    await request(app)
+      .delete(withAuraBasePath('/transcripts/0'))
+      .expect(400);
+
+    await request(app)
+      .delete(withAuraBasePath('/transcripts/-1'))
+      .expect(400);
+
+    expect(deleteTranscriptMock).not.toHaveBeenCalled();
+  });
+
+  it('maps delete failures to 500', async () => {
+    deleteTranscriptMock.mockImplementation(() => {
+      throw new Error('delete failed');
+    });
+
+    await request(app)
+      .delete(withAuraBasePath('/transcripts/42'))
       .expect(500);
   });
 });
