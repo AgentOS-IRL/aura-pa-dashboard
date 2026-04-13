@@ -14,7 +14,7 @@ vi.mock('./transcriptStorage', () => ({
 }));
 
 import type { CodexClient } from './codexClient';
-import { classifyTranscriptWithCodex } from './transcriptClassificationWorker';
+import { classifyTranscriptWithCodex, NO_VALID_CLASSIFICATIONS_REASON } from './transcriptClassificationWorker';
 import { listClassifications } from './classificationStorage';
 import { assignClassificationToTranscript, clearClassificationsForTranscript } from './transcriptClassificationStorage';
 import type { TranscriptRecord } from './transcriptStorage';
@@ -112,6 +112,52 @@ describe('classifyTranscriptWithCodex', () => {
     expect(assignClassificationMock).toHaveBeenCalledWith(sampleRecord.id, 'cat-1');
     expect(assignClassificationMock).toHaveBeenCalledWith(sampleRecord.id, 'cat-2');
     expect(updateClassificationStateMock).toHaveBeenCalledWith(sampleRecord.id, 'classified', null);
+  });
+
+  it('marks transcripts as unclassified when classified result has no valid IDs', async () => {
+    listClassificationsMock.mockReturnValue([
+      { id: 'cat-1', name: 'Cat One', description: null }
+    ]);
+    const client = {
+      executeStructured: vi.fn().mockResolvedValue({
+        classificationStatus: 'classified',
+        classificationIds: ['unknown', '']
+      })
+    } as unknown as CodexClient;
+
+    await classifyTranscriptWithCodex(sampleRecord, client);
+
+    expect(clearClassificationsMock).toHaveBeenCalledWith(sampleRecord.id);
+    expect(assignClassificationMock).not.toHaveBeenCalled();
+    expect(updateClassificationStateMock).toHaveBeenCalledWith(
+      sampleRecord.id,
+      'unclassified',
+      NO_VALID_CLASSIFICATIONS_REASON
+    );
+  });
+
+  it('rejects unexpected classification statuses', async () => {
+    listClassificationsMock.mockReturnValue([
+      { id: 'cat-1', name: 'Cat One', description: null }
+    ]);
+    const client = {
+      executeStructured: vi.fn().mockResolvedValue({
+        classificationStatus: 'unexpected' as const
+      })
+    } as unknown as CodexClient;
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    await classifyTranscriptWithCodex(sampleRecord, client);
+
+    expect(consoleSpy).toHaveBeenCalledWith(
+      'Unexpected classificationStatus from Codex',
+      sampleRecord.id,
+      'unexpected'
+    );
+    expect(clearClassificationsMock).not.toHaveBeenCalled();
+    expect(assignClassificationMock).not.toHaveBeenCalled();
+    expect(updateClassificationStateMock).not.toHaveBeenCalled();
+    consoleSpy.mockRestore();
   });
 
   it('marks transcripts as unclassified when Codex says nothing fits', async () => {

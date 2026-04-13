@@ -12,6 +12,8 @@ function getCodexClient(): CodexClient {
   return cachedCodexClient;
 }
 
+export const NO_VALID_CLASSIFICATIONS_REASON = 'no valid classification IDs returned';
+
 function buildClassificationPrompt(record: TranscriptRecord, classifications: { id: string; name: string; description: string | null }[]): string {
   const classificationLines = classifications
     .map((classification, index) => {
@@ -87,7 +89,11 @@ export async function classifyTranscriptWithCodex(record: TranscriptRecord, clie
       unclassifiedReason?: unknown;
     } | undefined;
 
-    const classificationStatus = response?.classificationStatus === 'unclassified' ? 'unclassified' : 'classified';
+    const classificationStatus = response?.classificationStatus;
+    if (classificationStatus !== 'classified' && classificationStatus !== 'unclassified') {
+      console.error('Unexpected classificationStatus from Codex', record.id, classificationStatus);
+      return;
+    }
 
     clearClassificationsForTranscript(record.id);
 
@@ -107,11 +113,18 @@ export async function classifyTranscriptWithCodex(record: TranscriptRecord, clie
     const uniqueIds = Array.from(new Set(normalizedIds));
 
     const validIds = new Set(classifications.map((classification) => classification.id));
+    let assignedCount = 0;
     for (const classificationId of uniqueIds) {
       if (!validIds.has(classificationId)) {
         continue;
       }
       assignClassificationToTranscript(record.id, classificationId);
+      assignedCount += 1;
+    }
+
+    if (assignedCount === 0) {
+      updateTranscriptClassificationState(record.id, 'unclassified', NO_VALID_CLASSIFICATIONS_REASON);
+      return;
     }
 
     updateTranscriptClassificationState(record.id, 'classified', null);
