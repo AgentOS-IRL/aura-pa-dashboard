@@ -508,13 +508,13 @@ export default function SettingsPage() {
           records.map((record) =>
             record.id === transcriptId
               ? {
-                  ...record,
-                  classifications: assignments.map((assignment) => ({
-                    id: assignment.classificationId,
-                    name: assignment.name,
-                    description: assignment.description
-                  }))
-                }
+                ...record,
+                classifications: assignments.map((assignment) => ({
+                  id: assignment.classificationId,
+                  name: assignment.name,
+                  description: assignment.description
+                }))
+              }
               : record
           )
         );
@@ -540,9 +540,9 @@ export default function SettingsPage() {
           records.map((record) =>
             record.id === transcriptId
               ? {
-                  ...record,
-                  classifications: record.classifications.filter((entry) => entry.id !== classificationId)
-                }
+                ...record,
+                classifications: record.classifications.filter((entry) => entry.id !== classificationId)
+              }
               : record
           )
         );
@@ -700,12 +700,11 @@ export default function SettingsPage() {
                 aria-selected={isSelected}
                 aria-controls={`${option.value}-panel`}
                 onClick={() => setActiveView(option.value)}
-                className={`flex-1 min-w-[180px] rounded-full border px-4 py-2 text-sm font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-500 ${
-                  isSelected
+                className={`flex-1 min-w-[180px] rounded-full border px-4 py-2 text-sm font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-500 ${isSelected
                     ? "border-transparent bg-slate-900 text-white shadow-lg dark:bg-slate-200 dark:text-slate-900"
                     : "border-slate-200/70 bg-white/90 text-slate-700 hover:border-slate-300 dark:border-slate-800/60 dark:bg-slate-900/70 dark:text-slate-200"
-                }`}
-                >
+                  }`}
+              >
                 {option.value === "transcripts" ? (
                   <span className="flex items-center justify-center gap-2">
                     <span>{option.label}</span>
@@ -1125,7 +1124,7 @@ export default function SettingsPage() {
                                 )}
                               </button>
                               {transcriptDeletionState[record.id]?.error && (
-                                <span className="text-rose-600 shrink-0" title={transcriptDeletionState[record.id].error}>
+                                <span className="text-rose-600 shrink-0" title={transcriptDeletionState[record.id].error ?? undefined}>
                                   <AlertCircle className="w-3 h-3" />
                                 </span>
                               )}
@@ -1167,7 +1166,7 @@ export default function SettingsPage() {
                                         {removalEntry?.loading ? "…" : "Remove"}
                                       </button>
                                       {removalEntry?.error && (
-                                        <span className="text-rose-600 shrink-0" title={removalEntry.error}>
+                                        <span className="text-rose-600 shrink-0" title={removalEntry.error ?? undefined}>
                                           <AlertCircle className="w-3 h-3" />
                                         </span>
                                       )}
