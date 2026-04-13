@@ -1,6 +1,6 @@
 import fs from 'fs';
 import { randomUUID } from 'crypto';
-import { Langfuse } from 'langfuse';
+import Langfuse from 'langfuse';
 import type { LangfuseGenerationClient } from 'langfuse';
 import { getCodexAuthPath } from '../config/openai';
 import { getLangfuseConfig, isLangfuseEnabled } from '../config/langfuse';
