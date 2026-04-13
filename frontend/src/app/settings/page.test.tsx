@@ -292,4 +292,39 @@ describe("SettingsPage", () => {
     await screen.findByText("worker error");
     expect(button.disabled).toBe(false);
   });
+
+  it("does not show the update button when a transcript already has labels", async () => {
+    const transcripts = [
+      {
+        id: 203,
+        sessionId: "s-1",
+        payload: "already has labels",
+        metadata: null,
+        receivedAt: "2026-04-01T12:00:00Z",
+        classificationState: "pending" as const,
+        classificationReason: null,
+        classifications: [
+          {
+            id: "priority",
+            name: "Priority"
+          }
+        ]
+      }
+    ];
+
+    fetchTranscriptsMock.mockResolvedValue({
+      transcripts,
+      total: 1,
+      limit: 25,
+      hasMore: false
+    });
+
+    render(<SettingsPage />);
+    fireEvent.click(screen.getByRole("tab", { name: /Transcript history/ }));
+    await screen.findByText("Pending classification");
+
+    expect(screen.queryByRole("button", { name: "Update classification" })).toBeNull();
+    fireEvent.click(screen.getByText("already has labels"));
+    expect(runTranscriptClassificationMock).not.toHaveBeenCalled();
+  });
 });
