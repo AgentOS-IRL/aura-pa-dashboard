@@ -157,6 +157,9 @@ paths:
         Returns a paginated feed of every transcript row sorted by newest entries first
         (ordered by `receivedAt` descending with `id` as a tie-breaker). Each record still
         surfaces the originating session ID so you can trace which session produced the text.
+        Append `classificationState=pending|classified|unclassified` to scope the response to
+        transcripts that currently carry that state. The `total`/`hasMore` metadata reflects the
+        filtered set so callers can show how many entries match the requested state.
       parameters:
         - name: page
           in: query
@@ -173,6 +176,15 @@ paths:
             minimum: 1
             maximum: 100
             default: 25
+        - name: classificationState
+          in: query
+          description: Filter transcripts by classification state (`pending`, `classified`, or `unclassified`).
+          schema:
+            type: string
+            enum:
+              - pending
+              - classified
+              - unclassified
       responses:
         '200':
           description: Transcript rows across all sessions, newest-first

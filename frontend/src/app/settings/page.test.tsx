@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import type { CodexUsage } from "../lib/usage";
+import { fetchTranscripts } from "../lib/transcripts";
 import SettingsPage from "./page";
 
 const usageMock: CodexUsage = {
@@ -45,17 +46,9 @@ vi.mock("../lib/classifications", () => ({
   deleteClassification: vi.fn()
 }));
 
-vi.mock("../lib/transcripts", () => ({
-  fetchTranscripts: vi.fn(() =>
-    Promise.resolve({
-      transcripts: [],
-      total: 0,
-      limit: 25,
-      hasMore: false
-    })
-  ),
-  deleteAllTranscripts: vi.fn()
-}));
+vi.mock("../lib/transcripts");
+
+const fetchTranscriptsMock = vi.mocked(fetchTranscripts);
 
 vi.mock("../lib/transcriptClassifications", () => ({
   saveTranscriptClassification: vi.fn(),
@@ -63,6 +56,15 @@ vi.mock("../lib/transcriptClassifications", () => ({
 }));
 
 describe("SettingsPage", () => {
+  beforeEach(() => {
+    fetchTranscriptsMock.mockResolvedValue({
+      transcripts: [],
+      total: 0,
+      limit: 25,
+      hasMore: false
+    });
+  });
+
   afterEach(() => {
     vi.clearAllMocks();
   });
@@ -72,7 +74,7 @@ describe("SettingsPage", () => {
 
     await screen.findByRole("tab", { name: "Usage monitoring" });
     screen.getByRole("tab", { name: "Classification metadata" });
-    screen.getByRole("tab", { name: "Transcript history" });
+    screen.getByRole("tab", { name: /Transcript history/ });
 
     await screen.findByRole("heading", { name: "Usage monitoring" });
     await screen.findByText("Raw payload");
@@ -81,8 +83,43 @@ describe("SettingsPage", () => {
     await screen.findByRole("heading", { name: "Manage classification metadata" });
     expect(screen.queryByText("Raw payload")).toBeNull();
 
-    fireEvent.click(screen.getByRole("tab", { name: "Transcript history" }));
+    fireEvent.click(screen.getByRole("tab", { name: /Transcript history/ }));
     await screen.findByRole("heading", { name: "Global transcript history" });
     expect(screen.queryByRole("heading", { name: "Manage classification metadata" })).toBeNull();
+  });
+
+  it("defaults to showing unclassified transcripts and renders the badge", async () => {
+    fetchTranscriptsMock.mockResolvedValue({
+      transcripts: [],
+      total: 3,
+      limit: 25,
+      hasMore: false
+    });
+
+    render(<SettingsPage />);
+    fireEvent.click(screen.getByRole("tab", { name: /Transcript history/ }));
+    await screen.findByRole("heading", { name: "Global transcript history" });
+
+    expect(fetchTranscriptsMock.mock.calls.some((call) => call[0]?.classificationState === "unclassified")).toBe(true);
+    const transcriptsTab = screen.getByRole("tab", { name: /Transcript history/ });
+    expect(transcriptsTab.textContent).toContain("Transcript history");
+    expect(transcriptsTab.textContent).toContain("3");
+    const filterButton = screen.getByRole("button", { name: "Show all transcripts" });
+    expect(filterButton.getAttribute("aria-pressed")).toBe("true");
+    screen.getByText(/Showing unclassified transcripts only/);
+  });
+
+  it("toggles between unclassified-only and all filters", async () => {
+    render(<SettingsPage />);
+    fireEvent.click(screen.getByRole("tab", { name: /Transcript history/ }));
+    await screen.findByRole("heading", { name: "Global transcript history" });
+
+    fetchTranscriptsMock.mockClear();
+
+    fireEvent.click(screen.getByRole("button", { name: "Show all transcripts" }));
+    await screen.findByText(/Showing every transcript entry/);
+
+    expect(fetchTranscriptsMock.mock.calls.some((call) => call[0]?.classificationState === "all")).toBe(true);
+    screen.getByRole("button", { name: "Show unclassified only" });
   });
 });

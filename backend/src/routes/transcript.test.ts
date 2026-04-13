@@ -7,7 +7,9 @@ vi.mock('../services/transcriptStorage', () => ({
   getTranscriptPage: vi.fn(),
   getLatestTranscripts: vi.fn(),
   getTranscriptsByClassification: vi.fn(),
-  deleteAllTranscripts: vi.fn()
+  getTranscriptsByClassificationState: vi.fn(),
+  deleteAllTranscripts: vi.fn(),
+  VALID_TRANSCRIPT_CLASSIFICATION_STATES: ['pending', 'classified', 'unclassified'] as const
 }));
 vi.mock('../services/transcriptClassificationStorage', () => ({
   getClassificationsForTranscripts: vi.fn()
@@ -17,6 +19,7 @@ import {
   getTranscriptPage,
   getLatestTranscripts,
   getTranscriptsByClassification,
+  getTranscriptsByClassificationState,
   saveTranscript,
   deleteAllTranscripts
 } from '../services/transcriptStorage';
@@ -30,6 +33,7 @@ const saveTranscriptMock = vi.mocked(saveTranscript);
 const getTranscriptPageMock = vi.mocked(getTranscriptPage);
 const getLatestTranscriptsMock = vi.mocked(getLatestTranscripts);
 const getTranscriptsByClassificationMock = vi.mocked(getTranscriptsByClassification);
+const getTranscriptsByClassificationStateMock = vi.mocked(getTranscriptsByClassificationState);
 const deleteAllTranscriptsMock = vi.mocked(deleteAllTranscripts);
 const classificationMock = vi.mocked(getClassificationsForTranscripts);
 
@@ -37,6 +41,7 @@ beforeEach(() => {
   classificationMock.mockReset();
   classificationMock.mockReturnValue(new Map());
   getTranscriptsByClassificationMock.mockReset();
+  getTranscriptsByClassificationStateMock.mockReset();
 });
 
 describe('transcript route', () => {
@@ -349,6 +354,57 @@ describe('transcripts listing route', () => {
     expect(response.body.transcripts[0].payload).toBe('filtered');
     expect(getTranscriptsByClassificationMock).toHaveBeenCalledWith('cat-special', { limit: 25, page: 1 });
     expect(getLatestTranscriptsMock).not.toHaveBeenCalled();
+  });
+
+  it('filters transcripts by classificationState when provided', async () => {
+    const rows = [
+      { id: 12, sessionId: 's-state', payload: 'unclassified-only', metadata: null, receivedAt: '2026-04-01T12:00:00Z' }
+    ];
+    getTranscriptsByClassificationStateMock.mockReturnValue({
+      transcripts: rows,
+      page: 1,
+      limit: 25,
+      total: 1,
+      hasMore: false
+    });
+
+    const response = await request(app)
+      .get(withAuraBasePath('/transcripts'))
+      .query({ classificationState: 'unclassified' })
+      .expect(200);
+
+    expect(response.body.transcripts[0].payload).toBe('unclassified-only');
+    expect(getTranscriptsByClassificationStateMock).toHaveBeenCalledWith('unclassified', { limit: 25, page: 1 });
+    expect(getTranscriptsByClassificationMock).not.toHaveBeenCalled();
+    expect(getLatestTranscriptsMock).not.toHaveBeenCalled();
+  });
+
+  it('rejects invalid classificationState values', async () => {
+    await request(app)
+      .get(withAuraBasePath('/transcripts'))
+      .query({ classificationState: 'mystery' })
+      .expect(400);
+
+    expect(getTranscriptsByClassificationStateMock).not.toHaveBeenCalled();
+    expect(getLatestTranscriptsMock).not.toHaveBeenCalled();
+  });
+
+  it('prefers classificationId over classificationState filters', async () => {
+    getTranscriptsByClassificationMock.mockReturnValue({
+      transcripts: [],
+      page: 1,
+      limit: 25,
+      total: 0,
+      hasMore: false
+    });
+
+    await request(app)
+      .get(withAuraBasePath('/transcripts'))
+      .query({ classificationId: 'cat-special', classificationState: 'unclassified' })
+      .expect(200);
+
+    expect(getTranscriptsByClassificationMock).toHaveBeenCalled();
+    expect(getTranscriptsByClassificationStateMock).not.toHaveBeenCalled();
   });
 
   it('returns 204 when deleting all transcripts succeeds', async () => {

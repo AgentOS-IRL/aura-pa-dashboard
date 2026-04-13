@@ -1,5 +1,12 @@
 import { Router, Request, Response } from 'express';
-import { deleteAllTranscripts, getLatestTranscripts, getTranscriptsByClassification } from '../services/transcriptStorage';
+import {
+  deleteAllTranscripts,
+  getLatestTranscripts,
+  getTranscriptsByClassification,
+  getTranscriptsByClassificationState,
+  TranscriptClassificationState,
+  VALID_TRANSCRIPT_CLASSIFICATION_STATES
+} from '../services/transcriptStorage';
 import { normalizeLimitParam, normalizePageParam } from './pagination';
 import { attachTranscriptClassifications } from './transcriptPageHelpers';
 
@@ -8,7 +15,17 @@ const router = Router();
 router.get(
   '/',
   (
-    req: Request<unknown, unknown, unknown, { limit?: string | string[]; page?: string | string[]; classificationId?: string | string[] }>,
+    req: Request<
+      unknown,
+      unknown,
+      unknown,
+      {
+        limit?: string | string[];
+        page?: string | string[];
+        classificationId?: string | string[];
+        classificationState?: string | string[];
+      }
+    >,
     res: Response
   ) => {
     const limitResult = normalizeLimitParam(req.query.limit);
@@ -24,6 +41,18 @@ router.get(
     const classificationId = Array.isArray(req.query.classificationId)
       ? req.query.classificationId[0]
       : req.query.classificationId;
+    const classificationStateParam = Array.isArray(req.query.classificationState)
+      ? req.query.classificationState[0]
+      : req.query.classificationState;
+
+    let classificationState: TranscriptClassificationState | undefined;
+
+    if (classificationStateParam) {
+      if (!VALID_TRANSCRIPT_CLASSIFICATION_STATES.includes(classificationStateParam as TranscriptClassificationState)) {
+        return res.status(400).json({ error: 'Invalid classificationState value' });
+      }
+      classificationState = classificationStateParam as TranscriptClassificationState;
+    }
 
     try {
       const options = {
@@ -33,7 +62,9 @@ router.get(
 
       const result = classificationId
         ? getTranscriptsByClassification(classificationId, options)
-        : getLatestTranscripts(options);
+        : classificationState
+          ? getTranscriptsByClassificationState(classificationState, options)
+          : getLatestTranscripts(options);
 
       const transcriptPage = attachTranscriptClassifications(result);
 

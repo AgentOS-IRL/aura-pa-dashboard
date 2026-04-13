@@ -23,9 +23,11 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 The static export now includes two entry points that live under the configured base path (`NEXT_PUBLIC_AURA_BASE_PATH`, default `/aura`):
 
 - `/aura/` renders the assistant experience.
-- `/aura/transcript` now renders the global transcript history aggregated from `/aura/transcripts`. The page always fetches the newest entries across every session, surfaces the pagination metadata (`page`, `limit`, `total`, `hasMore`), and lets you browse older data via the Previous/Next controls or hit Refresh for the latest view.
+  - `/aura/transcript` now renders the global transcript history aggregated from `/aura/transcripts`. The page always fetches the newest entries across every session, surfaces the pagination metadata (`page`, `limit`, `total`, `hasMore`), and lets you browse older data via the Previous/Next controls or hit Refresh for the latest view.
 
   The transcript view also exposes a **Delete all transcripts** button next to the refresh/pagination controls. That button prompts for confirmation, calls `DELETE /aura/transcripts`, and reloads the history (page 1) so the UI reflects the emptied table. The action is irreversible, so the prompt is prominent and any failures bubble up through the existing error banner.
+
+  The settings page now defaults the `Transcript history` tab to unclassified transcripts (powered by `?classificationState=unclassified`). An icon badge on the tab shows how many transcripts remain unclassified and a toggle button in the tab header lets operators switch between that filtered view and the full transcript history.
 
 Because the app runs as a static export (`output: "export"`), both routes are built at `npm run build` and must be deployed together so the transcript page can always reach the same backend that the assistant uses.
 

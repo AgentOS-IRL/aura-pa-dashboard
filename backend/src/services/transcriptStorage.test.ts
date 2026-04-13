@@ -232,6 +232,50 @@ describe('getTranscriptsByClassification', () => {
   });
 });
 
+describe('getTranscriptsByClassificationState', () => {
+  beforeEach(() => {
+    db = new Database(':memory:');
+  });
+
+  it('returns transcripts filtered by classification state', () => {
+    const storage = createTranscriptStorage(db);
+
+    const first = storage.saveTranscript('state', 'first');
+    const second = storage.saveTranscript('state', 'second');
+    const third = storage.saveTranscript('state', 'third');
+
+    storage.updateTranscriptClassificationState(second.id, 'unclassified');
+    storage.updateTranscriptClassificationState(third.id, 'unclassified');
+    storage.updateTranscriptClassificationState(first.id, 'classified');
+
+    const page = storage.getTranscriptsByClassificationState('unclassified', { limit: 10 });
+
+    expect(page.transcripts.map((record) => record.payload)).toEqual(['third', 'second']);
+    expect(page.total).toBe(2);
+    expect(page.hasMore).toBe(false);
+  });
+
+  it('paginates filtered transcripts and reports hasMore', () => {
+    const storage = createTranscriptStorage(db);
+
+    for (let i = 1; i <= 3; i++) {
+      const saved = storage.saveTranscript('state-paging', `t${i}`);
+      storage.updateTranscriptClassificationState(saved.id, 'unclassified');
+    }
+
+    const page1 = storage.getTranscriptsByClassificationState('unclassified', { limit: 1, page: 1 });
+    expect(page1.transcripts).toHaveLength(1);
+    expect(page1.transcripts[0].payload).toBe('t3');
+    expect(page1.total).toBe(3);
+    expect(page1.hasMore).toBe(true);
+
+    const page3 = storage.getTranscriptsByClassificationState('unclassified', { limit: 1, page: 3 });
+    expect(page3.transcripts).toHaveLength(1);
+    expect(page3.transcripts[0].payload).toBe('t1');
+    expect(page3.hasMore).toBe(false);
+  });
+});
+
 describe('deleteAllTranscripts', () => {
   beforeEach(() => {
     db = new Database(':memory:');
