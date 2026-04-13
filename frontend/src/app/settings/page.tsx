@@ -539,22 +539,28 @@ export default function SettingsPage() {
     try {
       const assignments = await saveTranscriptClassification(transcriptId, classificationId);
       safeSetState(() => {
-        setTranscripts((records) =>
-          records.map((record) =>
-            record.id === transcriptId
-              ? {
-                ...record,
-                classifications: assignments.map((assignment) => ({
-                  id: assignment.classificationId,
-                  name: assignment.name,
-                  description: assignment.description
-                }))
-              }
-              : record
-          )
-        );
         setPendingClassification((prev) => ({ ...prev, [transcriptId]: "" }));
       });
+      if (!showUnclassifiedOnly) {
+        safeSetState(() => {
+          setTranscripts((records) =>
+            records.map((record) =>
+              record.id === transcriptId
+                ? {
+                  ...record,
+                  classifications: assignments.map((assignment) => ({
+                    id: assignment.classificationId,
+                    name: assignment.name,
+                    description: assignment.description
+                  }))
+                }
+                : record
+            )
+          );
+        });
+      } else {
+        void loadTranscripts();
+      }
     } catch (err) {
       updateAssignmentStatus(transcriptId, {
         error: err instanceof Error ? err.message : String(err)
@@ -562,7 +568,7 @@ export default function SettingsPage() {
     } finally {
       updateAssignmentStatus(transcriptId, { loading: false });
     }
-  }, [pendingClassification, updateAssignmentStatus, safeSetState]);
+  }, [pendingClassification, updateAssignmentStatus, safeSetState, showUnclassifiedOnly, loadTranscripts]);
 
   const handleRemoveClassification = useCallback(async (transcriptId: number, classificationId: string) => {
     const key = getRemovalKey(transcriptId, classificationId);
@@ -570,24 +576,28 @@ export default function SettingsPage() {
 
     try {
       await deleteTranscriptClassification(transcriptId, classificationId);
-      safeSetState(() => {
-        setTranscripts((records) =>
-          records.map((record) =>
-            record.id === transcriptId
-              ? {
-                ...record,
-                classifications: record.classifications.filter((entry) => entry.id !== classificationId)
-              }
-              : record
-          )
-        );
-      });
+      if (!showUnclassifiedOnly) {
+        safeSetState(() => {
+          setTranscripts((records) =>
+            records.map((record) =>
+              record.id === transcriptId
+                ? {
+                  ...record,
+                  classifications: record.classifications.filter((entry) => entry.id !== classificationId)
+                }
+                : record
+            )
+          );
+        });
+      } else {
+        void loadTranscripts();
+      }
     } catch (err) {
       updateRemovalStatus(key, { error: err instanceof Error ? err.message : String(err) });
     } finally {
       updateRemovalStatus(key, { loading: false });
     }
-  }, [getRemovalKey, updateRemovalStatus, safeSetState]);
+  }, [getRemovalKey, updateRemovalStatus, safeSetState, showUnclassifiedOnly, loadTranscripts]);
 
   const handleTranscriptClassificationRequest = useCallback(
     async (record: TranscriptRecord) => {
