@@ -87,9 +87,9 @@ describe('CodexClient Langfuse instrumentation', () => {
   });
 
   afterEach(() => {
-    process.env.LANGFUSE_SECRET_KEY = undefined;
-    process.env.LANGFUSE_PUBLIC_KEY = undefined;
-    process.env.LANGFUSE_BASE_URL = undefined;
+    delete process.env.LANGFUSE_SECRET_KEY;
+    delete process.env.LANGFUSE_PUBLIC_KEY;
+    delete process.env.LANGFUSE_BASE_URL;
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
     (globalThis as unknown as { fetch: typeof fetch }).fetch = originalFetch;
   });
