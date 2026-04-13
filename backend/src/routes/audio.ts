@@ -20,9 +20,12 @@ router.post('/:sessionId/audio', upload.single('audio'), async (req: AudioUpload
     return res.status(400).json({ error: 'audio file is required' });
   }
 
+  const rawContext = typeof req.body?.context === 'string' ? req.body.context : undefined;
+  const contextId = rawContext?.trim() ? rawContext.trim() : undefined;
+
   try {
     // Multer keeps the blob in memory so we never persist sensitive bytes on disk before transcribing.
-    await transcribeAndSaveAudio(sessionId, req.file.buffer);
+    await transcribeAndSaveAudio(sessionId, req.file.buffer, contextId);
     return res.sendStatus(201);
   } catch (error) {
     console.error('Failed to transcribe audio upload for session', sessionId, error);

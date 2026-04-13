@@ -14,7 +14,12 @@ export function createSessionId() {
     return `session-${Date.now()}-${suffix}`;
 }
 
-export async function uploadAudioChunk(sessionId: string, wavBuffer: ArrayBuffer) {
+/** Uploads an audio chunk for a session and optionally includes the selected context. */
+export async function uploadAudioChunk(
+  sessionId: string,
+  wavBuffer: ArrayBuffer,
+  contextId?: string
+) {
   if (!sessionId) {
     throw new Error('Missing session ID for audio upload');
   }
@@ -22,6 +27,9 @@ export async function uploadAudioChunk(sessionId: string, wavBuffer: ArrayBuffer
   const url = `${BACKEND_BASE_URL}${BACKEND_PATH_PREFIX}/sessions/${encodeURIComponent(sessionId)}/audio`;
   const formData = new FormData();
   formData.append('audio', new Blob([wavBuffer], { type: 'audio/wav' }), `${sessionId}.wav`);
+  if (contextId && contextId.trim().length > 0) {
+    formData.append('context', contextId.trim());
+  }
 
   const response = await fetch(url, {
     method: 'POST',
