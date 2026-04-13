@@ -1040,9 +1040,13 @@ export default function SettingsPage() {
             </div>
           ) : transcripts.length === 0 && !transcriptsError ? (
             <div className="transcript-alert">
-              <p className="text-base font-semibold">No transcripts yet</p>
+              <p className="text-base font-semibold">
+                {showUnclassifiedOnly ? "No unclassified transcripts" : "No transcripts yet"}
+              </p>
               <p className="text-sm text-slate-500 dark:text-slate-400">
-                Aura has not persisted any transcripts yet. Wake the assistant or refresh in a moment to see newly recorded snippets.
+                {showUnclassifiedOnly
+                  ? 'Every transcript in your history has already been classified. Toggle "Show all transcripts" to browse every saved entry.'
+                  : 'Aura has not persisted any transcripts yet. Wake the assistant or refresh in a moment to see newly recorded snippets.'}
               </p>
             </div>
           ) : (
