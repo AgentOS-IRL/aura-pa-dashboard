@@ -107,6 +107,10 @@ FRONTEND_BUILD_PATH="$SCRIPT_DIR/frontend/$FRONTEND_BUILD_DIR"
 
 log "Starting deploy to $SERVER_USER_HOST:$SERVER_PATH"
 
+# Build/test to ensure fresh artifacts
+log "Running build_test to refresh artifacts"
+npm run build_test
+
 # Check for build artifacts
 if [[ ! -d "$FRONTEND_BUILD_PATH" ]]; then
   die "Frontend build directory not found at $FRONTEND_BUILD_PATH. Run ./build_test.sh first."
