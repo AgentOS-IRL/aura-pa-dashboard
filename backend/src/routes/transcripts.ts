@@ -5,6 +5,7 @@ import {
   getLatestTranscripts,
   getTranscriptsByClassification,
   getTranscriptsByClassificationState,
+  getTranscriptsWithoutClassifications,
   getTranscriptById,
   TranscriptClassificationState,
   VALID_TRANSCRIPT_CLASSIFICATION_STATES
@@ -27,6 +28,7 @@ router.get(
         page?: string | string[];
         classificationId?: string | string[];
         classificationState?: string | string[];
+        unclassifiedOnly?: string | string[];
       }
     >,
     res: Response
@@ -47,6 +49,9 @@ router.get(
     const classificationStateParam = Array.isArray(req.query.classificationState)
       ? req.query.classificationState[0]
       : req.query.classificationState;
+    const unclassifiedOnlyParam = Array.isArray(req.query.unclassifiedOnly)
+      ? req.query.unclassifiedOnly[0]
+      : req.query.unclassifiedOnly;
 
     let classificationState: TranscriptClassificationState | undefined;
 
@@ -55,6 +60,18 @@ router.get(
         return res.status(400).json({ error: 'Invalid classificationState value' });
       }
       classificationState = classificationStateParam as TranscriptClassificationState;
+    }
+
+    let unclassifiedOnly: boolean | undefined;
+    if (unclassifiedOnlyParam !== undefined) {
+      const normalizedValue = String(unclassifiedOnlyParam).trim().toLowerCase();
+      if (normalizedValue === 'true' || normalizedValue === '1') {
+        unclassifiedOnly = true;
+      } else if (normalizedValue === 'false' || normalizedValue === '0') {
+        unclassifiedOnly = false;
+      } else {
+        return res.status(400).json({ error: 'Invalid unclassifiedOnly value' });
+      }
     }
 
     try {
@@ -67,7 +84,9 @@ router.get(
         ? getTranscriptsByClassification(classificationId, options)
         : classificationState
           ? getTranscriptsByClassificationState(classificationState, options)
-          : getLatestTranscripts(options);
+          : unclassifiedOnly
+            ? getTranscriptsWithoutClassifications(options)
+            : getLatestTranscripts(options);
 
       const transcriptPage = attachTranscriptClassifications(result);
 

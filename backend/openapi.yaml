@@ -160,6 +160,9 @@ paths:
         Append `classificationState=pending|classified|unclassified` to scope the response to
         transcripts that currently carry that state. The `total`/`hasMore` metadata reflects the
         filtered set so callers can show how many entries match the requested state.
+        Alternatively, set `unclassifiedOnly=true` (without also sending `classificationId` or
+        `classificationState`) to return only transcripts that currently have no classification
+        assignments so the badge count can stay accurate.
       parameters:
         - name: page
           in: query
@@ -185,6 +188,12 @@ paths:
               - pending
               - classified
               - unclassified
+        - name: unclassifiedOnly
+          in: query
+          description: When true (and no other classification filters are present), return only transcripts that lack any classification assignments.
+          schema:
+            type: boolean
+            default: false
       responses:
         '200':
           description: Transcript rows across all sessions, newest-first

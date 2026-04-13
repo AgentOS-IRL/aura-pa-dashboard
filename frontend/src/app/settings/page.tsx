@@ -185,9 +185,8 @@ export default function SettingsPage() {
   const [classificationRequestState, setClassificationRequestState] = useState<Record<number, ClassificationRequestEntry>>({});
   const [assignmentState, setAssignmentState] = useState<Record<number, AssignmentEntry>>({});
   const [removalState, setRemovalState] = useState<Record<string, RemovalEntry>>({});
-  const [transcriptFilter, setTranscriptFilter] = useState<'unclassified' | 'all'>('unclassified');
+  const [showUnclassifiedOnly, setShowUnclassifiedOnly] = useState(true);
   const [unclassifiedTotal, setUnclassifiedTotal] = useState(0);
-  const showUnclassifiedOnly = transcriptFilter === 'unclassified';
 
   const loadUsage = useCallback(
     async (options?: { showLoader?: boolean }) => {
@@ -292,7 +291,7 @@ export default function SettingsPage() {
 
   const loadUnclassifiedBadgeCount = useCallback(async () => {
     try {
-      const badgePayload = await fetchTranscripts({ classificationState: 'unclassified', limit: 1, page: 1 });
+      const badgePayload = await fetchTranscripts({ unclassifiedOnly: true, limit: 1, page: 1 });
       safeSetState(() => {
         setUnclassifiedTotal(badgePayload.total);
       });
@@ -440,7 +439,7 @@ export default function SettingsPage() {
         const data = await fetchTranscripts({
           limit: TRANSCRIPTS_PAGE_SIZE,
           page: transcriptsCurrentPage,
-          classificationState: showUnclassifiedOnly ? 'unclassified' : 'all',
+          ...(showUnclassifiedOnly ? { unclassifiedOnly: true } : {}),
           signal
         });
         safeSetState(() => {
@@ -485,7 +484,7 @@ export default function SettingsPage() {
         }
       }
     },
-    [safeSetState, transcriptsCurrentPage, TRANSCRIPTS_PAGE_SIZE, transcriptFilter, showUnclassifiedOnly]
+    [safeSetState, transcriptsCurrentPage, TRANSCRIPTS_PAGE_SIZE, showUnclassifiedOnly]
   );
 
   useEffect(() => {
@@ -501,7 +500,7 @@ export default function SettingsPage() {
 
   const handleTranscriptFilterToggle = useCallback(() => {
     setTranscriptsCurrentPage(1);
-    setTranscriptFilter((prev) => (prev === 'unclassified' ? 'all' : 'unclassified'));
+    setShowUnclassifiedOnly((prev) => !prev);
     void loadUnclassifiedBadgeCount();
   }, [loadUnclassifiedBadgeCount]);
 

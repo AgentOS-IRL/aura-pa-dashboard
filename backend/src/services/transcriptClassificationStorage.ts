@@ -37,17 +37,19 @@ function normalizeClassificationId(value: string | undefined): string {
   return normalized;
 }
 
+export const TRANSCRIPT_CLASSIFICATIONS_TABLE_SQL = `
+  CREATE TABLE IF NOT EXISTS transcript_classifications (
+    transcript_id INTEGER NOT NULL,
+    classification_id TEXT NOT NULL,
+    assigned_at TEXT NOT NULL,
+    PRIMARY KEY (transcript_id, classification_id),
+    FOREIGN KEY (transcript_id) REFERENCES transcripts(id) ON DELETE CASCADE,
+    FOREIGN KEY (classification_id) REFERENCES classifications(id) ON DELETE CASCADE
+  );
+`;
+
 export function createTranscriptClassificationStorage(db: Database.Database) {
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS transcript_classifications (
-      transcript_id INTEGER NOT NULL,
-      classification_id TEXT NOT NULL,
-      assigned_at TEXT NOT NULL,
-      PRIMARY KEY (transcript_id, classification_id),
-      FOREIGN KEY (transcript_id) REFERENCES transcripts(id) ON DELETE CASCADE,
-      FOREIGN KEY (classification_id) REFERENCES classifications(id) ON DELETE CASCADE
-    );
-  `);
+  db.exec(TRANSCRIPT_CLASSIFICATIONS_TABLE_SQL);
 
   const insertStmt = db.prepare(
     'INSERT INTO transcript_classifications (transcript_id, classification_id, assigned_at) VALUES (?, ?, ?) ON CONFLICT(transcript_id, classification_id) DO UPDATE SET assigned_at = excluded.assigned_at'

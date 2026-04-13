@@ -101,7 +101,7 @@ describe("SettingsPage", () => {
     fireEvent.click(screen.getByRole("tab", { name: /Transcript history/ }));
     await screen.findByRole("heading", { name: "Global transcript history" });
 
-    expect(fetchTranscriptsMock.mock.calls.some((call) => call[0]?.classificationState === "unclassified")).toBe(true);
+    expect(fetchTranscriptsMock.mock.calls.some((call) => call[0]?.unclassifiedOnly === true)).toBe(true);
     const transcriptsTab = screen.getByRole("tab", { name: /Transcript history/ });
     expect(transcriptsTab.textContent).toContain("Transcript history");
     expect(transcriptsTab.textContent).toContain("3");
@@ -120,7 +120,7 @@ describe("SettingsPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Show all transcripts" }));
     await screen.findByText(/Showing every transcript entry/);
 
-    expect(fetchTranscriptsMock.mock.calls.some((call) => call[0]?.classificationState === "all")).toBe(true);
+    expect(fetchTranscriptsMock.mock.calls.some((call) => call[0]?.unclassifiedOnly !== true)).toBe(true);
     screen.getByRole("button", { name: "Show unclassified only" });
   });
 
