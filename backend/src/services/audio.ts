@@ -5,6 +5,8 @@ import {
   DEFAULT_DEEPGRAM_METADATA
 } from './deepgramTranscribeClient';
 import { saveTranscript } from './transcriptStorage';
+import { generateClassificationFromTranscript } from './classificationGenerator';
+import { AUDIO_CONTEXTS } from '../constants/audioContext';
 
 const defaultTranscribeClient = new DeepgramTranscribeClient();
 
@@ -76,10 +78,16 @@ export async function transcribeAndSaveAudio(
     );
     const payload = getTextPayload(transcription);
     const trimmedPayload = payload?.trim() ?? '';
+    let savedTranscript;
     if (trimmedPayload.length > 0) {
-      saveTranscript(normalizedSessionId, payload, metadata);
+      savedTranscript = saveTranscript(normalizedSessionId, payload, metadata);
     } else {
       // Deepgram sometimes returns empty or whitespace-only text; skip persistence to avoid blank rows.
+    }
+    if (normalizedContextId === AUDIO_CONTEXTS.CLASSIFICATION_GENERATOR && savedTranscript) {
+      void generateClassificationFromTranscript(savedTranscript, normalizedContextId).catch((error) => {
+        console.error('Classification generator failed during upload for session', normalizedSessionId, error);
+      });
     }
     return transcription;
   } catch (error) {

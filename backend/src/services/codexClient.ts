@@ -383,12 +383,6 @@ export class CodexClient {
 
             langfuseGeneration?.end({ output: collectedText });
             return collectedText;
-        } catch (err: unknown) {
-            const message = err instanceof Error ? err.message : String(err);
-            // langfuseGeneration?.end({
-            //     error: { message },
-            // });
-            throw err;
         } finally {
             clearTimeout(timeoutId);
         }
