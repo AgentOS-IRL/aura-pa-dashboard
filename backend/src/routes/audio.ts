@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import multer from 'multer';
 import { transcribeAndSaveAudio } from '../services/audio';
+import { serializeError } from './errorUtils';
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage() });
@@ -29,7 +30,10 @@ router.post('/:sessionId/audio', upload.single('audio'), async (req: AudioUpload
     return res.sendStatus(201);
   } catch (error) {
     console.error('Failed to transcribe audio upload for session', sessionId, error);
-    return res.status(500).json({ error: 'Unable to transcribe audio upload' });
+    return res.status(500).json({
+      error: 'Unable to transcribe audio upload',
+      details: serializeError(error)
+    });
   }
 });
 

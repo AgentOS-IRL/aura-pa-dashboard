@@ -4,7 +4,7 @@
   "description": "Lightweight health-check service for the Aura PA deployment",
   "main": "dist/index.js",
   "scripts": {
-    "dev": "ts-node-dev --respawn --transpile-only --project tsconfig.json src/index.ts",
+    "dev": "DOTENV_CONFIG_PATH=../.env node -r dotenv/config ./node_modules/.bin/ts-node-dev --respawn --transpile-only --project tsconfig.json src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
     "lint": "eslint 'src/**/*.ts'",

@@ -171,7 +171,7 @@ export async function startAgentHealthSubscriber() {
     return;
   }
 
-  const subscriber = redisClient.duplicate();
+  const subscriber = redisClient.duplicate({ lazyConnect: true });
   agentHealthSubscriber = subscriber;
   attachLogging(subscriber);
 

@@ -6,6 +6,7 @@ import {
   getClassificationsForTranscripts,
   removeClassificationFromTranscript
 } from '../services/transcriptClassificationStorage';
+import { serializeError } from './errorUtils';
 
 const router = Router();
 
@@ -44,7 +45,10 @@ router.get('/:transcriptId/classifications', (req: Request<{ transcriptId: strin
     return res.status(200).json(assignments);
   } catch (error) {
     console.error('Unable to list transcript classifications', transcriptId, error);
-    return res.status(500).json({ error: 'Unable to list transcript classifications' });
+    return res.status(500).json({
+      error: 'Unable to list transcript classifications',
+      details: serializeError(error)
+    });
   }
 });
 
@@ -74,7 +78,10 @@ router.post('/:transcriptId/classifications', (req: Request<{ transcriptId: stri
     return res.status(200).json(assignments);
   } catch (error) {
     console.error('Unable to assign classification to transcript', transcriptId, classificationId, error);
-    return res.status(500).json({ error: 'Unable to assign classification to transcript' });
+    return res.status(500).json({
+      error: 'Unable to assign classification to transcript',
+      details: serializeError(error)
+    });
   }
 });
 
@@ -96,7 +103,10 @@ router.delete(
       return res.status(204).send();
     } catch (error) {
       console.error('Unable to remove transcript classification', transcriptId, classificationId, error);
-      return res.status(500).json({ error: 'Unable to remove transcript classification' });
+      return res.status(500).json({
+        error: 'Unable to remove transcript classification',
+        details: serializeError(error)
+      });
     }
   }
 );

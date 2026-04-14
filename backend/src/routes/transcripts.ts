@@ -13,6 +13,7 @@ import {
 import { normalizeLimitParam, normalizePageParam } from './pagination';
 import { attachTranscriptClassifications } from './transcriptPageHelpers';
 import { classifyTranscriptWithCodex } from '../services/transcriptClassificationWorker';
+import { serializeError } from './errorUtils';
 
 const router = Router();
 
@@ -93,7 +94,10 @@ router.get(
       return res.status(200).json(transcriptPage);
     } catch (error) {
       console.error('Unable to fetch transcripts', error);
-      return res.status(500).json({ error: 'Unable to fetch transcripts' });
+      return res.status(500).json({
+        error: 'Unable to fetch transcripts',
+        details: serializeError(error)
+      });
     }
   }
 );
@@ -104,7 +108,10 @@ router.delete('/', (_req, res) => {
     return res.status(204).send();
   } catch (error) {
     console.error('Unable to delete transcripts', error);
-    return res.status(500).json({ error: 'Unable to delete transcripts' });
+    return res.status(500).json({
+      error: 'Unable to delete transcripts',
+      details: serializeError(error)
+    });
   }
 });
 
@@ -123,7 +130,10 @@ router.delete('/:id', (req, res) => {
     return res.status(204).send();
   } catch (error) {
     console.error('Unable to delete transcript', error);
-    return res.status(500).json({ error: 'Unable to delete transcript' });
+    return res.status(500).json({
+      error: 'Unable to delete transcript',
+      details: serializeError(error)
+    });
   }
 });
 
@@ -148,7 +158,10 @@ router.post('/:id/classify', async (req, res) => {
     return res.status(204).send();
   } catch (error) {
     console.error('Unable to classify transcript', transcriptId, error);
-    return res.status(500).json({ error: 'Unable to classify transcript' });
+    return res.status(500).json({
+      error: 'Unable to classify transcript',
+      details: serializeError(error)
+    });
   }
 });
 

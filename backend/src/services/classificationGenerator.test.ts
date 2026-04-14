@@ -49,9 +49,11 @@ describe('generateClassificationFromTranscript', () => {
       expect.objectContaining({
         type: 'object',
         properties: expect.objectContaining({
+          id: expect.objectContaining({ type: 'string' }),
           name: expect.objectContaining({ type: 'string' }),
           description: expect.objectContaining({ type: 'string' })
-        })
+        }),
+        required: ['id', 'name', 'description']
       }),
       'ClassificationGenerator',
       'json_schema',

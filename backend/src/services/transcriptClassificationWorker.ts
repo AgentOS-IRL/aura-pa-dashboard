@@ -25,9 +25,9 @@ function buildClassificationPrompt(record: TranscriptRecord, classifications: { 
   return (
     'Classify the transcript below by selecting the most appropriate classifications from the list.\n' +
     'Return only the JSON that matches the schema. Do not include any prose before or after the JSON.\n' +
-    'Every response should include "classificationStatus" with either "classified" or "unclassified".\n' +
-    'When the best match is one or more catalog entries, set "classificationStatus" to "classified" and include "classificationIds".\n' +
-    'When nothing fits, set "classificationStatus" to "unclassified" and you may optionally provide "unclassifiedReason" to explain why.\n\n' +
+    'Every response MUST include "classificationStatus", "classificationIds", and "unclassifiedReason".\n' +
+    'When the best match is one or more catalog entries, set "classificationStatus" to "classified", include "classificationIds", and use an empty string for "unclassifiedReason".\n' +
+    'When nothing fits, set "classificationStatus" to "unclassified", use an empty array for "classificationIds", and provide "unclassifiedReason" to explain why.\n\n' +
     `Classifications:\n${classificationLines}\n\n` +
     `Transcript:\n${record.payload.trim()}`
   );
@@ -59,19 +59,8 @@ export async function classifyTranscriptWithCodex(record: TranscriptRecord, clie
         type: 'string'
       }
     },
-    required: ['classificationStatus'],
-    additionalProperties: false,
-    allOf: [
-      {
-        if: { properties: { classificationStatus: { const: 'classified' } } },
-        then: {
-          required: ['classificationIds'],
-          properties: {
-            unclassifiedReason: false
-          }
-        }
-      }
-    ]
+    required: ['classificationStatus', 'classificationIds', 'unclassifiedReason'],
+    additionalProperties: false
   };
 
   try {

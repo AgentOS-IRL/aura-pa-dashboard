@@ -6,6 +6,7 @@ import {
   type SaveClassificationInput
 } from '../services/classificationStorage';
 import { getClassificationStats } from '../services/transcriptClassificationStorage';
+import { serializeError } from './errorUtils';
 
 const router = Router();
 
@@ -47,7 +48,10 @@ router.get('/', (_req: Request, res: Response) => {
     return res.status(200).json(classifications);
   } catch (error) {
     console.error('Unable to list classifications', error);
-    return res.status(500).json({ error: 'Unable to list classifications' });
+    return res.status(500).json({
+      error: 'Unable to list classifications',
+      details: serializeError(error)
+    });
   }
 });
 
@@ -57,7 +61,10 @@ router.get('/stats', (_req: Request, res: Response) => {
     return res.status(200).json(stats);
   } catch (error) {
     console.error('Unable to get classification stats', error);
-    return res.status(500).json({ error: 'Unable to get classification stats' });
+    return res.status(500).json({
+      error: 'Unable to get classification stats',
+      details: serializeError(error)
+    });
   }
 });
 
@@ -84,7 +91,10 @@ router.post('/', (req: Request, res: Response) => {
     return res.status(200).json(saved);
   } catch (error) {
     console.error('Unable to save classification', error);
-    return res.status(500).json({ error: 'Unable to save classification' });
+    return res.status(500).json({
+      error: 'Unable to save classification',
+      details: serializeError(error)
+    });
   }
 });
 
@@ -99,7 +109,10 @@ router.delete('/:id', (req: Request<{ id: string }>, res: Response) => {
     return res.status(204).send();
   } catch (error) {
     console.error('Unable to delete classification', error);
-    return res.status(500).json({ error: 'Unable to delete classification' });
+    return res.status(500).json({
+      error: 'Unable to delete classification',
+      details: serializeError(error)
+    });
   }
 });
 

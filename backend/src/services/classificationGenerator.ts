@@ -21,7 +21,7 @@ const CLASSIFICATION_SCHEMA = {
       type: 'string'
     }
   },
-  required: ['name'],
+  required: ['id', 'name', 'description'],
   additionalProperties: false
 } as const;
 

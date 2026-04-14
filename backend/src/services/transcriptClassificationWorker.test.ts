@@ -98,7 +98,7 @@ describe('classifyTranscriptWithCodex', () => {
           }),
           unclassifiedReason: expect.objectContaining({ type: 'string' })
         }),
-        required: ['classificationStatus'],
+        required: ['classificationStatus', 'classificationIds', 'unclassifiedReason'],
         additionalProperties: false
       }),
       'TranscriptClassifications',

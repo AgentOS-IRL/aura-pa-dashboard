@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "install": "npm run install:all",
-    "dev": "npm run dev:backend & npm run dev:frontend",
+    "dev": "DOTENV_CONFIG_PATH=.env node -r dotenv/config ./node_modules/.bin/concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
     "dev:backend": "cd backend && npm run dev",
     "dev:frontend": "cd frontend && npm run dev",
     "install:all": "npm run install:backend && npm run install:frontend",
