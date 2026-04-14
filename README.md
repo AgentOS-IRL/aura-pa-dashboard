@@ -63,7 +63,7 @@ The backend now exposes both the original Codex client and a standalone Deepgram
 The health service now depends on the same Codex configuration that AgentOS uses:
 
 - Supply credentials via `~/.codex/auth.json` (or override the location with `CODEX_AUTH_PATH`). The file must contain a non-empty `api_key` or `token` entry so the OpenAI helper can authenticate with the Responses API.
-- `LANGCHAIN_MODEL_ID` controls the active `tools.langchain_tool.model_id` value (default `gpt-5.1-codex`), while `CODING_TOOL_AGENT` mirrors `tools.coding_tool.agent` (default `codex`). Use the documentation in `docs/agent-os-core-config.md` when updating those sections.
+- `LANGCHAIN_MODEL_ID` controls the active `tools.langchain_tool.model_id` value (default `gpt-5.4-mini), while `CODING_TOOL_AGENT` mirrors `tools.coding_tool.agent` (default `codex`). Use the documentation in `docs/agent-os-core-config.md` when updating those sections.
 - `package_deploy.sh` now copies the configured auth file into both `$SERVER_PATH/.codex` and `$SERVER_PATH/agent_os_chat/.codex` on the remote host before restarting the stack. Make sure your local credentials are fresh before running `npm run deploy`, because that is the file that gets shipped to production.
 
 The new Codex client (`CodexClient`) and configuration helpers live under `backend/src/services/codexClient.ts` and `backend/src/config/openai.ts`, and `npm run test:backend` covers their validation so the runtime fails fast if the credentials or model settings are missing.

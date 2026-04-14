@@ -22,7 +22,7 @@ describe('openai config helpers', () => {
   });
 
   it('reports the default langchain model id and respects overrides', () => {
-    expect(getLangchainModelId()).toBe('gpt-5.1-codex');
+    expect(getLangchainModelId()).toBe('gpt-5.4-mini');
     process.env.LANGCHAIN_MODEL_ID = 'gpt-6.0-test';
     expect(getLangchainModelId()).toBe('gpt-6.0-test');
   });

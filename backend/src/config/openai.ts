@@ -12,7 +12,7 @@ const LANGCHAIN_MODEL_ENV = 'LANGCHAIN_MODEL_ID';
 const CODING_TOOL_AGENT_ENV = 'CODING_TOOL_AGENT';
 const CODEX_AUTH_PATH_ENV = 'CODEX_AUTH_PATH';
 
-export const DEFAULT_LANGCHAIN_MODEL_ID = 'gpt-5.1-codex';
+export const DEFAULT_LANGCHAIN_MODEL_ID = 'gpt-5.4-mini';
 export const DEFAULT_CODING_TOOL_AGENT = 'codex';
 
 let cachedCredentials: CodexCredentials | null = null;

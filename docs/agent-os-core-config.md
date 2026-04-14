@@ -4,7 +4,7 @@ This repository now exposes the key AgentOS configuration knobs that control the
 
 ## tools.langchain_tool (active section)
 
-- Only `model_id` is read from this section. Defaults to `gpt-5.1-codex`.
+- Only `model_id` is read from this section. Defaults to `gpt-5.4-mini`.
 - The backend exposes the same value via the `LANGCHAIN_MODEL_ID` environment variable, so you can override it without editing YAML.
 - LangChain helpers and the structured OpenAI client both use this identifier whenever they call the `responses` API, so make sure it matches the model you want the dashboard to drive.
 

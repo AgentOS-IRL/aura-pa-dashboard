@@ -7,7 +7,7 @@ import { getLangfuseConfig, isLangfuseEnabled } from '../config/langfuse';
 
 export const CODEX_RESPONSES_URL = "https://chatgpt.com/backend-api/codex/responses";
 export const CODEX_USAGE_URL = "https://chatgpt.com/backend-api/wham/usage";
-export const DEFAULT_MODEL_ID = "gpt-5.1-codex";
+export const DEFAULT_MODEL_ID = "gpt-5.4-mini";
 export const DEFAULT_INSTRUCTIONS = "You are a helpful assistant.";
 export const DEFAULT_TIMEOUT = 60000;
 export const OPENAI_BETA_HEADER = "responses=experimental";
