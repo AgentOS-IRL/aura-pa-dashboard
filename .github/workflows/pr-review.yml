@@ -45,5 +45,6 @@ jobs:
             }')
 
           echo "Triggering agent for Review ID: $REVIEW_ID"
-          redis-cli -h 192.168.8.129 -p 6379 PUBLISH "agentos/blazing-collie/trigger" "agentos/pr/review_comment"
-          redis-cli -h 192.168.8.129 -p 6379 RPUSH "agentos/pr/review_comment" "$PAYLOAD"
+          redis-cli -h "$REDIS_HOST" -p "$REDIS_PORT" PUBLISH "$REDIS_CHANNEL" "$TRIGGER_KEY"
+          redis-cli -h "$REDIS_HOST" -p "$REDIS_PORT" RPUSH "$TRIGGER_KEY" "$PAYLOAD"
+          redis-cli -h "$REDIS_HOST" -p "$REDIS_PORT" EXPIRE "$TRIGGER_KEY" 1800
