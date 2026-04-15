@@ -46,3 +46,4 @@ jobs:
           echo "Triggering agent for PR: $PR_NUMBER"
           redis-cli -h "$REDIS_HOST" -p "$REDIS_PORT" PUBLISH "$REDIS_CHANNEL" "$TRIGGER_KEY"
           redis-cli -h "$REDIS_HOST" -p "$REDIS_PORT" RPUSH "$TRIGGER_KEY" "$PAYLOAD"
+          redis-cli -h "$REDIS_HOST" -p "$REDIS_PORT" EXPIRE "$TRIGGER_KEY" 1800
